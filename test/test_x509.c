@@ -258,6 +258,9 @@ HT_expand(HT *ht)
 	n = ht->num_buckets;
 	n2 = n << 1;
 	new_buckets = xmalloc(n2 * sizeof *new_buckets);
+	for (u = 0; u < n2; u ++) {
+		new_buckets[u] = NULL;
+	}
 	for (u = 0; u < n; u ++) {
 		ht_elt *e, *f;
 
@@ -509,7 +512,7 @@ static int
 string_to_time(const char *s, uint32_t *days, uint32_t *seconds)
 {
 	int year, month, day, hour, minute, second;
-	int day_of_year, leaps;
+	int day_of_year, leaps, i;
 
 	if (parse_dec(s, 4, &year) < 0) {
 		return -1;
@@ -568,7 +571,7 @@ string_to_time(const char *s, uint32_t *days, uint32_t *seconds)
 		return -1;
 	}
 	day_of_year = 0;
-	for (int i = 1; i < month; i ++) {
+	for (i = 1; i < month; i ++) {
 		day_of_year += month_length(year, i);
 	}
 	if (day < 1 || day > month_length(year, month)) {

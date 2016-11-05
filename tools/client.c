@@ -35,7 +35,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/poll.h>
 
 #include "brssl.h"
 #include "bearssl.h"
