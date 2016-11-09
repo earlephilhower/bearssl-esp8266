@@ -1036,9 +1036,7 @@ server_exit:
 		}
 		xfree(chain);
 	}
-	if (sk != NULL) {
-		free_private_key(sk);
-	}
+	free_private_key(sk);
 	xfree(iobuf);
 	xfree(cache);
 	if (fd >= 0) {
