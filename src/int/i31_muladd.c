@@ -44,7 +44,7 @@ br_i31_muladd_small(uint32_t *x, uint32_t z, const uint32_t *m)
 		return;
 	}
 	if (m_bitlen <= 31) {
-		uint32_t hi, lo;
+		uint32_t lo;
 
 		hi = x[1] >> 1;
 		lo = (x[1] << 31) | z;
