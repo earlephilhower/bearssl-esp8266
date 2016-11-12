@@ -164,6 +164,12 @@ typedef VECTOR(unsigned char) bvector;
 int eqstr(const char *s1, const char *s2);
 
 /*
+ * Convert a string to a positive integer (size_t). Returned value is
+ * (size_t)-1 on error. On error, an explicit error message is printed.
+ */
+size_t parse_size(const char *s);
+
+/*
  * Structure for a known protocol version.
  */
 typedef struct {

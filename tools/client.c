@@ -245,7 +245,11 @@ do_client(int argc, char *argv[])
 				usage_client();
 				goto client_exit_error;
 			}
-			iobuf_len = strtoul(arg, 0, 10);
+			iobuf_len = parse_size(arg);
+			if (iobuf_len == (size_t)-1) {
+				usage_client();
+				goto client_exit_error;
+			}
 		} else if (eqstr(arg, "-CA")) {
 			if (++ i >= argc) {
 				fprintf(stderr,

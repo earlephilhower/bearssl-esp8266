@@ -396,6 +396,60 @@ eqstr(const char *s1, const char *s2)
 	return eqstr_chunk(s1, strlen(s1), s2, strlen(s2));
 }
 
+static int
+hexval(int c)
+{
+	if (c >= '0' && c <= '9') {
+		return c - '0';
+	} else if (c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	} else if (c >= 'a' && c <= 'f') {
+		return c - 'a' + 10;
+	} else {
+		return -1;
+	}
+}
+
+/* see brssl.h */
+size_t
+parse_size(const char *s)
+{
+	int radix;
+	size_t acc;
+	const char *t;
+
+	t = s;
+	if (t[0] == '0' && (t[1] == 'x' || t[1] == 'X')) {
+		radix = 16;
+		t += 2;
+	} else {
+		radix = 10;
+	}
+	acc = 0;
+	for (;;) {
+		int c, d;
+		size_t z;
+
+		c = *t ++;
+		if (c == 0) {
+			return acc;
+		}
+		d = hexval(c);
+		if (d < 0 || d >= radix) {
+			fprintf(stderr, "ERROR: not a valid digit: '%c'\n", c);
+			return (size_t)-1;
+		}
+		z = acc * (size_t)radix + (size_t)d;
+		if (z < (size_t)d || (z / (size_t)radix) != acc
+			|| z == (size_t)-1)
+		{
+			fprintf(stderr, "ERROR: value too large: %s\n", s);
+			return (size_t)-1;
+		}
+		acc = z;
+	}
+}
+
 /*
  * Comma-separated list enumeration. This returns a pointer to the first
  * word in the string, skipping leading ignored characters. '*len' is

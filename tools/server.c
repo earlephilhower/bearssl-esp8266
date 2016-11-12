@@ -637,7 +637,11 @@ do_server(int argc, char *argv[])
 				usage_server();
 				goto server_exit_error;
 			}
-			iobuf_len = strtoul(arg, 0, 10);
+			iobuf_len = parse_size(arg);
+			if (iobuf_len == (size_t)-1) {
+				usage_server();
+				goto server_exit_error;
+			}
 		} else if (eqstr(arg, "-cache")) {
 			if (++ i >= argc) {
 				fprintf(stderr,
@@ -652,7 +656,11 @@ do_server(int argc, char *argv[])
 				usage_server();
 				goto server_exit_error;
 			}
-			cache_len = strtoul(arg, 0, 10);
+			cache_len = parse_size(arg);
+			if (cache_len == (size_t)-1) {
+				usage_server();
+				goto server_exit_error;
+			}
 		} else if (eqstr(arg, "-cert")) {
 			if (++ i >= argc) {
 				fprintf(stderr,
