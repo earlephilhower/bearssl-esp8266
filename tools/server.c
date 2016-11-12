@@ -62,7 +62,6 @@ host_bind(const char *host, const char *port, int verbose)
 		struct sockaddr_in6 sa6;
 		size_t sa_len;
 		void *addr;
-		char tmp[INET6_ADDRSTRLEN + 50];
 		int opt;
 
 		sa = (struct sockaddr *)p->ai_addr;
@@ -86,15 +85,19 @@ host_bind(const char *host, const char *port, int verbose)
 			addr = NULL;
 			sa_len = p->ai_addrlen;
 		}
-		if (addr != NULL) {
-			if (!inet_ntop(p->ai_family, addr, tmp, sizeof tmp)) {
-				strcpy(tmp, "<invalid>");
-			}
-		} else {
-			sprintf(tmp, "<unknown family: %d>",
-				(int)sa->sa_family);
-		}
 		if (verbose) {
+			char tmp[INET6_ADDRSTRLEN + 50];
+
+			if (addr != NULL) {
+				if (!inet_ntop(p->ai_family, addr,
+					tmp, sizeof tmp))
+				{
+					strcpy(tmp, "<invalid>");
+				}
+			} else {
+				sprintf(tmp, "<unknown family: %d>",
+					(int)sa->sa_family);
+			}
 			fprintf(stderr, "binding to: %s\n", tmp);
 		}
 		fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);

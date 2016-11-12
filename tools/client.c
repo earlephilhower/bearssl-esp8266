@@ -57,27 +57,29 @@ host_connect(const char *host, const char *port, int verbose)
 	}
 	fd = -1;
 	for (p = si; p != NULL; p = p->ai_next) {
-		struct sockaddr *sa;
-		void *addr;
-		char tmp[INET6_ADDRSTRLEN + 50];
-
-		sa = (struct sockaddr *)p->ai_addr;
-		if (sa->sa_family == AF_INET) {
-			addr = &((struct sockaddr_in *)sa)->sin_addr;
-		} else if (sa->sa_family == AF_INET6) {
-			addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
-		} else {
-			addr = NULL;
-		}
-		if (addr != NULL) {
-			if (!inet_ntop(p->ai_family, addr, tmp, sizeof tmp)) {
-				strcpy(tmp, "<invalid>");
-			}
-		} else {
-			sprintf(tmp, "<unknown family: %d>",
-				(int)sa->sa_family);
-		}
 		if (verbose) {
+			struct sockaddr *sa;
+			void *addr;
+			char tmp[INET6_ADDRSTRLEN + 50];
+
+			sa = (struct sockaddr *)p->ai_addr;
+			if (sa->sa_family == AF_INET) {
+				addr = &((struct sockaddr_in *)sa)->sin_addr;
+			} else if (sa->sa_family == AF_INET6) {
+				addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+			} else {
+				addr = NULL;
+			}
+			if (addr != NULL) {
+				if (!inet_ntop(p->ai_family, addr,
+					tmp, sizeof tmp))
+				{
+					strcpy(tmp, "<invalid>");
+				}
+			} else {
+				sprintf(tmp, "<unknown family: %d>",
+					(int)sa->sa_family);
+			}
 			fprintf(stderr, "connecting to: %s\n", tmp);
 		}
 		fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
