@@ -70,7 +70,9 @@ host_connect(const char *host, const char *port, int verbose)
 			addr = NULL;
 		}
 		if (addr != NULL) {
-			inet_ntop(p->ai_family, addr, tmp, sizeof tmp);
+			if (!inet_ntop(p->ai_family, addr, tmp, sizeof tmp)) {
+				strcpy(tmp, "<invalid>");
+			}
 		} else {
 			sprintf(tmp, "<unknown family: %d>",
 				(int)sa->sa_family);

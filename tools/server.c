@@ -87,7 +87,9 @@ host_bind(const char *host, const char *port, int verbose)
 			sa_len = p->ai_addrlen;
 		}
 		if (addr != NULL) {
-			inet_ntop(p->ai_family, addr, tmp, sizeof tmp);
+			if (!inet_ntop(p->ai_family, addr, tmp, sizeof tmp)) {
+				strcpy(tmp, "<invalid>");
+			}
 		} else {
 			sprintf(tmp, "<unknown family: %d>",
 				(int)sa->sa_family);
