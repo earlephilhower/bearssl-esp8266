@@ -172,6 +172,7 @@ decode_pem(const void *src, size_t len, size_t *num)
 	bvector bv = VEC_INIT;
 	int inobj;
 
+	*num = 0;
 	br_pem_decoder_init(&pc);
 	buf = src;
 	inobj = 0;
@@ -267,6 +268,9 @@ read_certificates(const char *fname, size_t *num)
 
 	pos = decode_pem(buf, len, &num_pos);
 	xfree(buf);
+	if (pos == NULL) {
+		return NULL;
+	}
 	for (u = 0; u < num_pos; u ++) {
 		if (eqstr(pos[u].name, "CERTIFICATE")
 			|| eqstr(pos[u].name, "X509 CERTIFICATE"))
