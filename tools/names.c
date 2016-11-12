@@ -387,7 +387,6 @@ eqstr_chunk(const char *s1, size_t s1_len, const char *s2, size_t s2_len)
 			return 1;
 		}
 	}
-	return 1;
 }
 
 /* see brssl.h */
