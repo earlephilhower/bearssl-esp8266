@@ -29,6 +29,29 @@
 #include <stdint.h>
 #include <string.h>
 
+/** \file bearssl_hash.h
+ *
+ * # Hash Functions
+ *
+ * This file documents the API for hash functions.
+ *
+ * Implemented hash functions are MD5, SHA-1, SHA-224, SHA-256, SHA-384
+ * and SHA-512; these are the _standard hash functions_ (as specified in
+ * TLS). Also provided are MD5+SHA-1 (an aggregate hash function that
+ * computes both MD5 and SHA-1 on its input, and provides a 36-byte
+ * output), a multi-hasher system that computes some or all of the
+ * standard hash functions on the same input, and some GHASH
+ * implementations (GHASH is the sort-of keyed hash function used in GCM
+ * encryption mode).
+ *
+ * For each standard hash function (and also MD5+SHA-1), two similar API
+ * are provided: one consists in direct, named function calls, while the
+ * other uses function pointers through a vtable. The vtable incarnates
+ * object-oriented programming. An introduction on the OOP concept used
+ * here can be read on the BearSSL Web site:<br />
+ * &nbsp;&nbsp;&nbsp;[https://www.bearssl.org/oop.html](https://www.bearssl.org/oop.html)
+ */
+
 /*
  * Hash Functions
  * --------------
@@ -147,18 +170,127 @@
  * power of 2, the relevant element is 0.
  */
 
+/**
+ * \brief Class type for hash function implementations.
+ *
+ * A `br_hash_class` instance references the methods implementing a hash
+ * function. Constant instances of this structure are defined for each
+ * implemented hash function. Such instances are also called "vtables".
+ *
+ * Vtables are used to support object-oriented programming, as
+ * described on [the BearSSL Web site](https://www.bearssl.org/oop.html).
+ */
 typedef struct br_hash_class_ br_hash_class;
 struct br_hash_class_ {
+	/**
+	 * \brief Size (in bytes) of the context structure appropriate for
+	 * computing this hash function.
+	 */
 	size_t context_size;
+
+	/**
+	 * \brief Descriptor word that contains information about the hash
+	 * function.
+	 *
+	 * For each word `xxx` described below, use `BR_HASHDESC_xxx_OFF`
+	 * and `BR_HASHDESC_xxx_MASK` to access the specific value, as
+	 * follows:
+	 *
+	 *     (hf->desc >> BR_HASHDESC_xxx_OFF) & BR_HASHDESC_xxx_MASK
+	 *
+	 * The defined elements are:
+	 *
+	 *  - `ID`: the symbolic identifier for the function, as defined
+	 *    in [TLS](https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1)
+	 *    (MD5 = 1, SHA-1 = 2,...).
+	 *
+	 *  - `OUT`: hash output size, in bytes.
+	 *
+	 *  - `STATE`: internal running state size, in bytes.
+	 *
+	 *  - `LBLEN`: base-2 logarithm for the internal block size, as
+	 *    defined for HMAC processing (this is 6 for MD5, SHA-1, SHA-224
+	 *    and SHA-256, since these functions use 64-byte blocks; for
+	 *    SHA-384 and SHA-512, this is 7, corresponding to their
+	 *    128-byte blocks).
+	 *
+	 * The descriptor may contain a few other flags.
+	 */
 	uint32_t desc;
+
+	/**
+	 * \brief Initialisation method.
+	 *
+	 * This method takes as parameter a pointer to a context area,
+	 * that it initialises. The first field of the context is set
+	 * to this vtable; other elements are initialised for a new hash
+	 * computation.
+	 *
+	 * \param ctx   pointer to (the first field of) the context.
+	 */
 	void (*init)(const br_hash_class **ctx);
+
+	/**
+	 * \brief Data injection method.
+	 *
+	 * The `len` bytes starting at address `data` are injected into
+	 * the running hash computation incarnated by the specified
+	 * context. The context is updated accordingly. It is allowed
+	 * to have `len == 0`, in which case `data` is ignored (and could
+	 * be `NULL`), and nothing happens.
+	 * on the input data.
+	 *
+	 * \param ctx    pointer to (the first field of) the context.
+	 * \param data   pointer to the first data byte to inject.
+	 * \param len    number of bytes to inject.
+	 */
 	void (*update)(const br_hash_class **ctx, const void *data, size_t len);
+
+	/**
+	 * \brief Produce hash output.
+	 *
+	 * The hash output corresponding to all data bytes injected in the
+	 * context since the last `init()` call is computed, and written
+	 * in the buffer pointed to by `dst`. The hash output size depends
+	 * on the implemented hash function (e.g. 16 bytes for MD5).
+	 * The context is _not_ modified by this call, so further bytes
+	 * may be afterwards injected to continue the current computation.
+	 *
+	 * \param ctx   pointer to (the first field of) the context.
+	 * \param dst   destination buffer for the hash output.
+	 */
 	void (*out)(const br_hash_class *const *ctx, void *dst);
+
+	/**
+	 * \brief Get running state.
+	 *
+	 * This method saves the current running state into the `dst`
+	 * buffer. What constitutes the "running state" depends on the
+	 * hash function; for Merkle-Damgård hash functions (like
+	 * MD5 or SHA-1), this is the output obtained after processing
+	 * each block. The number of bytes injected so far is returned.
+	 * The context is not modified by this call.
+	 *
+	 * \param ctx   pointer to (the first field of) the context.
+	 * \param dst   destination buffer for the state.
+	 * \return  the injected total byte length.
+	 */
 	uint64_t (*state)(const br_hash_class *const *ctx, void *dst);
+
+	/**
+	 * \brief Set running state.
+	 *
+	 * This methods replaces the running state for the function.
+	 *
+	 * \param ctx     pointer to (the first field of) the context.
+	 * \param stb     source buffer for the state.
+	 * \param count   injected total byte length.
+	 */
 	void (*set_state)(const br_hash_class **ctx,
 		const void *stb, uint64_t count);
 };
 
+#ifndef BR_DOXYGEN_IGNORE
 #define BR_HASHDESC_ID(id)           ((uint32_t)(id) << BR_HASHDESC_ID_OFF)
 #define BR_HASHDESC_ID_OFF           0
 #define BR_HASHDESC_ID_MASK          0xFF
@@ -178,6 +310,7 @@ struct br_hash_class_ {
 #define BR_HASHDESC_MD_PADDING       ((uint32_t)1 << 28)
 #define BR_HASHDESC_MD_PADDING_128   ((uint32_t)1 << 29)
 #define BR_HASHDESC_MD_PADDING_BE    ((uint32_t)1 << 30)
+#endif
 
 /*
  * Specific hash functions.
@@ -194,21 +327,197 @@ struct br_hash_class_ {
  * current state; and there is no need for any explicit "release" function.
  */
 
+/**
+ * \brief Symbolic identifier for MD5.
+ */
 #define br_md5_ID     1
+
+/**
+ * \brief MD5 output size (in bytes).
+ */
 #define br_md5_SIZE   16
+
+/**
+ * \brief Constant vtable for MD5.
+ */
 extern const br_hash_class br_md5_vtable;
+
+/**
+ * \brief MD5 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
 typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
 	const br_hash_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
 	unsigned char buf[64];
 	uint64_t count;
 	uint32_t val[4];
+#endif
 } br_md5_context;
+
+/**
+ * \brief MD5 context initialisation.
+ *
+ * This function initialises or resets a context for a new MD5
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
 void br_md5_init(br_md5_context *ctx);
+
+/**
+ * \brief Inject some data bytes in a running MD5 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
 void br_md5_update(br_md5_context *ctx, const void *data, size_t len);
+
+/**
+ * \brief Compute MD5 output.
+ *
+ * The MD5 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
 void br_md5_out(const br_md5_context *ctx, void *out);
+
+/**
+ * \brief Save MD5 running state.
+ *
+ * The running state for MD5 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
 uint64_t br_md5_state(const br_md5_context *ctx, void *out);
+
+/**
+ * \brief Restore MD5 running state.
+ *
+ * The running state for MD5 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
 void br_md5_set_state(br_md5_context *ctx, const void *stb, uint64_t count);
 
+/**
+ * \brief Symbolic identifier for SHA-1.
+ */
+#define br_sha1_ID     2
+
+/**
+ * \brief SHA-1 output size (in bytes).
+ */
+#define br_sha1_SIZE   20
+
+/**
+ * \brief Constant vtable for SHA-1.
+ */
+extern const br_hash_class br_sha1_vtable;
+
+/**
+ * \brief SHA-1 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
+	const br_hash_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	unsigned char buf[64];
+	uint64_t count;
+	uint32_t val[5];
+#endif
+} br_sha1_context;
+
+/**
+ * \brief SHA-1 context initialisation.
+ *
+ * This function initialises or resets a context for a new SHA-1
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
+void br_sha1_init(br_sha1_context *ctx);
+
+/**
+ * \brief Inject some data bytes in a running SHA-1 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
+void br_sha1_update(br_sha1_context *ctx, const void *data, size_t len);
+
+/**
+ * \brief Compute SHA-1 output.
+ *
+ * The SHA-1 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
+void br_sha1_out(const br_sha1_context *ctx, void *out);
+
+/**
+ * \brief Save SHA-1 running state.
+ *
+ * The running state for SHA-1 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
+uint64_t br_sha1_state(const br_sha1_context *ctx, void *out);
+
+/**
+ * \brief Restore SHA-1 running state.
+ *
+ * The running state for SHA-1 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
+void br_sha1_set_state(br_sha1_context *ctx, const void *stb, uint64_t count);
+
+/* obsolete
 #define br_sha1_ID     2
 #define br_sha1_SIZE   20
 extern const br_hash_class br_sha1_vtable;
@@ -223,7 +532,105 @@ void br_sha1_update(br_sha1_context *ctx, const void *data, size_t len);
 void br_sha1_out(const br_sha1_context *ctx, void *out);
 uint64_t br_sha1_state(const br_sha1_context *ctx, void *out);
 void br_sha1_set_state(br_sha1_context *ctx, const void *stb, uint64_t count);
+*/
 
+/**
+ * \brief Symbolic identifier for SHA-224.
+ */
+#define br_sha224_ID     3
+
+/**
+ * \brief SHA-224 output size (in bytes).
+ */
+#define br_sha224_SIZE   28
+
+/**
+ * \brief Constant vtable for SHA-224.
+ */
+extern const br_hash_class br_sha224_vtable;
+
+/**
+ * \brief SHA-224 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
+	const br_hash_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	unsigned char buf[64];
+	uint64_t count;
+	uint32_t val[8];
+#endif
+} br_sha224_context;
+
+/**
+ * \brief SHA-224 context initialisation.
+ *
+ * This function initialises or resets a context for a new SHA-224
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
+void br_sha224_init(br_sha224_context *ctx);
+
+/**
+ * \brief Inject some data bytes in a running SHA-224 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
+void br_sha224_update(br_sha224_context *ctx, const void *data, size_t len);
+
+/**
+ * \brief Compute SHA-224 output.
+ *
+ * The SHA-224 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
+void br_sha224_out(const br_sha224_context *ctx, void *out);
+
+/**
+ * \brief Save SHA-224 running state.
+ *
+ * The running state for SHA-224 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
+uint64_t br_sha224_state(const br_sha224_context *ctx, void *out);
+
+/**
+ * \brief Restore SHA-224 running state.
+ *
+ * The running state for SHA-224 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
+void br_sha224_set_state(br_sha224_context *ctx,
+	const void *stb, uint64_t count);
+
+/* obsolete
 #define br_sha224_ID     3
 #define br_sha224_SIZE   28
 extern const br_hash_class br_sha224_vtable;
@@ -239,7 +646,116 @@ void br_sha224_out(const br_sha224_context *ctx, void *out);
 uint64_t br_sha224_state(const br_sha224_context *ctx, void *out);
 void br_sha224_set_state(br_sha224_context *ctx,
 	const void *stb, uint64_t count);
+*/
 
+/**
+ * \brief Symbolic identifier for SHA-256.
+ */
+#define br_sha256_ID     4
+
+/**
+ * \brief SHA-256 output size (in bytes).
+ */
+#define br_sha256_SIZE   32
+
+/**
+ * \brief Constant vtable for SHA-256.
+ */
+extern const br_hash_class br_sha256_vtable;
+
+#ifdef BR_DOXYGEN_IGNORE
+/**
+ * \brief SHA-256 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
+	const br_hash_class *vtable;
+} br_sha256_context;
+#else
+typedef br_sha224_context br_sha256_context;
+#endif
+
+/**
+ * \brief SHA-256 context initialisation.
+ *
+ * This function initialises or resets a context for a new SHA-256
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
+void br_sha256_init(br_sha256_context *ctx);
+
+#ifdef BR_DOXYGEN_IGNORE
+/**
+ * \brief Inject some data bytes in a running SHA-256 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
+void br_sha256_update(br_sha256_context *ctx, const void *data, size_t len);
+#else
+#define br_sha256_update      br_sha224_update
+#endif
+
+/**
+ * \brief Compute SHA-256 output.
+ *
+ * The SHA-256 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
+void br_sha256_out(const br_sha256_context *ctx, void *out);
+
+#if BR_DOXYGEN_IGNORE
+/**
+ * \brief Save SHA-256 running state.
+ *
+ * The running state for SHA-256 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
+uint64_t br_sha256_state(const br_sha256_context *ctx, void *out);
+#else
+#define br_sha256_state       br_sha224_state
+#endif
+
+#if BR_DOXYGEN_IGNORE
+/**
+ * \brief Restore SHA-256 running state.
+ *
+ * The running state for SHA-256 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
+void br_sha256_set_state(br_sha256_context *ctx,
+	const void *stb, uint64_t count);
+#else
+#define br_sha256_set_state   br_sha224_set_state
+#endif
+
+/* obsolete
 #define br_sha256_ID     4
 #define br_sha256_SIZE   32
 extern const br_hash_class br_sha256_vtable;
@@ -249,7 +765,105 @@ void br_sha256_init(br_sha256_context *ctx);
 void br_sha256_out(const br_sha256_context *ctx, void *out);
 #define br_sha256_state       br_sha224_state
 #define br_sha256_set_state   br_sha224_set_state
+*/
 
+/**
+ * \brief Symbolic identifier for SHA-384.
+ */
+#define br_sha384_ID     5
+
+/**
+ * \brief SHA-384 output size (in bytes).
+ */
+#define br_sha384_SIZE   48
+
+/**
+ * \brief Constant vtable for SHA-384.
+ */
+extern const br_hash_class br_sha384_vtable;
+
+/**
+ * \brief SHA-384 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
+	const br_hash_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	unsigned char buf[128];
+	uint64_t count;
+	uint64_t val[8];
+#endif
+} br_sha384_context;
+
+/**
+ * \brief SHA-384 context initialisation.
+ *
+ * This function initialises or resets a context for a new SHA-384
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
+void br_sha384_init(br_sha384_context *ctx);
+
+/**
+ * \brief Inject some data bytes in a running SHA-384 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
+void br_sha384_update(br_sha384_context *ctx, const void *data, size_t len);
+
+/**
+ * \brief Compute SHA-384 output.
+ *
+ * The SHA-384 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
+void br_sha384_out(const br_sha384_context *ctx, void *out);
+
+/**
+ * \brief Save SHA-384 running state.
+ *
+ * The running state for SHA-384 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
+uint64_t br_sha384_state(const br_sha384_context *ctx, void *out);
+
+/**
+ * \brief Restore SHA-384 running state.
+ *
+ * The running state for SHA-384 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
+void br_sha384_set_state(br_sha384_context *ctx,
+	const void *stb, uint64_t count);
+
+/* obsolete
 #define br_sha384_ID     5
 #define br_sha384_SIZE   48
 extern const br_hash_class br_sha384_vtable;
@@ -265,7 +879,119 @@ void br_sha384_out(const br_sha384_context *ctx, void *out);
 uint64_t br_sha384_state(const br_sha384_context *ctx, void *out);
 void br_sha384_set_state(br_sha384_context *ctx,
 	const void *stb, uint64_t count);
+*/
 
+/**
+ * \brief Symbolic identifier for SHA-512.
+ */
+#define br_sha512_ID     6
+
+/**
+ * \brief SHA-512 output size (in bytes).
+ */
+#define br_sha512_SIZE   64
+
+/**
+ * \brief Constant vtable for SHA-512.
+ */
+extern const br_hash_class br_sha512_vtable;
+
+#ifdef BR_DOXYGEN_IGNORE
+/**
+ * \brief SHA-512 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
+	const br_hash_class *vtable;
+	unsigned char buf[128];
+	uint64_t count;
+	uint64_t val[8];
+} br_sha512_context;
+#else
+typedef br_sha384_context br_sha512_context;
+#endif
+
+/**
+ * \brief SHA-512 context initialisation.
+ *
+ * This function initialises or resets a context for a new SHA-512
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
+void br_sha512_init(br_sha512_context *ctx);
+
+#ifdef BR_DOXYGEN_IGNORE
+/**
+ * \brief Inject some data bytes in a running SHA-512 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
+void br_sha512_update(br_sha512_context *ctx, const void *data, size_t len);
+#else
+#define br_sha512_update   br_sha384_update
+#endif
+
+/**
+ * \brief Compute SHA-512 output.
+ *
+ * The SHA-512 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
+void br_sha512_out(const br_sha512_context *ctx, void *out);
+
+#ifdef BR_DOXYGEN_IGNORE
+/**
+ * \brief Save SHA-512 running state.
+ *
+ * The running state for SHA-512 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
+uint64_t br_sha512_state(const br_sha512_context *ctx, void *out);
+#else
+#define br_sha512_state   br_sha384_state
+#endif
+
+#ifdef BR_DOXYGEN_IGNORE
+/**
+ * \brief Restore SHA-512 running state.
+ *
+ * The running state for SHA-512 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
+void br_sha512_set_state(br_sha512_context *ctx,
+	const void *stb, uint64_t count);
+#else
+#define br_sha512_set_state   br_sha384_set_state
+#endif
+
+/* obsolete
 #define br_sha512_ID     6
 #define br_sha512_SIZE   64
 extern const br_hash_class br_sha512_vtable;
@@ -275,31 +1001,119 @@ void br_sha512_init(br_sha512_context *ctx);
 void br_sha512_out(const br_sha512_context *ctx, void *out);
 #define br_sha512_state       br_sha384_state
 #define br_sha512_set_state   br_sha384_set_state
+*/
 
 /*
  * "md5sha1" is a special hash function that computes both MD5 and SHA-1
  * on the same input, and produces a 36-byte output (MD5 and SHA-1
  * concatenation, in that order). State size is also 36 bytes.
  */
+
+/**
+ * \brief Symbolic identifier for MD5+SHA-1.
+ *
+ * MD5+SHA-1 is the concatenation of MD5 and SHA-1, computed over the
+ * same input. It is not one of the functions identified in TLS, so
+ * we give it a symbolic identifier of value 0.
+ */
 #define br_md5sha1_ID     0
+
+/**
+ * \brief MD5+SHA-1 output size (in bytes).
+ */
 #define br_md5sha1_SIZE   36
+
+/**
+ * \brief Constant vtable for MD5+SHA-1.
+ */
 extern const br_hash_class br_md5sha1_vtable;
+
+/**
+ * \brief MD5+SHA-1 context.
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
 typedef struct {
+	/**
+	 * \brief Pointer to vtable for this context.
+	 */
 	const br_hash_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
 	unsigned char buf[64];
 	uint64_t count;
 	uint32_t val_md5[4];
 	uint32_t val_sha1[5];
+#endif
 } br_md5sha1_context;
+
+/**
+ * \brief MD5+SHA-1 context initialisation.
+ *
+ * This function initialises or resets a context for a new SHA-512
+ * computation. It also sets the vtable pointer.
+ *
+ * \param ctx   pointer to the context structure.
+ */
 void br_md5sha1_init(br_md5sha1_context *ctx);
+
+/**
+ * \brief Inject some data bytes in a running MD5+SHA-1 computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
+ */
 void br_md5sha1_update(br_md5sha1_context *ctx, const void *data, size_t len);
+
+/**
+ * \brief Compute MD5+SHA-1 output.
+ *
+ * The MD5+SHA-1 output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `out`. The context
+ * itself is not modified, so extra bytes may be injected afterwards
+ * to continue that computation.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the hash output.
+ */
 void br_md5sha1_out(const br_md5sha1_context *ctx, void *out);
+
+/**
+ * \brief Save MD5+SHA-1 running state.
+ *
+ * The running state for MD5+SHA-1 (output of the last internal block
+ * processing) is written in the buffer pointed to by `out`. The
+ * number of bytes injected since the last initialisation or reset
+ * call is returned. The context is not modified.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param out   destination buffer for the running state.
+ * \return  the injected total byte length.
+ */
 uint64_t br_md5sha1_state(const br_md5sha1_context *ctx, void *out);
+
+/**
+ * \brief Restore MD5+SHA-1 running state.
+ *
+ * The running state for MD5+SHA-1 is set to the provided values.
+ *
+ * \param ctx     pointer to the context structure.
+ * \param stb     source buffer for the running state.
+ * \param count   the injected total byte length.
+ */
 void br_md5sha1_set_state(br_md5sha1_context *ctx,
 	const void *stb, uint64_t count);
 
-/*
- * The br_hash_compat_context type is a type which is large enough to
+/**
+ * \brief Aggregate context for configurable hash function support.
+ *
+ * The `br_hash_compat_context` type is a type which is large enough to
  * serve as context for all standard hash functions defined above.
  */
 typedef union {
@@ -310,6 +1124,7 @@ typedef union {
 	br_sha256_context sha256;
 	br_sha384_context sha384;
 	br_sha512_context sha512;
+	br_md5sha1_context md5sha1;
 } br_hash_compat_context;
 
 /*
@@ -320,22 +1135,50 @@ typedef union {
  * the set implementation pointers.
  */
 
+/**
+ * \brief Multi-hasher context structure.
+ *
+ * The multi-hasher runs up to six hash functions in the standard TLS list
+ * (MD5, SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512) in parallel, over
+ * the same input.
+ *
+ * The multi-hasher does _not_ follow the OOP structure with a vtable.
+ * Instead, it is configured with the vtables of the hash functions it
+ * should run. Structure fields are not supposed to be accessed directly.
+ */
 typedef struct {
+#ifndef BR_DOXYGEN_IGNORE
 	unsigned char buf[128];
 	uint64_t count;
 	uint32_t val_32[25];
 	uint64_t val_64[16];
 	const br_hash_class *impl[6];
+#endif
 } br_multihash_context;
 
-/*
- * Clear a complete multihash context. This should always be called once
- * on a given context, before setting implementation pointers.
+/**
+ * \brief Clear a multi-hasher context.
+ *
+ * This should always be called once on a given context, _before_ setting
+ * the implementation pointers.
+ *
+ * \param ctx   the multi-hasher context.
  */
 void br_multihash_zero(br_multihash_context *ctx);
 
-/*
- * Set a hash function implementation, identified by ID.
+/**
+ * \brief Set a hash function implementation.
+ *
+ * Implementations shall be set _after_ clearing the context (with
+ * `br_multihash_zero()`) but _before_ initialising the computation
+ * (with `br_multihash_init()`). The hash function implementation
+ * MUST be one of the standard hash functions (MD5, SHA-1, SHA-224,
+ * SHA-256, SHA-384 or SHA-512); it may also be `NULL` to remove
+ * an implementation from the multi-hasher.
+ *
+ * \param ctx    the multi-hasher context.
+ * \param id     the hash function symbolic identifier.
+ * \param impl   the hash function vtable, or `NULL`.
  */
 static inline void
 br_multihash_setimpl(br_multihash_context *ctx,
@@ -348,10 +1191,16 @@ br_multihash_setimpl(br_multihash_context *ctx,
 	ctx->impl[id - 1] = impl;
 }
 
-/*
- * Get the configured hash implementation, identified by ID. This returns
- * NULL for unsupported hash implementations. The hash identifier MUST
- * be a valid one (from br_md5_ID to br_sha512_ID, inclusive).
+/**
+ * \brief Get a hash function implementation.
+ *
+ * This function returns the currently configured vtable for a given
+ * hash function (by symbolic ID). If no such function was configured in
+ * the provided multi-hasher context, then this function returns `NULL`.
+ *
+ * \param ctx    the multi-hasher context.
+ * \param id     the hash function symbolic identifier.
+ * \return  the hash function vtable, or `NULL`.
  */
 static inline const br_hash_class *
 br_multihash_getimpl(const br_multihash_context *ctx, int id)
@@ -359,65 +1208,120 @@ br_multihash_getimpl(const br_multihash_context *ctx, int id)
 	return ctx->impl[id - 1];
 }
 
-/*
- * Reset a multihash context. The hash functions for which implementation
- * pointers have been set are reset and initialized.
+/**
+ * \brief Reset a multi-hasher context.
+ *
+ * This function prepares the context for a new hashing computation,
+ * for all implementations configured at that point.
+ *
+ * \param ctx    the multi-hasher context.
  */
 void br_multihash_init(br_multihash_context *ctx);
 
-/*
- * Input some bytes into the context.
+/**
+ * \brief Inject some data bytes in a running multi-hashing computation.
+ *
+ * The provided context is updated with some data bytes. If the number
+ * of bytes (`len`) is zero, then the data pointer (`data`) is ignored
+ * and may be `NULL`, and this function does nothing.
+ *
+ * \param ctx    pointer to the context structure.
+ * \param data   pointer to the injected data.
+ * \param len    injected data length (in bytes).
  */
 void br_multihash_update(br_multihash_context *ctx,
 	const void *data, size_t len);
 
-/*
- * Get the hash of the bytes injected so far, with the specified hash
- * function. The hash function is given by ID (e.g. br_md5_ID for MD5).
- * The hash output is written on 'dst'. The hash length is returned (in
- * bytes); if the specified hash function is not implemented by this
- * context, then this function returns 0.
+/**
+ * \brief Compute a hash output from a multi-hasher.
  *
- * Obtaining the hash output does not invalidate the current hashing
- * operation, thus "partial hashes" can be obtained.
+ * The hash output for the concatenation of all bytes injected in the
+ * provided context since the last initialisation or reset call, is
+ * computed and written in the buffer pointed to by `dst`. The hash
+ * function to use is identified by `id` and must be one of the standard
+ * hash functions. If that hash function was indeed configured in the
+ * multi-hasher context, the corresponding hash value is written in
+ * `dst` and its length (in bytes) is returned. If the hash function
+ * was _not_ configured, then nothing is written in `dst` and 0 is
+ * returned.
+ *
+ * The context itself is not modified, so extra bytes may be injected
+ * afterwards to continue the hash computations.
+ *
+ * \param ctx   pointer to the context structure.
+ * \param id    the hash function symbolic identifier.
+ * \param dst   destination buffer for the hash output.
+ * \return  the hash output length (in bytes), or 0.
  */
 size_t br_multihash_out(const br_multihash_context *ctx, int id, void *dst);
 
-/*
- * Type for a GHASH implementation. GHASH is a sort of keyed hash meant
- * to be used to implement GCM in combination with a block cipher (with
- * 16-byte blocks).
+/**
+ * \brief Type for a GHASH implementation.
  *
- * The y[] array has length 16 bytes and is used for input and output; in
- * a complete GHASH run, it starts with an all-zero value. h[] is a 16-byte
+ * GHASH is a sort of keyed hash meant to be used to implement GCM in
+ * combination with a block cipher (with 16-byte blocks).
+ *
+ * The `y` array has length 16 bytes and is used for input and output; in
+ * a complete GHASH run, it starts with an all-zero value. `h` is a 16-byte
  * value that serves as key (it is derived from the encryption key in GCM,
- * using the block cipher). The data length (len) is expressed in bytes.
+ * using the block cipher). The data length (`len`) is expressed in bytes.
+ * The `y` array is updated.
  *
  * If the data length is not a multiple of 16, then the data is implicitly
  * padded with zeros up to the next multiple of 16. Thus, when using GHASH
  * in GCM, this method may be called twice, for the associated data and
  * for the ciphertext, respectively; the zero-padding implements exactly
  * the GCM rules.
+ *
+ * \param y      the array to update.
+ * \param h      the GHASH key.
+ * \param data   the input data (may be `NULL` if `len` is zero).
+ * \param len    the input data length (in bytes).
  */
 typedef void (*br_ghash)(void *y, const void *h, const void *data, size_t len);
 
-/*
- * Implementation of GHASH using normal 32x32->64 multiplications. It is
- * constant-time (if multiplications are constant-time).
+/**
+ * \brief GHASH implementation using multiplications (mixed 32-bit).
+ *
+ * This implementation uses multiplications of 32-bit values, with a
+ * 64-bit result. It is constant-time (if multiplications are
+ * constant-time).
+ *
+ * \param y      the array to update.
+ * \param h      the GHASH key.
+ * \param data   the input data (may be `NULL` if `len` is zero).
+ * \param len    the input data length (in bytes).
  */
 void br_ghash_ctmul(void *y, const void *h, const void *data, size_t len);
 
-/*
- * Implementation of GHASH using normal 32x32->32 multiplications; this
- * may be faster than br_ghash_ctmul() on platforms for which the inner
- * multiplication opcode does not yield the upper 32 bits of the product.
- * It is constant-time (if multiplications are constant-time).
+/**
+ * \brief GHASH implementation using multiplications (strict 32-bit).
+ *
+ * This implementation uses multiplications of 32-bit values, with a
+ * 32-bit result. It is usually somewhat slower than `br_ghash_ctmul()`,
+ * but it is expected to be faster on architectures for which the
+ * 32-bit multiplication opcode does not yield the upper 32 bits of the
+ * product. It is constant-time (if multiplications are constant-time).
+ *
+ * \param y      the array to update.
+ * \param h      the GHASH key.
+ * \param data   the input data (may be `NULL` if `len` is zero).
+ * \param len    the input data length (in bytes).
  */
 void br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len);
 
-/*
- * Implementation of GHASH using 64x64->64 multiplications. It is
- * constant-time (if multiplications are constant-time).
+/**
+ * \brief GHASH implementation using multiplications (64-bit).
+ *
+ * This implementation uses multiplications of 64-bit values, with a
+ * 64-bit result. It is constant-time (if multiplications are
+ * constant-time). It is substantially faster than `br_ghash_ctmul()`
+ * and `br_ghash_ctmul32()` on most 64-bit architectures.
+ *
+ * \param y      the array to update.
+ * \param h      the GHASH key.
+ * \param data   the input data (may be `NULL` if `len` is zero).
+ * \param len    the input data length (in bytes).
  */
 void br_ghash_ctmul64(void *y, const void *h, const void *data, size_t len);
 
