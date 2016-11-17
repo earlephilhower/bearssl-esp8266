@@ -25,7 +25,7 @@
 #include "inner.h"
 
 /*
- * This is the 64-bit variant of ghash_ctmul32(), with 64-bit operands
+ * This is the 64-bit variant of br_ghash_ctmul32(), with 64-bit operands
  * and bit reversal of 64-bit words.
  */
 

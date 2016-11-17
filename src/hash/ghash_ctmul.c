@@ -28,7 +28,7 @@
  * We compute "carryless multiplications" through normal integer
  * multiplications, masking out enough bits to create "holes" in which
  * carries may expand without altering our bits; we really use 8 data
- * bits per 32-bit word, space every fourth bit. Accumulated carries
+ * bits per 32-bit word, spaced every fourth bit. Accumulated carries
  * may not exceed 8 in total, which fits in 4 bits.
  *
  * It would be possible to use a 3-bit spacing, allowing two operands,
@@ -42,7 +42,7 @@
  * We cannot really autodetect whether multiplications are "slow" or
  * not. A typical example is the ARM Cortex M0+, which exists in two
  * versions: one with a 1-cycle multiplication opcode, the other with
- * a 32-cycle multiplication opcodes. They both use exactly the same
+ * a 32-cycle multiplication opcode. They both use exactly the same
  * architecture and ABI, and cannot be distinguished from each other
  * at compile-time.
  *
@@ -201,6 +201,10 @@ br_ghash_ctmul(void *y, const void *h, const void *data, size_t len)
 	uint32_t yw[4];
 	uint32_t hw[4];
 
+	/*
+	 * Throughout the loop we handle the y and h values as arrays
+	 * of 32-bit words.
+	 */
 	buf = data;
 	yb = y;
 	hb = h;
@@ -219,6 +223,10 @@ br_ghash_ctmul(void *y, const void *h, const void *data, size_t len)
 		uint32_t a[9], b[9], zw[8];
 		uint32_t c0, c1, c2, c3, d0, d1, d2, d3, e0, e1, e2, e3;
 
+		/*
+		 * Get the next 16-byte block (using zero-padding if
+		 * necessary).
+		 */
 		if (len >= 16) {
 			src = buf;
 			buf += 16;
@@ -229,10 +237,22 @@ br_ghash_ctmul(void *y, const void *h, const void *data, size_t len)
 			src = tmp;
 			len = 0;
 		}
+
+		/*
+		 * Decode the block. The GHASH standard mandates
+		 * big-endian encoding.
+		 */
 		yw[3] ^= br_dec32be(src);
 		yw[2] ^= br_dec32be(src + 4);
 		yw[1] ^= br_dec32be(src + 8);
 		yw[0] ^= br_dec32be(src + 12);
+
+		/*
+		 * We multiply two 128-bit field elements. We use
+		 * Karatsuba to turn that into three 64-bit
+		 * multiplications, which are themselves done with a
+		 * total of nine 32-bit multiplications.
+		 */
 
 		/*
 		 * y[0,1]*h[0,1] -> 0..2
@@ -286,6 +306,12 @@ br_ghash_ctmul(void *y, const void *h, const void *data, size_t len)
 		d0 ^= e2;
 		d1 ^= e3;
 
+		/*
+		 * GHASH specification has the bits "reversed" (most
+		 * significant is in fact least significant), which does
+		 * not matter for a carryless multiplication, except that
+		 * the 255-bit result must be shifted by 1 bit.
+		 */
 		zw[0] = c0 << 1;
 		zw[1] = (c1 << 1) | (c0 >> 31);
 		zw[2] = (c2 << 1) | (c1 >> 31);
@@ -295,6 +321,10 @@ br_ghash_ctmul(void *y, const void *h, const void *data, size_t len)
 		zw[6] = (d2 << 1) | (d1 >> 31);
 		zw[7] = (d3 << 1) | (d2 >> 31);
 
+		/*
+		 * We now do the reduction modulo the field polynomial
+		 * to get back to 128 bits.
+		 */
 		for (i = 0; i < 4; i ++) {
 			uint32_t lw;
 
@@ -304,6 +334,10 @@ br_ghash_ctmul(void *y, const void *h, const void *data, size_t len)
 		}
 		memcpy(yw, zw + 4, sizeof yw);
 	}
+
+	/*
+	 * Encode back the result.
+	 */
 	br_enc32be(yb, yw[3]);
 	br_enc32be(yb + 4, yw[2]);
 	br_enc32be(yb + 8, yw[1]);

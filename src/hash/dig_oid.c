@@ -24,6 +24,12 @@
 
 #include "inner.h"
 
+/*
+ * This file contains the encoded OID for the standard hash functions.
+ * Such OID appear in, for instance, the PKCS#1 v1.5 padding for RSA
+ * signatures.
+ */
+
 static const unsigned char md5_OID[] = {
 	0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x02, 0x05
 };

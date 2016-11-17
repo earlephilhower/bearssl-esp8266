@@ -95,6 +95,13 @@ rev32(uint32_t x)
 void
 br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len)
 {
+	/*
+	 * This implementation is similar to br_ghash_ctmul() except
+	 * that we have to do the multiplication twice, with the
+	 * "normal" and "bit reversed" operands. Hence we end up with
+	 * eighteen 32-bit multiplications instead of nine.
+	 */
+
 	const unsigned char *buf, *hb;
 	unsigned char *yb;
 	uint32_t yw[4];
