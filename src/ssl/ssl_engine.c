@@ -880,6 +880,12 @@ sendpld_ack(br_ssl_engine_context *rc, size_t len)
 	}
 	rc->oxa += len;
 	if (rc->oxa >= rc->oxb) {
+		/*
+		 * Set oxb to one more than oxa so that sendpld_flush()
+		 * does not mistakingly believe that a record is
+		 * already prepared and being sent.
+		 */
+		rc->oxb = rc->oxa + 1;
 		sendpld_flush(rc, 0);
 	}
 }

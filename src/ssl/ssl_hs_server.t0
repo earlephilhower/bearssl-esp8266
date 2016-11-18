@@ -598,12 +598,12 @@ cc: save-session ( -- ) {
 					read-supported-curves
 				endof
 				\ Supported Point Formats.
-				0x000B of
-					\ We only support "uncompressed", and
-					\ all implementations are supposed to
-					\ support it anyway.
-					read-ignore-16
-				endof
+				\ We only support "uncompressed", that all
+				\ implementations are supposed to support,
+				\ so we can simply ignore that extension.
+				\ 0x000B of
+				\ 	read-ignore-16
+				\ endof
 
 				\ Other extensions are ignored.
 				drop read-ignore-16 0

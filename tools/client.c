@@ -124,29 +124,31 @@ usage_client(void)
 	fprintf(stderr,
 "options:\n");
 	fprintf(stderr,
-"   -q            suppress verbose messages\n");
+"   -q              suppress verbose messages\n");
 	fprintf(stderr,
-"   -trace        activate extra debug messages (dump of all packets)\n");
+"   -trace          activate extra debug messages (dump of all packets)\n");
 	fprintf(stderr,
-"   -sni name     use this specific name for SNI\n");
+"   -sni name       use this specific name for SNI\n");
 	fprintf(stderr,
-"   -nosni        do not send any SNI\n");
+"   -nosni          do not send any SNI\n");
 	fprintf(stderr,
-"   -mono         use monodirectional buffering\n");
+"   -mono           use monodirectional buffering\n");
 	fprintf(stderr,
-"   -buf length   set the I/O buffer length (in bytes)\n");
+"   -buf length     set the I/O buffer length (in bytes)\n");
 	fprintf(stderr,
-"   -CA file      add certificates in 'file' to trust anchors\n");
+"   -CA file        add certificates in 'file' to trust anchors\n");
 	fprintf(stderr,
-"   -list         list supported names (protocols, algorithms...)\n");
+"   -list           list supported names (protocols, algorithms...)\n");
 	fprintf(stderr,
-"   -vmin name    set minimum supported version (default: TLS-1.0)\n");
+"   -vmin name      set minimum supported version (default: TLS-1.0)\n");
 	fprintf(stderr,
-"   -vmax name    set maximum supported version (default: TLS-1.2)\n");
+"   -vmax name      set maximum supported version (default: TLS-1.2)\n");
 	fprintf(stderr,
-"   -cs names     set list of supported cipher suites (comma-separated)\n");
+"   -cs names       set list of supported cipher suites (comma-separated)\n");
 	fprintf(stderr,
-"   -hf names     add support for some hash functions (comma-separated)\n");
+"   -hf names       add support for some hash functions (comma-separated)\n");
+	fprintf(stderr,
+"   -minhello len   set minimum ClientHello length (in bytes)\n");
 }
 
 /* see brssl.h */
@@ -174,6 +176,7 @@ do_client(int argc, char *argv[])
 	const br_hash_class *dnhash;
 	unsigned char *iobuf;
 	size_t iobuf_len;
+	size_t minhello_len;
 	int fd;
 
 	retcode = 0;
@@ -192,6 +195,7 @@ do_client(int argc, char *argv[])
 	suite_ids = NULL;
 	iobuf = NULL;
 	iobuf_len = 0;
+	minhello_len = (size_t)-1;
 	fd = -1;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
@@ -348,6 +352,30 @@ do_client(int argc, char *argv[])
 				goto client_exit_error;
 			}
 			hfuns |= x;
+		} else if (eqstr(arg, "-minhello")) {
+			if (++ i >= argc) {
+				fprintf(stderr,
+					"ERROR: no argument for '-minhello'\n");
+				usage_client();
+				goto client_exit_error;
+			}
+			arg = argv[i];
+			if (minhello_len != (size_t)-1) {
+				fprintf(stderr, "ERROR: duplicate minium"
+					" ClientHello length\n");
+				usage_client();
+				goto client_exit_error;
+			}
+			minhello_len = parse_size(arg);
+			/*
+			 * Minimum ClientHello length must fit on 16 bits.
+			 */
+			if (minhello_len == (size_t)-1
+				|| (((minhello_len >> 12) >> 4) != 0))
+			{
+				usage_client();
+				goto client_exit_error;
+			}
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_client();
@@ -573,6 +601,10 @@ do_client(int argc, char *argv[])
 		br_ssl_engine_set_x509(&cc.eng, &xwc.vtable);
 	} else {
 		br_ssl_engine_set_x509(&cc.eng, &xc.vtable);
+	}
+
+	if (minhello_len != (size_t)-1) {
+		br_ssl_client_set_min_clienthello_len(&cc, minhello_len);
 	}
 
 	br_ssl_engine_set_buffer(&cc.eng, iobuf, iobuf_len, bidi);

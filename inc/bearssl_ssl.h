@@ -1021,6 +1021,14 @@ typedef struct {
 	br_ssl_engine_context eng;
 
 	/*
+	 * Minimum ClientHello length; padding with an extension (RFC
+	 * 7685) is added if necessary to match at least that length.
+	 * Such padding is nominally unnecessary, but it has been used
+	 * to work around some server implementation bugs.
+	 */
+	uint16_t min_clienthello_len;
+
+	/*
 	 * Implementations.
 	 */
 	br_rsa_public irsapub;
@@ -1079,6 +1087,15 @@ static inline void
 br_ssl_client_set_ecdsa(br_ssl_client_context *cc, br_ecdsa_vrfy iecdsa)
 {
 	cc->iecdsa = iecdsa;
+}
+
+/*
+ * Set the minimum ClientHello length (RFC 7685 padding).
+ */
+static inline void
+br_ssl_client_set_min_clienthello_len(br_ssl_client_context *cc, uint16_t len)
+{
+	cc->min_clienthello_len = len;
 }
 
 /*

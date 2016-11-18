@@ -302,6 +302,8 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	0 8191 "offsetof(br_ssl_client_context, " field + ")" + make-CX
 	postpone literal postpone ; ;
 
+addr-ctx: min_clienthello_len
+
 \ Length of the Secure Renegotiation extension. This is 5 for the
 \ first handshake, 17 for a renegotiation (if the server supports the
 \ extension), or 0 if we know that the server does not support the
@@ -369,7 +371,8 @@ cc: supports-ecdsa? ( -- bool ) {
 : write-ClientHello ( -- )
 	{ ; total-ext-length }
 
-	\ Compute length for extensions (without the general two-byte header)
+	\ Compute length for extensions (without the general two-byte header).
+	\ This does not take padding extension into account.
 	ext-reneg-length ext-sni-length + ext-frag-length +
 	ext-signatures-length +
 	ext-supported-curves-length + ext-point-format-length +
@@ -381,6 +384,23 @@ cc: supports-ecdsa? ( -- bool ) {
 	\ Compute and write length
 	39 addr-session_id_len get8 + addr-suites_num get8 1 << +
 	total-ext-length if 2+ total-ext-length + then
+	\ Compute padding (if requested).
+	addr-min_clienthello_len get16 over - dup 0> if
+		\ We well add a Pad ClientHello extension, which has its
+		\ own header (4 bytes) and might be the only extension
+		\ (2 extra bytes for the extension list header).
+		total-ext-length ifnot swap 2+ swap 2- then
+		\ Account for the extension header.
+		4 - dup 0< if drop 0 then
+		\ Adjust total extension length.
+		dup 4 + total-ext-length + >total-ext-length
+		\ Adjust ClientHello length.
+		swap 4 + over + swap
+	else
+		drop
+		-1
+	then
+	{ ext-padding-amount }
 	write24
 
 	\ Protocol version
@@ -459,6 +479,14 @@ cc: supports-ecdsa? ( -- bool ) {
 			0x000B write16          \ extension type (11)
 			0x0002 write16          \ extension length
 			0x0100 write16          \ value: 1 format: uncompressed
+		then
+		ext-padding-amount 0< ifnot
+			0x0015 write16          \ extension value (21)
+			ext-padding-amount
+			dup write16             \ extension length
+			begin dup while
+			1- 0 write8 repeat      \ value (only zeros)
+			drop
 		then
 	then
 	;
