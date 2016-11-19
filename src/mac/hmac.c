@@ -57,7 +57,7 @@ void
 br_hmac_key_init(br_hmac_key_context *kc,
 	const br_hash_class *dig, const void *key, size_t key_len)
 {
-	br_hmac_allhash_context hc;
+	br_hash_compat_context hc;
 	unsigned char kbuf[64];
 
 	kc->dig_vtable = dig;
@@ -105,7 +105,7 @@ size_t
 br_hmac_out(const br_hmac_context *ctx, void *out)
 {
 	const br_hash_class *dig;
-	br_hmac_allhash_context hc;
+	br_hash_compat_context hc;
 	unsigned char tmp[64];
 	size_t blen, hlen;
 

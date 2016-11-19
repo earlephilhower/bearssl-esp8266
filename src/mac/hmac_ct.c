@@ -63,7 +63,7 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	 */
 
 	const br_hash_class *dig;
-	br_hmac_allhash_context hc;
+	br_hash_compat_context hc;
 	int be;
 	uint32_t po, bs;
 	uint32_t kr, km, kl, kz, u;

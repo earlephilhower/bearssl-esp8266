@@ -28,6 +28,90 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/** \mainpage BearSSL API
+ *
+ * # API Layout
+ *
+ * The functions and structures defined by the BearSSL API are located
+ * in various header files:
+ *
+ * | Header file     | Elements                                          |
+ * | :-------------- | :------------------------------------------------ |
+ * | bearssl_hash.h  | Hash functions                                    |
+ * | bearssl_hmac.h  | HMAC                                              |
+ * | bearssl_rand.h  | Pseudorandom byte generators                      |
+ * | bearssl_prf.h   | PRF implementations (for SSL/TLS)                 |
+ * | bearssl_block.h | Symmetric encryption                              |
+ * | bearssl_rsa.h   | RSA encryption and signatures                     |
+ * | bearssl_ec.h    | Elliptic curves support (including ECDSA)         |
+ * | bearssl_ssl.h   | SSL/TLS engine interface                          |
+ * | bearssl_x509.h  | X.509 certificate decoding and validation         |
+ * | bearssl_pem.h   | Base64/PEM decoding support functions             |
+ *
+ * Applications using BearSSL are supposed to simply include `bearssl.h`
+ * as follows:
+ *
+ *     #include <bearssl.h>
+ *
+ * The `bearssl.h` file itself includes all the other header files. It is
+ * possible to include specific header files, but it has no practical
+ * advantage for the application. The API is separated into separate
+ * header files only for documentation convenience.
+ *
+ *
+ * # Conventions
+ *
+ * ## MUST and SHALL
+ *
+ * In all descriptions, the usual "MUST", "SHALL", "MAY",... terminology
+ * is used. Failure to meet requirements expressed with a "MUST" or
+ * "SHALL" implies undefined behaviour, which means that segmentation
+ * faults, buffer overflows, and other similar adverse events, may occur.
+ *
+ * In general, BearSSL is not very forgiving of programming errors, and
+ * does not include much failsafes or error reporting when the problem
+ * does not arise from external transient conditions, and can be fixed
+ * only in the application code. This is done so in order to make the
+ * total code footprint ligther.
+ *
+ *
+ * ## Memory Allocation
+ *
+ * BearSSL does not perform dynamic memory allocation. This implies that
+ * for any functionality that requires a non-transient state, the caller
+ * is responsible for allocating the relevant context structure. Such
+ * allocation can be done in any appropriate area, including static data
+ * segments, the heap, and the stack, provided that proper alignment is
+ * respected. The header files define these context structures
+ * (including size and contents), so the C compiler should handle
+ * alignment automatically.
+ *
+ * Since there is no dynamic resource allocation, there is also nothing to
+ * release. When the calling code is done with a BearSSL feature, it
+ * may simple release the context structures it allocated itself, with
+ * no "close function" to call. If the context structures were allocated
+ * on the stack (as local variables), then even that release operation is
+ * implicit.
+ *
+ *
+ * ## Structure Contents
+ *
+ * Except when explicitly indicated, structure contents are opaque: they
+ * are included in the header files so that calling code may know the
+ * structure sizes and alignment requirements, but callers SHALL NOT
+ * access individual fields directly. For fields that are supposed to
+ * be read from or written to, the API defines accessor functions (the
+ * simplest of these accessor functions are defined as `static inline`
+ * functions, and the C compiler will optimise them away).
+ *
+ *
+ * # API Usage
+ *
+ * BearSSL usage for running a SSL/TLS client or server is described
+ * on the [BearSSL Web site](https://www.bearssl.org/api1.html). The
+ * BearSSL source archive also comes with sample code.
+ */
+
 #include "bearssl_hash.h"
 #include "bearssl_hmac.h"
 #include "bearssl_rand.h"

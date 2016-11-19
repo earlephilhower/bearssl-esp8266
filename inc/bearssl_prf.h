@@ -28,36 +28,88 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/*
- * The TLS PRF
- * -----------
+/** \file bearssl_prf.h
+ *
+ * # The TLS PRF
+ *
+ * The "PRF" is the pseudorandom function used internally during the
+ * SSL/TLS handshake, notably to expand negociated shared secrets into
+ * the symmetric encryption keys that will be used to process the
+ * application data.
  *
  * TLS 1.0 and 1.1 define a PRF that is based on both MD5 and SHA-1. This
- * is implemented by the br_tls10_prf() function.
+ * is implemented by the `br_tls10_prf()` function.
  *
  * TLS 1.2 redefines the PRF, using an explicit hash function. The
- * br_tls12_sha256_prf() and br_tls12_sha384_prf() functions apply that
- * PRF with, respectively, SHA-256 and SHA-384.
+ * `br_tls12_sha256_prf()` and `br_tls12_sha384_prf()` functions apply that
+ * PRF with, respectively, SHA-256 and SHA-384. Most standard cipher suites
+ * rely on the SHA-256 based PRF, but some use SHA-384.
  *
  * The PRF always uses as input three parameters: a "secret" (some
  * bytes), a "label" (ASCII string), and a "seed" (again some bytes).
  * An arbitrary output length can be produced.
  */
 
+/** \brief PRF implementation for TLS 1.0 and 1.1.
+ *
+ * This PRF is the one specified by TLS 1.0 and 1.1. It internally uses
+ * MD5 and SHA-1.
+ *
+ * \param dst          destination buffer.
+ * \param len          output length (in bytes).
+ * \param secret       secret value (key) for this computation.
+ * \param secret_len   length of "secret" (in bytes).
+ * \param label        PRF label (zero-terminated ASCII string).
+ * \param seed         seed for this computation (usually non-secret).
+ * \param seed_len     length of "seed" (in bytes).
+ */
 void br_tls10_prf(void *dst, size_t len,
 	const void *secret, size_t secret_len,
 	const char *label, const void *seed, size_t seed_len);
 
+/** \brief PRF implementation for TLS 1.2, with SHA-256.
+ *
+ * This PRF is the one specified by TLS 1.2, when the underlying hash
+ * function is SHA-256.
+ *
+ * \param dst          destination buffer.
+ * \param len          output length (in bytes).
+ * \param secret       secret value (key) for this computation.
+ * \param secret_len   length of "secret" (in bytes).
+ * \param label        PRF label (zero-terminated ASCII string).
+ * \param seed         seed for this computation (usually non-secret).
+ * \param seed_len     length of "seed" (in bytes).
+ */
 void br_tls12_sha256_prf(void *dst, size_t len,
 	const void *secret, size_t secret_len,
 	const char *label, const void *seed, size_t seed_len);
 
+/** \brief PRF implementation for TLS 1.2, with SHA-384.
+ *
+ * This PRF is the one specified by TLS 1.2, when the underlying hash
+ * function is SHA-384.
+ *
+ * \param dst          destination buffer.
+ * \param len          output length (in bytes).
+ * \param secret       secret value (key) for this computation.
+ * \param secret_len   length of "secret" (in bytes).
+ * \param label        PRF label (zero-terminated ASCII string).
+ * \param seed         seed for this computation (usually non-secret).
+ * \param seed_len     length of "seed" (in bytes).
+ */
 void br_tls12_sha384_prf(void *dst, size_t len,
 	const void *secret, size_t secret_len,
 	const char *label, const void *seed, size_t seed_len);
 
-/*
- * A convenient type name for a PRF implementation.
+/** \brief A convenient type name for a PRF implementation.
+ *
+ * \param dst          destination buffer.
+ * \param len          output length (in bytes).
+ * \param secret       secret value (key) for this computation.
+ * \param secret_len   length of "secret" (in bytes).
+ * \param label        PRF label (zero-terminated ASCII string).
+ * \param seed         seed for this computation (usually non-secret).
+ * \param seed_len     length of "seed" (in bytes).
  */
 typedef void (*br_tls_prf_impl)(void *dst, size_t len,
 	const void *secret, size_t secret_len,

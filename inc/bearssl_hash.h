@@ -35,99 +35,132 @@
  *
  * This file documents the API for hash functions.
  *
- * Implemented hash functions are MD5, SHA-1, SHA-224, SHA-256, SHA-384
- * and SHA-512; these are the _standard hash functions_ (as specified in
- * TLS). Also provided are MD5+SHA-1 (an aggregate hash function that
- * computes both MD5 and SHA-1 on its input, and provides a 36-byte
- * output), a multi-hasher system that computes some or all of the
- * standard hash functions on the same input, and some GHASH
- * implementations (GHASH is the sort-of keyed hash function used in GCM
- * encryption mode).
  *
- * For each standard hash function (and also MD5+SHA-1), two similar API
- * are provided: one consists in direct, named function calls, while the
- * other uses function pointers through a vtable. The vtable incarnates
- * object-oriented programming. An introduction on the OOP concept used
- * here can be read on the BearSSL Web site:<br />
- * &nbsp;&nbsp;&nbsp;[https://www.bearssl.org/oop.html](https://www.bearssl.org/oop.html)
- */
-
-/*
- * Hash Functions
- * --------------
+ * ## Procedural API
  *
- * For hash function 'xxx', the following elements are defined:
+ * For each implemented hash function, of name "`xxx`", the following
+ * elements are defined:
  *
- * br_xxx_vtable
- *    An externally defined instance of br_hash_class.
+ *   - `br_xxx_vtable`
  *
- * br_xxx_SIZE
- *    A macro that evaluates to the output size (in bytes) of the
- *    hash function.
+ *     An externally defined instance of `br_hash_class`.
  *
- * br_xxx_ID
- *    A macro that evaluates to a symbolic identifier for the hash
- *    function. Such identifiers are used with HMAC and signature
- *    algorithm implementations.
- *    NOTE: the numerical value of these identifiers MUST match the
- *    constants for hash function identification in TLS 1.2 (see RFC
- *    5246, section 7.4.1.4.1). These are values 1 to 6, for MD5,
- *    SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512, respectively.
+ *   - `br_xxx_SIZE`
  *
- * br_xxx_context
- *    Context for an ongoing computation. It is allocated by the
- *    caller, and a pointer to it is passed to all functions. A
- *    context contains no interior pointer, so it can be moved around
- *    and cloned (with a simple memcpy() or equivalent) in order to
- *    capture the function state at some point. Computations that use
- *    distinct context structures are independent of each other. The
- *    first field of br_xxx_context is always a pointer to the
- *    br_xxx_vtable structure; br_xxx_init() sets that pointer.
+ *     A macro that evaluates to the output size (in bytes) of the
+ *     hash function.
  *
- * br_xxx_init(br_xxx_context *ctx)
- *    Initialize the provided context. Previous contents of the structure
- *    are ignored. This calls resets the context to the start of a new
- *    hash computation.
+ *   - `br_xxx_ID`
  *
- * br_xxx_update(br_xxx_context *ctx, const void *data, size_t len)
- *    Add some more bytes to the hash computation represented by the
- *    provided context.
+ *     A macro that evaluates to a symbolic identifier for the hash
+ *     function. Such identifiers are used with HMAC and signature
+ *     algorithm implementations.
  *
- * br_xxx_out(const br_xxx_context *ctx, void *out)
- *    Complete the hash computation and write the result in the provided
- *    buffer. The output buffer MUST be large enough to accomodate the
- *    result. The context is NOT modified by this operation, so this
- *    function can be used to get a "partial hash" while still keeping
- *    the possibility of adding more bytes to the input.
+ *     NOTE: for the "standard" hash functions defined in [the TLS
+ *     standard](https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1),
+ *     the symbolic identifiers match the constants used in TLS, i.e.
+ *     1 to 6 for MD5, SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512,
+ *     respectively.
  *
- * br_xxx_state(const br_xxx_context *ctx, void *out)
- *    Get a copy of the "current state" for the computation so far. For
- *    MD functions (MD5, SHA-1, SHA-2 family), this is the running state
- *    resulting from the processing of the last complete input block.
- *    Returned value is the current input length (in bytes).
+ *   - `br_xxx_context`
  *
- * br_xxx_set_state(br_xxx_context *ctx, const void *stb, uint64_t count)
- *    Set the internal state to the provided values. The 'stb' and 'count'
- *    values shall match that which was obtained from br_xxx_state(). This
- *    restores the hash state only if the state values were at an
- *    appropriate block boundary. This does NOT set the 'vtable' pointer
- *    in the context.
+ *     Context for an ongoing computation. It is allocated by the
+ *     caller, and a pointer to it is passed to all functions. A
+ *     context contains no interior pointer, so it can be moved around
+ *     and cloned (with a simple `memcpy()` or equivalent) in order to
+ *     capture the function state at some point. Computations that use
+ *     distinct context structures are independent of each other. The
+ *     first field of `br_xxx_context` is always a pointer to the
+ *     `br_xxx_vtable` structure; `br_xxx_init()` sets that pointer.
+ *
+ *   - `br_xxx_init(br_xxx_context *ctx)`
+ *
+ *     Initialise the provided context. Previous contents of the structure
+ *     are ignored. This calls resets the context to the start of a new
+ *     hash computation; it also sets the first field of the context
+ *     structure (called `vtable`) to a pointer to the statically
+ *     allocated constant `br_xxx_vtable` structure.
+ *
+ *   - `br_xxx_update(br_xxx_context *ctx, const void *data, size_t len)`
+ *
+ *     Add some more bytes to the hash computation represented by the
+ *     provided context.
+ *
+ *   - `br_xxx_out(const br_xxx_context *ctx, void *out)`
+ *
+ *     Complete the hash computation and write the result in the provided
+ *     buffer. The output buffer MUST be large enough to accomodate the
+ *     result. The context is NOT modified by this operation, so this
+ *     function can be used to get a "partial hash" while still keeping
+ *     the possibility of adding more bytes to the input.
+ *
+ *   - `br_xxx_state(const br_xxx_context *ctx, void *out)`
+ *
+ *     Get a copy of the "current state" for the computation so far. For
+ *     MD functions (MD5, SHA-1, SHA-2 family), this is the running state
+ *     resulting from the processing of the last complete input block.
+ *     Returned value is the current input length (in bytes).
+ *
+ *   - `br_xxx_set_state(br_xxx_context *ctx, const void *stb, uint64_t count)`
+ *
+ *     Set the internal state to the provided values. The 'stb' and
+ *     'count' values shall match that which was obtained from
+ *     `br_xxx_state()`. This restores the hash state only if the state
+ *     values were at an appropriate block boundary. This does NOT set
+ *     the `vtable` pointer in the context.
  *
  * Context structures can be discarded without any explicit deallocation.
  * Hash function implementations are purely software and don't reserve
  * any resources outside of the context structure itself.
  *
+ *
+ * ## Object-Oriented API
+ *
+ * For each hash function that follows the procedural API described
+ * above, an object-oriented API is also provided. In that API, function
+ * pointers from the vtable (`br_xxx_vtable`) are used. The vtable
+ * incarnates object-oriented programming. An introduction on the OOP
+ * concept used here can be read on the BearSSL Web site:<br />
+ * &nbsp;&nbsp;&nbsp;[https://www.bearssl.org/oop.html](https://www.bearssl.org/oop.html)
+ *
+ * The vtable offers functions called `init()`, `update()`, `out()`,
+ * `set()` and `set_state()`, which are in fact the functions from
+ * the procedural API. That vtable also contains two informative fields:
+ *
+ *   - `context_size`
+ *
+ *     The size of the context structure (`br_xxx_context`), in bytes.
+ *     This can be used by generic implementations to perform dynamic
+ *     context allocation.
+ *
+ *   - `desc`
+ *
+ *     A "descriptor" field that encodes some information on the hash
+ *     function: symbolic identifier, output size, state size,
+ *     internal block size, details on the padding.
+ *
+ * Users of this object-oriented API (in particular generic HMAC
+ * implementations) may make the following assumptions:
+ *
+ *   - Hash output size is no more than 64 bytes.
+ *   - Hash internal state size is no more than 64 bytes.
+ *   - Internal block size is a power of two, no less than 16 and no more
+ *     than 256.
+ *
+ *
+ * ## Implemented Hash Functions
+ *
  * Implemented hash functions are:
  *
- *   Function    Name      Output length   State length
- *
- *   MD5         md5       16              16
- *   SHA-1       sha1      20              20
- *   SHA-224     sha224    28              32
- *   SHA-256     sha256    32              32
- *   SHA-384     sha384    48              64
- *   SHA-512     sha512    64              64
- *   MD5+SHA-1   md5sha1   36              36
+ * | Function  | Name    | Output length | State length |
+ * | :-------- | :------ | :-----------: | :----------: |
+ * | MD5       | md5     |     16        |     16       |
+ * | SHA-1     | sha1    |     20        |     20       |
+ * | SHA-224   | sha224  |     28        |     32       |
+ * | SHA-256   | sha256  |     32        |     32       |
+ * | SHA-384   | sha384  |     48        |     64       |
+ * | SHA-512   | sha512  |     64        |     64       |
+ * | MD5+SHA-1 | md5sha1 |     36        |     36       |
  *
  * (MD5+SHA-1 is the concatenation of MD5 and SHA-1 computed over the
  * same input; in the implementation, the internal data buffer is
@@ -136,38 +169,39 @@
  * 1.1.)
  *
  *
- * An object-oriented API is also available: the first field of the
- * context is a pointer to a br_hash_class structure, that has the
- * following contents:
+ * ## Multi-Hasher
  *
- *   context_size   total size of the required context structure
- *   desc           descriptor (see below)
- *   init           context initialization or reset (function pointer)
- *   update         process some more bytes (function pointer)
- *   out            get hash output so far (function pointer)
- *   state          get copy of internal state (function pointer)
- *   set_state      reset the internal state (function pointer)
+ * An aggregate hasher is provided, that can compute several standard
+ * hash functions in parallel. It uses `br_multihash_context` and a
+ * procedural API. It is configured with the implementations (the vtables)
+ * that it should use; it will then compute all these hash functions in
+ * parallel, on the same input. It is meant to be used in cases when the
+ * hash of an object will be used, but the exact hash function is not
+ * known yet (typically, streamed processing on X.509 certificates).
  *
- * The descriptor is a combination of the following elements:
- *   bits 0 to 7     hash algorithm identifier
- *   bits 8 to 14    hash output size (in bytes)
- *   bits 15 to 22   hash internal state size (in bytes)
- *   bits 23 to 26   log (base 2) of hash internal block size (in bytes)
- *   bit 28          1 if using MD padding, 0 otherwise
- *   bit 29          1 if MD padding uses a 128-bit bit length, 0 otherwise
- *   bit 30          1 if MD padding is big-endian, 0 otherwise
+ * Only the standard hash functions (MD5, SHA-1, SHA-224, SHA-256, SHA-384
+ * and SHA-512) are supported by the multi-hasher.
  *
- * For function 'xxx', the br_xxx_init() function sets the first field
- * to a pointer to the relevant br_hash_class instance (i.e.
- * br_xxx_vtable).
  *
- * Users of this object-oriented API may make the following assumptions:
- *   Hash output size is no more than 64 bytes.
- *   Hash internal state size is no more than 64 bytes.
- *   Internal block size is a power of two, no less than 2^4 and no more
- *   than 2^8.
- * For functions that do not have an internal block size that is a
- * power of 2, the relevant element is 0.
+ * ## GHASH
+ *
+ * GHASH is not a generic hash function; it is a _universal_ hash function,
+ * which, as the name does not say, means that it CANNOT be used in most
+ * places where a hash function is needed. GHASH is used within the GCM
+ * encryption mode, to provide the checked integrity functionality.
+ *
+ * A GHASH implementation is basically a function that uses the type defined
+ * in this file under the name `br_ghash`:
+ *
+ *     typedef void (*br_ghash)(void *y, const void *h, const void *data, size_t len);
+ *
+ * The `y` pointer refers to a 16-byte value which is used as input, and
+ * receives the output of the GHASH invocation. `h` is a 16-byte secret
+ * value (that serves as key). `data` and `len` define the input data.
+ *
+ * Three GHASH implementations are provided, all constant-time, based on
+ * the use of integer multiplications with appropriate masking to cancel
+ * carry propagation.
  */
 
 /**
@@ -517,23 +551,6 @@ uint64_t br_sha1_state(const br_sha1_context *ctx, void *out);
  */
 void br_sha1_set_state(br_sha1_context *ctx, const void *stb, uint64_t count);
 
-/* obsolete
-#define br_sha1_ID     2
-#define br_sha1_SIZE   20
-extern const br_hash_class br_sha1_vtable;
-typedef struct {
-	const br_hash_class *vtable;
-	unsigned char buf[64];
-	uint64_t count;
-	uint32_t val[5];
-} br_sha1_context;
-void br_sha1_init(br_sha1_context *ctx);
-void br_sha1_update(br_sha1_context *ctx, const void *data, size_t len);
-void br_sha1_out(const br_sha1_context *ctx, void *out);
-uint64_t br_sha1_state(const br_sha1_context *ctx, void *out);
-void br_sha1_set_state(br_sha1_context *ctx, const void *stb, uint64_t count);
-*/
-
 /**
  * \brief Symbolic identifier for SHA-224.
  */
@@ -629,24 +646,6 @@ uint64_t br_sha224_state(const br_sha224_context *ctx, void *out);
  */
 void br_sha224_set_state(br_sha224_context *ctx,
 	const void *stb, uint64_t count);
-
-/* obsolete
-#define br_sha224_ID     3
-#define br_sha224_SIZE   28
-extern const br_hash_class br_sha224_vtable;
-typedef struct {
-	const br_hash_class *vtable;
-	unsigned char buf[64];
-	uint64_t count;
-	uint32_t val[8];
-} br_sha224_context;
-void br_sha224_init(br_sha224_context *ctx);
-void br_sha224_update(br_sha224_context *ctx, const void *data, size_t len);
-void br_sha224_out(const br_sha224_context *ctx, void *out);
-uint64_t br_sha224_state(const br_sha224_context *ctx, void *out);
-void br_sha224_set_state(br_sha224_context *ctx,
-	const void *stb, uint64_t count);
-*/
 
 /**
  * \brief Symbolic identifier for SHA-256.
@@ -755,18 +754,6 @@ void br_sha256_set_state(br_sha256_context *ctx,
 #define br_sha256_set_state   br_sha224_set_state
 #endif
 
-/* obsolete
-#define br_sha256_ID     4
-#define br_sha256_SIZE   32
-extern const br_hash_class br_sha256_vtable;
-typedef br_sha224_context br_sha256_context;
-void br_sha256_init(br_sha256_context *ctx);
-#define br_sha256_update      br_sha224_update
-void br_sha256_out(const br_sha256_context *ctx, void *out);
-#define br_sha256_state       br_sha224_state
-#define br_sha256_set_state   br_sha224_set_state
-*/
-
 /**
  * \brief Symbolic identifier for SHA-384.
  */
@@ -863,24 +850,6 @@ uint64_t br_sha384_state(const br_sha384_context *ctx, void *out);
 void br_sha384_set_state(br_sha384_context *ctx,
 	const void *stb, uint64_t count);
 
-/* obsolete
-#define br_sha384_ID     5
-#define br_sha384_SIZE   48
-extern const br_hash_class br_sha384_vtable;
-typedef struct {
-	const br_hash_class *vtable;
-	unsigned char buf[128];
-	uint64_t count;
-	uint64_t val[8];
-} br_sha384_context;
-void br_sha384_init(br_sha384_context *ctx);
-void br_sha384_update(br_sha384_context *ctx, const void *data, size_t len);
-void br_sha384_out(const br_sha384_context *ctx, void *out);
-uint64_t br_sha384_state(const br_sha384_context *ctx, void *out);
-void br_sha384_set_state(br_sha384_context *ctx,
-	const void *stb, uint64_t count);
-*/
-
 /**
  * \brief Symbolic identifier for SHA-512.
  */
@@ -908,9 +877,6 @@ typedef struct {
 	 * \brief Pointer to vtable for this context.
 	 */
 	const br_hash_class *vtable;
-	unsigned char buf[128];
-	uint64_t count;
-	uint64_t val[8];
 } br_sha512_context;
 #else
 typedef br_sha384_context br_sha512_context;
@@ -990,18 +956,6 @@ void br_sha512_set_state(br_sha512_context *ctx,
 #else
 #define br_sha512_set_state   br_sha384_set_state
 #endif
-
-/* obsolete
-#define br_sha512_ID     6
-#define br_sha512_SIZE   64
-extern const br_hash_class br_sha512_vtable;
-typedef br_sha384_context br_sha512_context;
-void br_sha512_init(br_sha512_context *ctx);
-#define br_sha512_update      br_sha384_update
-void br_sha512_out(const br_sha512_context *ctx, void *out);
-#define br_sha512_state       br_sha384_state
-#define br_sha512_set_state   br_sha384_set_state
-*/
 
 /*
  * "md5sha1" is a special hash function that computes both MD5 and SHA-1
