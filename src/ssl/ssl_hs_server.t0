@@ -685,6 +685,7 @@ cc: save-session ( -- ) {
 
 	\ We are not resuming, so a new session ID should be generated.
 	addr-session_id 32 mkrand
+	32 addr-session_id_len set8
 
 	\ Translate common cipher suites, then squeeze out holes: there
 	\ may be holes because of the way we fill the list when the

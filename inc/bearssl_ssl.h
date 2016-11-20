@@ -544,13 +544,6 @@ typedef struct {
 	 */
 	unsigned char client_random[32];
 	unsigned char server_random[32];
-	/* obsolete
-	unsigned char session_id[32];
-	unsigned char session_id_len;
-	uint16_t version;
-	uint16_t cipher_suite;
-	unsigned char master_secret[48];
-	*/
 	br_ssl_session_parameters session;
 
 	/*
@@ -924,6 +917,31 @@ static inline const char *
 br_ssl_engine_get_server_name(br_ssl_engine_context *cc)
 {
 	return cc->server_name;
+}
+
+/*
+ * Get a copy of the session parameters. The session parameters are
+ * filled during the handshake, so this function shall not be called
+ * before completion of the handshake.
+ */
+static inline void
+br_ssl_engine_get_session_parameters(const br_ssl_engine_context *cc,
+	br_ssl_session_parameters *pp)
+{
+	memcpy(pp, &cc->session, sizeof *pp);
+}
+
+/*
+ * Set the session parameters to the provided value. This function
+ * is meant to be used in the client, before doing a new handshake;
+ * a session resumption will be attempted with these parameters. In
+ * the server, this function has no effect.
+ */
+static inline void
+br_ssl_engine_set_session_parameters(br_ssl_engine_context *cc,
+	const br_ssl_session_parameters *pp)
+{
+	memcpy(&cc->session, pp, sizeof *pp);
 }
 
 /*

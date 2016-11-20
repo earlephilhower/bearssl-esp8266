@@ -67,6 +67,14 @@ dump_blob(const char *name, const void *data, size_t len)
 static int
 run_command(br_ssl_engine_context *cc, unsigned char *buf, size_t len)
 {
+	/*
+	 * A single static slot for saving session parameters.
+	 */
+	static br_ssl_session_parameters slot;
+	static int slot_used = 0;
+
+	size_t u;
+
 	if (len < 2 || len > 3) {
 		return 0;
 	}
@@ -99,6 +107,28 @@ run_command(br_ssl_engine_context *cc, unsigned char *buf, size_t len)
 		fprintf(stderr, "forgetting session...\n");
 		br_ssl_client_forget_session((br_ssl_client_context *)cc);
 		return 1;
+	case 'S':
+		fprintf(stderr, "saving session parameters...\n");
+		br_ssl_engine_get_session_parameters(cc, &slot);
+		fprintf(stderr, "  id = ");
+		for (u = 0; u < slot.session_id_len; u ++) {
+			fprintf(stderr, "%02X", slot.session_id[u]);
+		}
+		fprintf(stderr, "\n");
+		slot_used = 1;
+		return 1;
+	case 'P':
+		if (slot_used) {
+			fprintf(stderr, "restoring session parameters...\n");
+			fprintf(stderr, "  id = ");
+			for (u = 0; u < slot.session_id_len; u ++) {
+				fprintf(stderr, "%02X", slot.session_id[u]);
+			}
+			fprintf(stderr, "\n");
+			br_ssl_engine_set_session_parameters(cc, &slot);
+			return 1;
+		}
+		return 0;
 	default:
 		return 0;
 	}
