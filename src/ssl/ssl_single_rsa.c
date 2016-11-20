@@ -37,6 +37,9 @@ sr_choose(const br_ssl_server_policy_class **pctx,
 	pc = (br_ssl_server_policy_rsa_context *)pctx;
 	st = br_ssl_server_get_client_suites(cc, &st_num);
 	hash_id = br_ssl_choose_hash(br_ssl_server_get_client_hashes(cc));
+	if (cc->eng.session.version < BR_TLS12) {
+		hash_id = 0;
+	}
 	choices->chain = pc->chain;
 	choices->chain_len = pc->chain_len;
 	for (u = 0; u < st_num; u ++) {

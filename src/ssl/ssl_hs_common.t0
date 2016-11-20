@@ -441,7 +441,7 @@ cc: read-chunk-native ( addr len -- addr len ) {
 	addr-alert get8 case
 		0 of
 			\ 'alert' field is 0, so this byte shall be a level.
-			\ Levels shall be 1 (alert) or 2 (fatal); we convert
+			\ Levels shall be 1 (warning) or 2 (fatal); we convert
 			\ all other values to "fatal".
 			dup 1 <> if drop 2 then
 			addr-alert set8 0
@@ -452,7 +452,7 @@ cc: read-chunk-native ( addr len -- addr len ) {
 			0= ret
 		endof
 		\ Fatal alert implies context termination.
-		256 + fail
+		drop 256 + fail
 	endcase ;
 
 \ In general we only deal with handshake data here. Alerts are processed
@@ -782,8 +782,10 @@ hexb| 0000 | \ List terminator.
 		2+
 	again ;
 
-\ Check that a given cipher suite is supported.
+\ Check that a given cipher suite is supported. Note that this also
+\ returns true (-1) for the TLS_FALLBACK_SCSV pseudo-ciphersuite.
 : suite-supported? ( suite -- bool )
+	dup 0x5600 = if drop -1 ret then
 	cipher-suite-to-elements 0<> ;
 
 \ Get expected key type for cipher suite. The key type is one of

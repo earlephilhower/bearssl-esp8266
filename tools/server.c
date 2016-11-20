@@ -333,6 +333,9 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 		case BR_SSLKEYX_ECDHE_RSA:
 			if (pc->sk->key_type == BR_KEYTYPE_RSA) {
 				choices->cipher_suite = st[u][0];
+				if (cc->eng.session.version < BR_TLS12) {
+					hash_id = 0;
+				}
 				choices->hash_id = hash_id;
 				goto choose_ok;
 			}
@@ -340,6 +343,9 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 		case BR_SSLKEYX_ECDHE_ECDSA:
 			if (pc->sk->key_type == BR_KEYTYPE_EC) {
 				choices->cipher_suite = st[u][0];
+				if (cc->eng.session.version < BR_TLS12) {
+					hash_id = br_sha1_ID;
+				}
 				choices->hash_id = hash_id;
 				goto choose_ok;
 			}

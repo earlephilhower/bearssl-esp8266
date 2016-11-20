@@ -149,6 +149,8 @@ usage_client(void)
 "   -hf names       add support for some hash functions (comma-separated)\n");
 	fprintf(stderr,
 "   -minhello len   set minimum ClientHello length (in bytes)\n");
+	fprintf(stderr,
+"   -fallback       send the TLS_FALLBACK_SCSV (i.e. claim a downgrade)\n");
 }
 
 /* see brssl.h */
@@ -177,6 +179,7 @@ do_client(int argc, char *argv[])
 	unsigned char *iobuf;
 	size_t iobuf_len;
 	size_t minhello_len;
+	int fallback;
 	int fd;
 
 	retcode = 0;
@@ -196,6 +199,7 @@ do_client(int argc, char *argv[])
 	iobuf = NULL;
 	iobuf_len = 0;
 	minhello_len = (size_t)-1;
+	fallback = 0;
 	fd = -1;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
@@ -376,6 +380,8 @@ do_client(int argc, char *argv[])
 				usage_client();
 				goto client_exit_error;
 			}
+		} else if (eqstr(arg, "-fallback")) {
+			fallback = 1;
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_client();
@@ -457,7 +463,7 @@ do_client(int argc, char *argv[])
 	/*
 	 * Compute implementation requirements and inject implementations.
 	 */
-	suite_ids = xmalloc(num_suites * sizeof *suite_ids);
+	suite_ids = xmalloc((num_suites + 1) * sizeof *suite_ids);
 	br_ssl_client_zero(&cc);
 	br_ssl_engine_set_versions(&cc.eng, vmin, vmax);
 	dnhash = NULL;
@@ -556,6 +562,9 @@ do_client(int argc, char *argv[])
 		if ((req & REQ_ECDH) != 0) {
 			br_ssl_engine_set_ec(&cc.eng, &br_ec_prime_i31);
 		}
+	}
+	if (fallback) {
+		suite_ids[num_suites ++] = 0x5600;
 	}
 	br_ssl_engine_set_suites(&cc.eng, suite_ids, num_suites);
 

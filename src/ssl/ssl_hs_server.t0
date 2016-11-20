@@ -526,6 +526,17 @@ cc: save-session ( -- ) {
 			-1 >reneg-scsv
 		then
 
+		\ Special handling for TLS_FALLBACK_SCSV. If the client
+		\ maximum version is less than our own maximum version,
+		\ then this is an undue downgrade. We mark it by setting
+		\ the client max version to 0x10000.
+		dup 0x5600 = if
+			client-version-max addr-version_min get16 >=
+			client-version-max addr-version_max get16 < and if
+				-1 >client-version-max
+			then
+		then
+
 		\ Test whether the suite is supported by the server.
 		scan-suite dup 0< if
 			\ We do not support this cipher suite. Note
@@ -626,6 +637,13 @@ cc: save-session ( -- ) {
 	\ 0x0300 (SSL-3.0), then fail. Otherwise, we may at least send an
 	\ alert with that version. We still reject versions lower than our
 	\ configured minimum.
+	\ As a special case, in case of undue downgrade, we send a specific
+	\ alert (see RFC 7507). Note that this case may happen only if
+	\ we would otherwise accept the client's version.
+	client-version-max 0< if
+		addr-client_max_version get16 addr-version_out set16
+		86 fail-alert
+	then
 	addr-version_max get16
 	dup client-version-max > if drop client-version-max then
 	dup 0x0300 < if ERR_BAD_VERSION fail then
