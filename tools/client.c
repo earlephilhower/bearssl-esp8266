@@ -152,6 +152,8 @@ usage_client(void)
 "   -minhello len   set minimum ClientHello length (in bytes)\n");
 	fprintf(stderr,
 "   -fallback       send the TLS_FALLBACK_SCSV (i.e. claim a downgrade)\n");
+	fprintf(stderr,
+"   -noreneg        prohibit renegotiations\n");
 }
 
 /* see brssl.h */
@@ -181,6 +183,7 @@ do_client(int argc, char *argv[])
 	size_t iobuf_len;
 	size_t minhello_len;
 	int fallback;
+	uint32_t flags;
 	int fd;
 
 	retcode = 0;
@@ -201,6 +204,7 @@ do_client(int argc, char *argv[])
 	iobuf_len = 0;
 	minhello_len = (size_t)-1;
 	fallback = 0;
+	flags = 0;
 	fd = -1;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
@@ -383,6 +387,8 @@ do_client(int argc, char *argv[])
 			}
 		} else if (eqstr(arg, "-fallback")) {
 			fallback = 1;
+		} else if (eqstr(arg, "-noreneg")) {
+			flags |= BR_OPT_NO_RENEGOTIATION;
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_client();
@@ -616,6 +622,7 @@ do_client(int argc, char *argv[])
 	if (minhello_len != (size_t)-1) {
 		br_ssl_client_set_min_clienthello_len(&cc, minhello_len);
 	}
+	br_ssl_engine_set_all_flags(&cc.eng, flags);
 
 	br_ssl_engine_set_buffer(&cc.eng, iobuf, iobuf_len, bidi);
 	br_ssl_client_reset(&cc, sni, 0);

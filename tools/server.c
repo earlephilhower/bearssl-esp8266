@@ -793,6 +793,8 @@ do_server(int argc, char *argv[])
 			hfuns |= x;
 		} else if (eqstr(arg, "-serverpref")) {
 			flags |= BR_OPT_ENFORCE_SERVER_PREFERENCES;
+		} else if (eqstr(arg, "-noreneg")) {
+			flags |= BR_OPT_NO_RENEGOTIATION;
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_server();
@@ -902,7 +904,7 @@ do_server(int argc, char *argv[])
 	suite_ids = xmalloc(num_suites * sizeof *suite_ids);
 	br_ssl_server_zero(&cc);
 	br_ssl_engine_set_versions(&cc.eng, vmin, vmax);
-	br_ssl_server_set_all_flags(&cc, flags);
+	br_ssl_engine_set_all_flags(&cc.eng, flags);
 	if (vmin <= BR_TLS11) {
 		if (!(hfuns & (1 << br_md5_ID))) {
 			fprintf(stderr, "ERROR: TLS 1.0 and 1.1 need MD5\n");

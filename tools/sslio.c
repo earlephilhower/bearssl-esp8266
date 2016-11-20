@@ -82,8 +82,11 @@ run_command(br_ssl_engine_context *cc, unsigned char *buf, size_t len)
 		br_ssl_engine_close(cc);
 		return 1;
 	case 'R':
-		fprintf(stderr, "renegotiating...\n");
-		br_ssl_engine_renegotiate(cc);
+		if (br_ssl_engine_renegotiate(cc)) {
+			fprintf(stderr, "renegotiating...\n");
+		} else {
+			fprintf(stderr, "not renegotiating.\n");
+		}
 		return 1;
 	case 'F':
 		/*

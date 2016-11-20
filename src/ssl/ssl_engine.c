@@ -1239,7 +1239,9 @@ br_ssl_engine_close(br_ssl_engine_context *cc)
 int
 br_ssl_engine_renegotiate(br_ssl_engine_context *cc)
 {
-	if (br_ssl_engine_closed(cc) || cc->reneg == 1) {
+	if (br_ssl_engine_closed(cc) || cc->reneg == 1
+		|| (cc->flags & BR_OPT_NO_RENEGOTIATION) != 0)
+	{
 		return 0;
 	}
 	jump_handshake(cc, 2);

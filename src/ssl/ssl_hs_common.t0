@@ -156,6 +156,7 @@ addr-eng: ecdhe_point
 addr-eng: ecdhe_point_len
 addr-eng: reneg
 addr-eng: saved_finished
+addr-eng: flags
 addr-eng: pad
 addr-eng: action
 addr-eng: alert
@@ -173,6 +174,10 @@ addr-session-field: session_id_len
 addr-session-field: version
 addr-session-field: cipher_suite
 addr-session-field: master_secret
+
+\ Check a server flag by index.
+: flag? ( index -- bool )
+	addr-flags get32 swap >> 1 and neg ;
 
 \ Define a word that evaluates to an error constant. This assumes that
 \ all relevant error codes are in the 0..63 range.
@@ -449,6 +454,9 @@ cc: read-chunk-native ( addr len -- addr len ) {
 		1 of
 			0 addr-alert set8
 			\ close_notify has value 0.
+			\ no_renegotiation has value 100, and we treat it
+			\ as a fatal alert.
+			dup 100 = if 256 + fail then
 			0= ret
 		endof
 		\ Fatal alert implies context termination.

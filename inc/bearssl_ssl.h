@@ -575,6 +575,11 @@ typedef struct {
 	unsigned char saved_finished[24];
 
 	/*
+	 * Behavioural flags.
+	 */
+	uint32_t flags;
+
+	/*
 	 * Context variables for the handshake processor.
 	 * The 'pad' must be large enough to accommodate an
 	 * RSA-encrypted pre-master secret, or a RSA signature on
@@ -652,6 +657,45 @@ typedef struct {
 	const br_ec_impl *iec;
 
 } br_ssl_engine_context;
+
+/*
+ * Get currently defined engine behavioural flags.
+ */
+static inline uint32_t
+br_ssl_engine_get_flags(br_ssl_engine_context *cc)
+{
+	return cc->flags;
+}
+
+/*
+ * Set all engine flags. Flags which are not in the 'flags' argument
+ * are cleared.
+ */
+static inline void
+br_ssl_engine_set_all_flags(br_ssl_engine_context *cc, uint32_t flags)
+{
+	cc->flags = flags;
+}
+
+/*
+ * Add some engine flags. The provided flags are set in the engine context,
+ * but other flags are untouched.
+ */
+static inline void
+br_ssl_engine_add_flags(br_ssl_engine_context *cc, uint32_t flags)
+{
+	cc->flags |= flags;
+}
+
+/*
+ * Remove some engine flags. The provided flags are cleared from the
+ * engine context, but other flags are untouched.
+ */
+static inline void
+br_ssl_engine_remove_flags(br_ssl_engine_context *cc, uint32_t flags)
+{
+	cc->flags &= ~flags;
+}
 
 /*
  * Set the minimum and maximum supported protocol versions.
@@ -1371,11 +1415,6 @@ struct br_ssl_server_context_ {
 	br_ssl_engine_context eng;
 
 	/*
-	 * Flags.
-	 */
-	uint32_t flags;
-
-	/*
 	 * Maximum version from the client.
 	 */
 	uint16_t client_max_version;
@@ -1438,49 +1477,17 @@ struct br_ssl_server_context_ {
 };
 
 /*
- * Get currently defined server behavioural flags.
- */
-static inline uint32_t
-br_ssl_server_get_flags(br_ssl_server_context *cc)
-{
-	return cc->flags;
-}
-
-/*
- * Set all server flags. Flags which are not in the 'flags' argument
- * are cleared.
- */
-static inline void
-br_ssl_server_set_all_flags(br_ssl_server_context *cc, uint32_t flags)
-{
-	cc->flags = flags;
-}
-
-/*
- * Add some server flags. The provided flags are set in the server context,
- * but other flags are untouched.
- */
-static inline void
-br_ssl_server_add_flags(br_ssl_server_context *cc, uint32_t flags)
-{
-	cc->flags |= flags;
-}
-
-/*
- * Remove some server flags. The provided flags are cleared from the
- * server context, but other flags are untouched.
- */
-static inline void
-br_ssl_server_remove_flags(br_ssl_server_context *cc, uint32_t flags)
-{
-	cc->flags &= ~flags;
-}
-
-/*
  * If this flag is set, then the server will enforce its own cipher suite
  * preference order; otherwise, it follows the client preferences.
  */
 #define BR_OPT_ENFORCE_SERVER_PREFERENCES      ((uint32_t)1 << 0)
+
+/*
+ * If this flag is set, then renegotiations are rejected unconditionally:
+ * they won't be honoured if asked for programmatically, and requests from
+ * the peer are rejected.
+ */
+#define BR_OPT_NO_RENEGOTIATION                ((uint32_t)1 << 1)
 
 /*
  * Each br_ssl_server_init_xxx() function sets the list of supported

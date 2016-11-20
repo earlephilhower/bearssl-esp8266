@@ -999,12 +999,9 @@ cc: do-ecdh ( echde prf_id -- ulen ) {
 				0 addr-application_data set8
 				read-HelloRequest
 				\ Reject renegotiations if the peer does not
-				\ support secure renegotiation. Theoretically
-				\ we could just ignore that, however if the
-				\ server sent an HelloRequest then it is
-				\ expecting a handshake and will wait for our
-				\ ClientHello.
-				addr-reneg get8 1 = if
+				\ support secure renegotiation, or if the
+				\ "no renegotiation" flag is set.
+				addr-reneg get8 1 = 1 flag? or if
 					flush-record
 					begin can-output? not while
 						wait-co drop

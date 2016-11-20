@@ -268,7 +268,6 @@ do_ecdhe_part2(br_ssl_server_context *ctx, int prf_id,
 	0 8191 "offsetof(br_ssl_server_context, " field + ")" + make-CX
 	postpone literal postpone ; ;
 
-addr-ctx: flags
 addr-ctx: client_max_version
 addr-ctx: client_suites
 addr-ctx: client_suites_num
@@ -281,10 +280,6 @@ addr-ctx: sign_hash_id
 : addr-len-client_suites ( -- addr len )
 	addr-client_suites
 	CX 0 1023 { BR_MAX_CIPHER_SUITES * sizeof(br_suite_translated) } ;
-
-\ Check a server flag by index.
-: flag? ( index -- bool )
-	addr-flags get32 swap >> 1 and neg ;
 
 \ Read the client SNI extension.
 : read-client-sni ( lim -- lim )
@@ -1011,18 +1006,17 @@ cc: do-ecdhe-part2 ( len prf_id -- ) {
 			endof
 			0x01 of
 				\ Reject renegotiations if the peer does not
-				\ support secure renegotiation. As allowed
-				\ by RFC 5246, we do not send a
-				\ no_renegotiation alert and just ignore the
-				\ HelloRequest.
+				\ support secure renegotiation, or if the
+				\ "no renegotiation" flag is set.
 				drop
-				addr-reneg get8 1 <> if
-					0 do-handshake
-				else
+				addr-reneg get8 1 = 1 flag? or if
 					flush-record
 					begin can-output? not while
 						wait-co drop
 					repeat
+					100 send-warning
+				else
+					0 do-handshake
 				then
 			endof
 			ERR_UNEXPECTED fail
