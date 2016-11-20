@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -1009,6 +1010,11 @@ do_server(int argc, char *argv[])
 	br_ssl_server_set_policy(&cc, &pc.vtable);
 
 	br_ssl_engine_set_buffer(&cc.eng, iobuf, iobuf_len, bidi);
+
+	/*
+	 * We need to ignore SIGPIPE.
+	 */
+	signal(SIGPIPE, SIG_IGN);
 
 	/*
 	 * Open the server socket.

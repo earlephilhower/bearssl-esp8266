@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -277,6 +278,11 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 	port = argv[1];
+
+	/*
+	 * Ignore SIGPIPE to avoid crashing in case of abrupt socket close.
+	 */
+	signal(SIGPIPE, SIG_IGN);
 
 	/*
 	 * Open the server socket.

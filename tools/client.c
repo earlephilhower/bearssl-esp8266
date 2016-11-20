@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -618,6 +619,11 @@ do_client(int argc, char *argv[])
 
 	br_ssl_engine_set_buffer(&cc.eng, iobuf, iobuf_len, bidi);
 	br_ssl_client_reset(&cc, sni, 0);
+
+	/*
+	 * We need to avoid SIGPIPE.
+	 */
+	signal(SIGPIPE, SIG_IGN);
 
 	/*
 	 * Connect to the peer.
