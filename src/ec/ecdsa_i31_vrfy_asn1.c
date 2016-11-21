@@ -33,9 +33,13 @@ br_ecdsa_i31_vrfy_asn1(const br_ec_impl *impl,
 	const br_ec_public_key *pk,
 	const void *sig, size_t sig_len)
 {
-	unsigned char rsig[(FIELD_LEN << 1) + 12];
+	/*
+	 * We use a double-sized buffer because a malformed ASN.1 signature
+	 * may trigger a size expansion when converting to "raw" format.
+	 */
+	unsigned char rsig[(FIELD_LEN << 2) + 24];
 
-	if (sig_len > sizeof rsig) {
+	if (sig_len > ((sizeof rsig) >> 1)) {
 		return 0;
 	}
 	memcpy(rsig, sig, sig_len);

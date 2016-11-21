@@ -51,6 +51,13 @@ br_ecdsa_i31_sign_raw(const br_ec_impl *impl,
 	br_hmac_drbg_context drbg;
 
 	/*
+	 * If the curve is not supported, then exit with an error.
+	 */
+	if (((impl->supported_curves >> sk->curve) & 1) == 0) {
+		return 0;
+	}
+
+	/*
 	 * Get the curve parameters (generator and order).
 	 */
 	switch (sk->curve) {

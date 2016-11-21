@@ -24,6 +24,13 @@
 
 #include "inner.h"
 
+/*
+ * Compute ASN.1 encoded length for the provided integer. The ASN.1
+ * encoding is signed, so its leading bit must have value 0; it must
+ * also be of minimal length (so leading bytes of value 0 must be
+ * removed, except if that would contradict the rule about the sign
+ * bit).
+ */
 static size_t
 asn1_int_length(const unsigned char *x, size_t xlen)
 {
@@ -44,7 +51,7 @@ br_ecdsa_raw_to_asn1(void *sig, size_t sig_len)
 	/*
 	 * Internal buffer is large enough to accommodate a signature
 	 * such that r and s fit on 125 bytes each (signed encoding),
-	 * meaning a curve order of up to 1000 bits. This is the limit
+	 * meaning a curve order of up to 999 bits. This is the limit
 	 * that ensures "simple" length encodings.
 	 */
 	unsigned char *buf;
@@ -55,12 +62,20 @@ br_ecdsa_raw_to_asn1(void *sig, size_t sig_len)
 	if ((sig_len & 1) != 0) {
 		return 0;
 	}
+
+	/*
+	 * Compute lengths for the two integers.
+	 */
 	hlen = sig_len >> 1;
 	rlen = asn1_int_length(buf, hlen);
 	slen = asn1_int_length(buf + hlen, hlen);
 	if (rlen > 125 || slen > 125) {
 		return 0;
 	}
+
+	/*
+	 * SEQUENCE header.
+	 */
 	tmp[0] = 0x30;
 	zlen = rlen + slen + 4;
 	if (zlen >= 0x80) {
@@ -71,6 +86,10 @@ br_ecdsa_raw_to_asn1(void *sig, size_t sig_len)
 		tmp[1] = zlen;
 		off = 2;
 	}
+
+	/*
+	 * First INTEGER (r).
+	 */
 	tmp[off ++] = 0x02;
 	tmp[off ++] = rlen;
 	if (rlen > hlen) {
@@ -80,6 +99,10 @@ br_ecdsa_raw_to_asn1(void *sig, size_t sig_len)
 		memcpy(tmp + off, buf + hlen - rlen, rlen);
 	}
 	off += rlen;
+
+	/*
+	 * Second INTEGER (s).
+	 */
 	tmp[off ++] = 0x02;
 	tmp[off ++] = slen;
 	if (slen > hlen) {
@@ -89,6 +112,10 @@ br_ecdsa_raw_to_asn1(void *sig, size_t sig_len)
 		memcpy(tmp + off, buf + sig_len - slen, slen);
 	}
 	off += slen;
+
+	/*
+	 * Return ASN.1 signature.
+	 */
 	memcpy(sig, tmp, off);
 	return off;
 }

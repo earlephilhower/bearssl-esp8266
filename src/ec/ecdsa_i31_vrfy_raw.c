@@ -48,6 +48,13 @@ br_ecdsa_i31_vrfy_raw(const br_ec_impl *impl,
 	uint32_t n0i, res;
 
 	/*
+	 * If the curve is not supported, then report an error.
+	 */
+	if (((impl->supported_curves >> pk->curve) & 1) == 0) {
+		return 0;
+	}
+
+	/*
 	 * Get the curve parameters (generator and order).
 	 */
 	switch (pk->curve) {
