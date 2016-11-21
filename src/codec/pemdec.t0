@@ -144,7 +144,8 @@ cc: read8-native ( -- x ) {
 	begin
 		over ifnot 2drop skip-newline 0 ret then
 		read8 dup `\n = if 2drop orig-len swap - ret then
-		norm-upper over set8 1+ swap 1- swap
+		dup `\r = if drop else norm-upper over set8 then
+		1+ swap 1- swap
 	again ;
 
 \ Remove trailing dashes from the name buffer.
