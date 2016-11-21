@@ -28,35 +28,99 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/*
- * Elliptic Curves
- * ---------------
+/** \file bearssl_ec.h
+ *
+ * # Elliptic Curves
+ *
+ * This file documents the EC implementations provided with BearSSL, and
+ * ECDSA.
+ *
+ * ## Elliptic Curve API
+ *
+ * Only "named curves" are supported. Each EC implementation supports
+ * one or several named curves, identified by symbolic identifiers.
+ * These identifiers are small integers, that correspond to the values
+ * registered by the
+ * [IANA](http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8).
+ *
+ * Since all currently defined elliptic curve identifiers are in the 0..31
+ * range, it is convenient to encode support of some curves in a 32-bit
+ * word, such that bit x corresponds to curve of identifier x.
+ *
+ * An EC implementation is incarnated by a `br_ec_impl` instance, that
+ * offers the following fields:
+ *
+ *   - `supported_curves`
+ *
+ *      A 32-bit word that documents the identifiers of the curves supported
+ *      by this implementation.
+ *
+ *   - `generator()`
+ *
+ *      Callback method that returns a pointer to the conventional generator
+ *      point for that curve.
+ *
+ *   - `order()`
+ *
+ *      Callback method that returns a pointer to the subgroup order for
+ *      that curve. That value uses unsigned big-endian encoding.
+ *
+ *   - `mul()`
+ *
+ *      Multiply a curve point with an integer.
+ *
+ *   - `muladd()`
+ *
+ *      Multiply two curve points by two integers, and return the sum of
+ *      the two products.
+ *
+ * All curve points are represented in uncompressed format. The `mul()`
+ * and `muladd()` methods take care to validate that the provided points
+ * are really part of the relevant curve subgroup.
+ *
+ * For all point multiplication functions, the following holds:
+ *
+ *   - Functions validate that the provided points are valid members
+ *     of the relevant curve subgroup. An error is reported if that is
+ *     not the case.
+ *
+ *   - Processing is constant-time, even if the point operands are not
+ *     valid. This holds for both the source and resulting points, and
+ *     the multipliers (integers). Only the byte length of the provided
+ *     multiplier arrays (not their actual value length in bits) may
+ *     leak through timing-based side channels.
+ *
+ *   - The multipliers (integers) MUST be lower than the subgroup order.
+ *     If this property is not met, then the result is indeterminate,
+ *     but an error value is not ncessearily returned.
+ * 
+ *
+ * ## ECDSA
  *
  * ECDSA signatures have two standard formats, called "raw" and "asn1".
- * Internally, such a signature is a pair of modular integers (r,s).
+ * Internally, such a signature is a pair of modular integers `(r,s)`.
  * The "raw" format is the concatenation of the unsigned big-endian
  * encodings of these two integers, possibly left-padded with zeros so
  * that they have the same encoded length. The "asn1" format is the
  * DER encoding of an ASN.1 structure that contains the two integer
  * values:
  *
- *   ECDSASignature ::= SEQUENCE {
- *       r   INTEGER,
- *       s   INTEGER
- *   }
+ *     ECDSASignature ::= SEQUENCE {
+ *         r   INTEGER,
+ *         s   INTEGER
+ *     }
  *
- * Low-level implementations defined here work on the "raw" format.
- * Conversion functions are provided.
+ * In general, in all of X.509 and SSL/TLS, the "asn1" format is used.
+ * BearSSL offers ECDSA implementations for both formats; conversion
+ * functions between the two formats are also provided. Conversion of a
+ * "raw" format signature into "asn1" may enlarge a signature by no more
+ * than 9 bytes for all supported curves; conversely, conversion of an
+ * "asn1" signature to "raw" may expand the signature but the "raw"
+ * length will never be more than twice the length of the "asn1" length
+ * (and usually it will be shorter).
  *
  * Note that for a given signature, the "raw" format is not fully
  * deterministic, in that it does not enforce a minimal common length.
- * The functions below MUST ensure, when producing signatures, that
- * the signature length never exceeds 2*qlen, where qlen is the length,
- * in bytes, of the minimal unsigned big-endian encoding of the curve
- * subgroup order.
- *
- * Conversion of a "raw" format signature into "asn1" may enlarge a
- * signature by no more than 9 bytes for all supported curves.
  */
 
 /*
@@ -64,155 +128,397 @@
  * identifiers assigned to these curves for TLS:
  *    http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8
  */
+
+/** \brief Identifier for named curve sect163k1. */
 #define BR_EC_sect163k1           1
+
+/** \brief Identifier for named curve sect163r1. */
 #define BR_EC_sect163r1           2
+
+/** \brief Identifier for named curve sect163r2. */
 #define BR_EC_sect163r2           3
+
+/** \brief Identifier for named curve sect193r1. */
 #define BR_EC_sect193r1           4
+
+/** \brief Identifier for named curve sect193r2. */
 #define BR_EC_sect193r2           5
+
+/** \brief Identifier for named curve sect233k1. */
 #define BR_EC_sect233k1           6
+
+/** \brief Identifier for named curve sect233r1. */
 #define BR_EC_sect233r1           7
+
+/** \brief Identifier for named curve sect239k1. */
 #define BR_EC_sect239k1           8
+
+/** \brief Identifier for named curve sect283k1. */
 #define BR_EC_sect283k1           9
+
+/** \brief Identifier for named curve sect283r1. */
 #define BR_EC_sect283r1          10
+
+/** \brief Identifier for named curve sect409k1. */
 #define BR_EC_sect409k1          11
+
+/** \brief Identifier for named curve sect409r1. */
 #define BR_EC_sect409r1          12
+
+/** \brief Identifier for named curve sect571k1. */
 #define BR_EC_sect571k1          13
+
+/** \brief Identifier for named curve sect571r1. */
 #define BR_EC_sect571r1          14
+
+/** \brief Identifier for named curve secp160k1. */
 #define BR_EC_secp160k1          15
+
+/** \brief Identifier for named curve secp160r1. */
 #define BR_EC_secp160r1          16
+
+/** \brief Identifier for named curve secp160r2. */
 #define BR_EC_secp160r2          17
+
+/** \brief Identifier for named curve secp192k1. */
 #define BR_EC_secp192k1          18
+
+/** \brief Identifier for named curve secp192r1. */
 #define BR_EC_secp192r1          19
+
+/** \brief Identifier for named curve secp224k1. */
 #define BR_EC_secp224k1          20
+
+/** \brief Identifier for named curve secp224r1. */
 #define BR_EC_secp224r1          21
+
+/** \brief Identifier for named curve secp256k1. */
 #define BR_EC_secp256k1          22
+
+/** \brief Identifier for named curve secp256r1. */
 #define BR_EC_secp256r1          23
+
+/** \brief Identifier for named curve secp384r1. */
 #define BR_EC_secp384r1          24
+
+/** \brief Identifier for named curve secp521r1. */
 #define BR_EC_secp521r1          25
+
+/** \brief Identifier for named curve brainpoolP256r1. */
 #define BR_EC_brainpoolP256r1    26
+
+/** \brief Identifier for named curve brainpoolP384r1. */
 #define BR_EC_brainpoolP384r1    27
+
+/** \brief Identifier for named curve brainpoolP512r1. */
 #define BR_EC_brainpoolP512r1    28
 
-/*
- * Structure for an EC public key.
+/**
+ * \brief Structure for an EC public key.
  */
 typedef struct {
+	/** \brief Identifier for the curve used by this key. */
 	int curve;
+	/** \brief Public curve point (uncompressed format). */
 	unsigned char *q;
+	/** \brief Length of public curve point (in bytes). */
 	size_t qlen;
 } br_ec_public_key;
 
-/*
- * Structure for an EC private key.
+/**
+ * \brief Structure for an EC private key.
+ *
+ * The private key is an integer modulo the curve subgroup order. The
+ * encoding below tolerates extra leading zeros. In general, it is
+ * recommended that the private key has the same length as the curve
+ * subgroup order.
  */
 typedef struct {
+	/** \brief Identifier for the curve used by this key. */
 	int curve;
+	/** \brief Private key (integer, unsigned big-endian encoding). */
 	unsigned char *x;
+	/** \brief Private key length (in bytes). */
 	size_t xlen;
 } br_ec_private_key;
 
-/*
- * Type for an EC implementation.
- *
- *  supported_curves
- *     Bit mask for supported curves: if curve 'id' is supported, then
- *     bit '1 << id' is set.
- *
- *  generator
- *     Get a pointer to the conventional generator for a given curve.
- *
- *  order
- *     Get a pointer to the curve order (minimal unsigned big-endian
- *     encoding).
- *
- *  mul
- *     Compute x*G. Provided point G (encoded size Glen) must be valid and
- *     distinct from the point at infinity. 'x' must be non-zero and less
- *     than the curve order. On error, 0 is returned; an invalid G (or
- *     point at infinity) is always detected, as well as a case of x = 0.
- *     However, if x is a non-zero multiple of the curve order, then it is
- *     not guaranteed that an error is reported.
- *
- *  muladd
- *     compute x*A+y*B, result being written over A. Points and multipliers
- *     must fulfill the same conditions as for mul().
+/**
+ * \brief Type for an EC implementation.
  */
 typedef struct {
+	/**
+	 * \brief Supported curves.
+	 *
+	 * This word is a bitfield: bit `x` is set if the curve of ID `x`
+	 * is supported. E.g. an implementation supporting both NIST P-256
+	 * (secp256r1, ID 23) and NIST P-384 (secp384r1, ID 24) will have
+	 * value `0x01800000` in this field.
+	 */
 	uint32_t supported_curves;
+
+	/**
+	 * \brief Get the conventional generator.
+	 *
+	 * This function returns the conventional generator (encoded
+	 * curve point) for the specified curve. This function MUST NOT
+	 * be called if the curve is not supported.
+	 *
+	 * \param curve   curve identifier.
+	 * \param len     receiver for the encoded generator length (in bytes).
+	 * \return  the encoded generator.
+	 */
 	const unsigned char *(*generator)(int curve, size_t *len);
+
+	/**
+	 * \brief Get the subgroup order.
+	 *
+	 * This function returns the order of the subgroup generated by
+	 * the conventional generator, for the specified curve. Unsigned
+	 * big-endian encoding is used. This function MUST NOT be called
+	 * if the curve is not supported.
+	 *
+	 * \param curve   curve identifier.
+	 * \param len     receiver for the encoded order length (in bytes).
+	 * \return  the encoded order.
+	 */
 	const unsigned char *(*order)(int curve, size_t *len);
+
+	/**
+	 * \brief Multiply a curve point by an integer.
+	 *
+	 * The source point is provided in array `G` (of size `Glen` bytes);
+	 * the multiplication result is written over it. The multiplier
+	 * `x` (of size `xlen` bytes) uses unsigned big-endian encoding.
+	 *
+	 * Rules:
+	 *
+	 *   - The specified curve MUST be supported.
+	 *
+	 *   - The source point must be a valid point on the relevant curve
+	 *     subgroup (and not the "point at infinity" either). If this is
+	 *     not the case, then this function returns an error (0).
+	 *
+	 *   - The multiplier integer MUST be non-zero and less than the
+	 *     curve subgroup order. If the integer is zero, then an
+	 *     error is reported, but if the integer is not lower than
+	 *     the subgroup order, then the result is indeterminate and an
+	 *     error code is not guaranteed.
+	 *
+	 * Returned value is 1 on success, 0 on error. On error, the
+	 * contents of `G` are indeterminate.
+	 *
+	 * \param G       point to multiply.
+	 * \param Glen    length of the encoded point (in bytes).
+	 * \param x       multiplier (unsigned big-endian).
+	 * \param xlen    multiplier length (in bytes).
+	 * \param curve   curve identifier.
+	 * \return  1 on success, 0 on error.
+	 */
 	uint32_t (*mul)(unsigned char *G, size_t Glen,
 		const unsigned char *x, size_t xlen, int curve);
+
+	/**
+	 * \brief Multiply two points by two integers and add the
+	 * results.
+	 *
+	 * The point `x*A + y*B` is computed and written back in the `A`
+	 * array.
+	 *
+	 * Rules:
+	 *
+	 *   - The specified curve MUST be supported.
+	 *
+	 *   - The source points (`A` and `B`)  must be valid points on
+	 *     the relevant curve subgroup (and not the "point at
+	 *     infinity" either). If this is not the case, then this
+	 *     function returns an error (0).
+	 *
+	 *   - The multiplier integers (`x` and `y`) MUST be non-zero
+	 *     and less than the curve subgroup order. If either integer
+	 *     is zero, then an error is reported, but if one of them is
+	 *     not lower than the subgroup order, then the result is
+	 *     indeterminate and an error code is not guaranteed.
+	 *
+	 *   - If the final result is the point at infinity, then an
+	 *     error is returned.
+	 *
+	 * Returned value is 1 on success, 0 on error. On error, the
+	 * contents of `A` are indeterminate.
+	 *
+	 * \param A       first point to multiply.
+	 * \param B       second point to multiply.
+	 * \param len     common length of the encoded points (in bytes).
+	 * \param x       multiplier for `A` (unsigned big-endian).
+	 * \param xlen    length of multiplier for `A` (in bytes).
+	 * \param y       multiplier for `A` (unsigned big-endian).
+	 * \param ylen    length of multiplier for `A` (in bytes).
+	 * \param curve   curve identifier.
+	 * \return  1 on success, 0 on error.
+	 */
 	uint32_t (*muladd)(unsigned char *A, const unsigned char *B, size_t len,
 		const unsigned char *x, size_t xlen,
 		const unsigned char *y, size_t ylen, int curve);
 } br_ec_impl;
 
-/*
- * The 'i31' implementation for elliptic curves. It supports secp256r1,
+/**
+ * \brief EC implementation "i31".
+ *
+ * This implementation internally uses generic code for modular integers,
+ * with a representation as sequences of 31-bit words. It supports secp256r1,
  * secp384r1 and secp521r1 (aka NIST curves P-256, P-384 and P-521).
  */
 extern const br_ec_impl br_ec_prime_i31;
 
-/*
- * Convert a signature from "raw" to "asn1". Conversion is done "in
- * place" and the new length is returned. Conversion may enlarge the
- * signature, but by no more than 9 bytes at most. On error, 0 is
- * returned (error conditions include an odd raw signature length, or an
- * oversized integer).
+/**
+ * \brief Convert a signature from "raw" to "asn1".
+ *
+ * Conversion is done "in place" and the new length is returned.
+ * Conversion may enlarge the signature, but by no more than 9 bytes at
+ * most. On error, 0 is returned (error conditions include an odd raw
+ * signature length, or an oversized integer).
+ *
+ * \param sig       signature to convert.
+ * \param sig_len   signature length (in bytes).
+ * \return  the new signature length, or 0 on error.
  */
 size_t br_ecdsa_raw_to_asn1(void *sig, size_t sig_len);
 
-/*
- * Convert a signature from "asn1" to "raw". Conversion is done "in
- * place" and the new length is returned. Conversion in that direction
- * always reduced signature length. On error, 0 is returned (error
- * conditions include an invalid signature format or an oversized
- * integer).
+/**
+ * \brief Convert a signature from "asn1" to "raw".
+ *
+ * Conversion is done "in place" and the new length is returned.
+ * Conversion may enlarge the signature, but the new signature length
+ * will be less than twice the source length at most. On error, 0 is
+ * returned (error conditions include an invalid ASN.1 structure or an
+ * oversized integer).
+ *
+ * \param sig       signature to convert.
+ * \param sig_len   signature length (in bytes).
+ * \return  the new signature length, or 0 on error.
  */
 size_t br_ecdsa_asn1_to_raw(void *sig, size_t sig_len);
 
-/*
- * Type for an ECDSA signer function. A pointer to the EC implementation
- * is provided. The hash value is assumed to have the length inferred
- * from the designated hash function class.
+/**
+ * \brief Type for an ECDSA signer function.
  *
- * Signature is written in the buffer pointed to by 'sig', and the length
+ * A pointer to the EC implementation is provided. The hash value is
+ * assumed to have the length inferred from the designated hash function
+ * class.
+ *
+ * Signature is written in the buffer pointed to by `sig`, and the length
  * (in bytes) is returned. On error, nothing is written in the buffer,
- * and 0 is returned.
+ * and 0 is returned. This function returns 0 if the specified curve is
+ * not supported by the provided EC implementation.
  *
  * The signature format is either "raw" or "asn1", depending on the
  * implementation; maximum length is predictable from the implemented
  * curve:
  *
- *   curve        raw   asn1
- *   NIST P-256    64     72
- *   NIST P-384    96    104
- *   NIST P-521   132    139
+ * | curve      | raw | asn1 |
+ * | :--------- | --: | ---: |
+ * | NIST P-256 |  64 |   72 |
+ * | NIST P-384 |  96 |  104 |
+ * | NIST P-521 | 132 |  139 |
+ *
+ * \param impl         EC implementation to use.
+ * \param hf           hash function used to process the data.
+ * \param hash_value   signed data (hashed).
+ * \param sk           EC private key.
+ * \param sig          destination buffer.
+ * \return  the signature length (in bytes), or 0 on error.
  */
 typedef size_t (*br_ecdsa_sign)(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig);
 
-/*
- * Verify ECDSA signature. Returned value is 1 on success, 0 on error.
+/**
+ * \brief Type for an ECDSA signature verification function.
+ *
+ * A pointer to the EC implementation is provided. The hashed value,
+ * computed over the purportedly signed data, is also provided with
+ * its length.
+ *
+ * The signature format is either "raw" or "asn1", depending on the
+ * implementation.
+ *
+ * Returned value is 1 on success (valid signature), 0 on error. This
+ * function returns 0 if the specified curve is not supported by the
+ * provided EC implementation.
+ *
+ * \param impl       EC implementation to use.
+ * \param hash       signed data (hashed).
+ * \param hash_len   hash value length (in bytes).
+ * \param pk         EC public key.
+ * \param sig        signature.
+ * \param sig_len    signature length (in bytes).
+ * \return  1 on success, 0 on error.
  */
 typedef uint32_t (*br_ecdsa_vrfy)(const br_ec_impl *impl,
 	const void *hash, size_t hash_len,
 	const br_ec_public_key *pk, const void *sig, size_t sig_len);
 
-/*
- * ECDSA implementation using the "i31" integers.
+/**
+ * \brief ECDSA signature generator, "i31" implementation, "asn1" format.
+ *
+ * \see br_ecdsa_sign()
+ *
+ * \param impl         EC implementation to use.
+ * \param hf           hash function used to process the data.
+ * \param hash_value   signed data (hashed).
+ * \param sk           EC private key.
+ * \param sig          destination buffer.
+ * \return  the signature length (in bytes), or 0 on error.
  */
 size_t br_ecdsa_i31_sign_asn1(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig);
+
+/**
+ * \brief ECDSA signature generator, "i31" implementation, "raw" format.
+ *
+ * \see br_ecdsa_sign()
+ *
+ * \param impl         EC implementation to use.
+ * \param hf           hash function used to process the data.
+ * \param hash_value   signed data (hashed).
+ * \param sk           EC private key.
+ * \param sig          destination buffer.
+ * \return  the signature length (in bytes), or 0 on error.
+ */
 size_t br_ecdsa_i31_sign_raw(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig);
+
+/**
+ * \brief ECDSA signature verifier, "i31" implementation, "asn1" format.
+ *
+ * \see br_ecdsa_vrfy()
+ *
+ * \param impl       EC implementation to use.
+ * \param hash       signed data (hashed).
+ * \param hash_len   hash value length (in bytes).
+ * \param pk         EC public key.
+ * \param sig        signature.
+ * \param sig_len    signature length (in bytes).
+ * \return  1 on success, 0 on error.
+ */
 uint32_t br_ecdsa_i31_vrfy_asn1(const br_ec_impl *impl,
 	const void *hash, size_t hash_len,
 	const br_ec_public_key *pk, const void *sig, size_t sig_len);
+
+/**
+ * \brief ECDSA signature verifier, "i31" implementation, "raw" format.
+ *
+ * \see br_ecdsa_vrfy()
+ *
+ * \param impl       EC implementation to use.
+ * \param hash       signed data (hashed).
+ * \param hash_len   hash value length (in bytes).
+ * \param pk         EC public key.
+ * \param sig        signature.
+ * \param sig_len    signature length (in bytes).
+ * \return  1 on success, 0 on error.
+ */
 uint32_t br_ecdsa_i31_vrfy_raw(const br_ec_impl *impl,
 	const void *hash, size_t hash_len,
 	const br_ec_public_key *pk, const void *sig, size_t sig_len);
