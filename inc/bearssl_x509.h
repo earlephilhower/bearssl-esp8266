@@ -32,9 +32,9 @@
 #include "bearssl_hash.h"
 #include "bearssl_rsa.h"
 
-/*
- * X.509 Certificate Chain Processing
- * ----------------------------------
+/** \file bearssl_x509.h
+ *
+ * # X.509 Certificate Chain Processing
  *
  * An X.509 processing engine receives an X.509 chain, chunk by chunk,
  * as received from a SSL/TLS client or server (the client receives the
@@ -45,130 +45,215 @@
  * The engine's job is to return the public key to use for SSL/TLS.
  * How exactly that key is obtained and verified is entirely up to the
  * engine.
+ *
+ * **The "known key" engine** returns a public key which is already known
+ * from out-of-band information (e.g. the client _remembers_ the key from
+ * a previous connection, as in the usual SSH model). This is the simplest
+ * engine since it simply ignores the chain, thereby avoiding the need
+ * for any decoding logic.
+ *
+ * **The "minimal" engine** implements minimal X.509 decoding and chain
+ * validation:
+ *
+ *   - The provided chain should validate "as is". There is no attempt
+ *     at reordering, skipping or downloading extra certificates.
+ *
+ *   - X.509 v1, v2 and v3 certificates are supported.
+ *
+ *   - Trust anchors are a DN and a public key. Each anchor is either a
+ *     "CA" anchor, or a non-CA.
+ *
+ *   - If the end-entity certificate matches a non-CA anchor (subject DN
+ *     is equal to the non-CA name, and public key is also identical to
+ *     the anchor key), then this is a _direct trust_ case and the
+ *     remaining certificates are ignored.
+ *
+ *   - Unless direct trust is applied, the chain must be verifiable up to
+ *     a certificate whose issuer DN matches the DN from a "CA" trust anchor,
+ *     and whose signature is verifiable against that anchor's public key.
+ *     Subsequent certificates in the chain are ignored.
+ *
+ *   - The engine verifies subject/issuer DN matching, and enforces
+ *     processing of Basic Constraints and Key Usage extensions. The
+ *     Authority Key Identifier, Subject Key Identifier, Issuer Alt Name,
+ *     Subject Directory Attribute, CRL Distribution Points, Freshest CRL,
+ *     Authority Info Access and Subject Info Access extensions are
+ *     ignored. The Subject Alt Name is decoded for the end-entity
+ *     certificate under some conditions (see below). Other extensions
+ *     are ignored if non-critical, or imply chain rejection if critical.
+ *
+ *   - The Subject Alt Name extension is parsed for names of type `dNSName`
+ *     when decoding the end-entity certificate, and only if there is a
+ *     server name to match. If there is no SAN extension, then the
+ *     Common Name from the subjectDN is used. That name matching is
+ *     case-insensitive and honours a single starting wildcard (i.e. if
+ *     the name in the certificate starts with "`*.`" then this matches
+ *     any word as first element). Note: this name matching is performed
+ *     also in the "direct trust" model.
+ *
+ *   - DN matching is byte-to-byte equality (a future version might
+ *     include some limited processing for case-insensitive matching and
+ *     whitespace normalisation).
+ *
+ *   - When doing validation, a target public key type is provided. That
+ *     type is the combination of a key algorithm (RSA or EC) and an
+ *     intended key usage (key exchange or signature); in the context
+ *     of a SSL/TLS client validating a server's certificate, the algorithm
+ *     and usage are obtained from the cipher suite (e.g. ECDHE_RSA means
+ *     that an RSA key for signatures is expected).
+ *
+ * **Important caveats:**
+ *
+ *   - The "minimal" engine does not check revocation status. The relevant
+ *     extensions are ignored, and CRL or OCSP responses are not gathered
+ *     or checked.
+ *
+ *   - The "minimal" engine does not currently support Name Constraints
+ *     (some basic functionality to handle sub-domains may be added in a
+ *     later version).
+ *
+ *   - The decoder is not "validating" in the sense that it won't reject
+ *     some certificates with invalid field values when these fields are
+ *     not actually processed.
  */
 
 /*
  * X.509 error codes are in the 32..63 range.
  */
 
-/* Validation was successful; this is not actually an error. */
+/** \brief X.509 status: validation was successful; this is not actually
+    an error. */
 #define BR_ERR_X509_OK                    32
 
-/* Invalid value in an ASN.1 structure. */
+/** \brief X.509 status: invalid value in an ASN.1 structure. */
 #define BR_ERR_X509_INVALID_VALUE         33
 
-/* Truncated certificate. */
+/** \brief X.509 status: truncated certificate. */
 #define BR_ERR_X509_TRUNCATED             34
 
-/* Empty certificate chain (no certificate at all). */
+/** \brief X.509 status: empty certificate chain (no certificate at all). */
 #define BR_ERR_X509_EMPTY_CHAIN           35
 
-/* Decoding error: inner element extends beyond outer element size. */
+/** \brief X.509 status: decoding error: inner element extends beyond
+    outer element size. */
 #define BR_ERR_X509_INNER_TRUNC           36
 
-/* Decoding error: unsupported tag class (application or private). */
+/** \brief X.509 status: decoding error: unsupported tag class (application
+    or private). */
 #define BR_ERR_X509_BAD_TAG_CLASS         37
 
-/* Decoding error: unsupported tag value. */
+/** \brief X.509 status: decoding error: unsupported tag value. */
 #define BR_ERR_X509_BAD_TAG_VALUE         38
 
-/* Decoding error: indefinite length. */
+/** \brief X.509 status: decoding error: indefinite length. */
 #define BR_ERR_X509_INDEFINITE_LENGTH     39
 
-/* Decoding error: extraneous element. */
+/** \brief X.509 status: decoding error: extraneous element. */
 #define BR_ERR_X509_EXTRA_ELEMENT         40
 
-/* Decoding error: unexpected element. */
+/** \brief X.509 status: decoding error: unexpected element. */
 #define BR_ERR_X509_UNEXPECTED            41
 
-/* Decoding error: expected constructed element, but is primitive. */
+/** \brief X.509 status: decoding error: expected constructed element, but
+    is primitive. */
 #define BR_ERR_X509_NOT_CONSTRUCTED       42
 
-/* Decoding error: expected primitive element, but is constructed. */
+/** \brief X.509 status: decoding error: expected primitive element, but
+    is constructed. */
 #define BR_ERR_X509_NOT_PRIMITIVE         43
 
-/* Decoding error: BIT STRING length is not multiple of 8. */
+/** \brief X.509 status: decoding error: BIT STRING length is not multiple
+    of 8. */
 #define BR_ERR_X509_PARTIAL_BYTE          44
 
-/* Decoding error: BOOLEAN value has invalid length. */
+/** \brief X.509 status: decoding error: BOOLEAN value has invalid length. */
 #define BR_ERR_X509_BAD_BOOLEAN           45
 
-/* Decoding error: value is off-limits. */
+/** \brief X.509 status: decoding error: value is off-limits. */
 #define BR_ERR_X509_OVERFLOW              46
 
-/* Invalid distinguished name. */
+/** \brief X.509 status: invalid distinguished name. */
 #define BR_ERR_X509_BAD_DN                47
 
-/* Invalid date/time representation. */
+/** \brief X.509 status: invalid date/time representation. */
 #define BR_ERR_X509_BAD_TIME              48
 
-/* Certificate contains unsupported features that cannot be ignored. */
+/** \brief X.509 status: certificate contains unsupported features that
+    cannot be ignored. */
 #define BR_ERR_X509_UNSUPPORTED           49
 
-/* Key or signature size exceeds internal limits. */
+/** \brief X.509 status: key or signature size exceeds internal limits. */
 #define BR_ERR_X509_LIMIT_EXCEEDED        50
 
-/* Key type does not match that which was expected. */
+/** \brief X.509 status: key type does not match that which was expected. */
 #define BR_ERR_X509_WRONG_KEY_TYPE        51
 
-/* Signature is invalid. */
+/** \brief X.509 status: signature is invalid. */
 #define BR_ERR_X509_BAD_SIGNATURE         52
 
-/* Validation time is unknown. */
+/** \brief X.509 status: validation time is unknown. */
 #define BR_ERR_X509_TIME_UNKNOWN          53
 
-/* Certificate is expired or not yet valid. */
+/** \brief X.509 status: certificate is expired or not yet valid. */
 #define BR_ERR_X509_EXPIRED               54
 
-/* Issuer/Subject DN mismatch in the chain. */
+/** \brief X.509 status: issuer/subject DN mismatch in the chain. */
 #define BR_ERR_X509_DN_MISMATCH           55
 
-/* Expected server name was not found in the chain. */
+/** \brief X.509 status: expected server name was not found in the chain. */
 #define BR_ERR_X509_BAD_SERVER_NAME       56
 
-/* Unknown critical extension in certificate. */
+/** \brief X.509 status: unknown critical extension in certificate. */
 #define BR_ERR_X509_CRITICAL_EXTENSION    57
 
-/* Not a CA, or path length constraint violation */
+/** \brief X.509 status: not a CA, or path length constraint violation */
 #define BR_ERR_X509_NOT_CA                58
 
-/* Key Usage extension prohibits intended usage. */
+/** \brief X.509 status: Key Usage extension prohibits intended usage. */
 #define BR_ERR_X509_FORBIDDEN_KEY_USAGE   59
 
-/* Public key found in certificate is too small. */
+/** \brief X.509 status: public key found in certificate is too small. */
 #define BR_ERR_X509_WEAK_PUBLIC_KEY       60
 
-/* Chain could not be linked to a trust anchor. */
+/** \brief X.509 status: chain could not be linked to a trust anchor. */
 #define BR_ERR_X509_NOT_TRUSTED           62
 
-/*
- * A structure to encode public keys.
+/**
+ * \brief Aggregate structure for public keys.
  */
 typedef struct {
+	/** \brief Key type: `BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC` */
 	unsigned char key_type;
+	/** \brief Actual public key. */
 	union {
+		/** \brief RSA public key. */
 		br_rsa_public_key rsa;
+		/** \brief EC public key. */
 		br_ec_public_key ec;
 	} key;
 } br_x509_pkey;
 
-/*
- * A trust anchor consists in:
- * -- an encoded DN
- * -- a public key
- * -- flags
+/**
+ * \brief Trust anchor structure.
  */
 typedef struct {
+	/** \brief Encoded DN (X.500 name). */
 	unsigned char *dn;
+	/** \brief Encoded DN length (in bytes). */
 	size_t dn_len;
-	/* unsigned char hashed_DN[64]; */
+	/** \brief Anchor flags (e.g. `BR_X509_TA_CA`). */
 	unsigned flags;
+	/** \brief Anchor public key. */
 	br_x509_pkey pkey;
 } br_x509_trust_anchor;
 
-/* Trust anchor flag: trust anchor is a CA and thus acceptable for
-   signing other certificates. Without this flag, the trust anchor
-   is only for direct trust (name and key match EE certificate). */
+/**
+ * \brief Trust anchor flag: CA.
+ *
+ * A "CA" anchor is deemed fit to verify signatures on certificates.
+ * A "non-CA" anchor is accepted only for direct trust (server's
+ * certificate name and key match the anchor).
+ */
 #define BR_X509_TA_CA        0x0001
 
 /*
@@ -181,11 +266,31 @@ typedef struct {
  * for the key; the basic key type may be set to 0 to indicate that any
  * key type compatible with the indicated purpose is acceptable.
  */
+/** \brief Key type: algorithm is RSA. */
 #define BR_KEYTYPE_RSA    1
+/** \brief Key type: algorithm is EC. */
 #define BR_KEYTYPE_EC     2
 
-#define BR_KEYTYPE_KEYX   0x10   /* key is for key exchange or encryption */
-#define BR_KEYTYPE_SIGN   0x20   /* key is for verifying signatures */
+/**
+ * \brief Key type: usage is "key exchange".
+ *
+ * This value is combined (with bitwise OR) with the algorithm
+ * (`BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC`) when informing the X.509
+ * validation engine that it should find a public key of that type,
+ * fit for key exchanges (e.g. `TLS_RSA_*` and `TLS_ECDH_*` cipher
+ * suites).
+ */
+#define BR_KEYTYPE_KEYX   0x10
+
+/**
+ * \brief Key type: usage is "signature".
+ *
+ * This value is combined (with bitwise OR) with the algorithm
+ * (`BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC`) when informing the X.509
+ * validation engine that it should find a public key of that type,
+ * fit for signatures (e.g. `TLS_ECDHE_*` cipher suites).
+ */
+#define BR_KEYTYPE_SIGN   0x20
 
 /*
  * start_chain   Called when a new chain is started. If 'server_name'
@@ -220,51 +325,180 @@ typedef struct {
  * pointer to a public key even in some cases of validation failure,
  * depending on the validation engine.
  */
+
+/**
+ * \brief Class type for an X.509 engine.
+ *
+ * A certificate chain validation uses a caller-allocated context, which
+ * contains the running state for that validation. Methods are called
+ * in due order:
+ *
+ *   - `start_chain()` is called at the start of the validation.
+ *   - Certificates are processed one by one, in SSL order (end-entity
+ *     comes first). For each certificate, the following methods are
+ *     called:
+ *
+ *       - `start_cert()` at the beginning of the certificate.
+ *       - `append()` is called zero, one or more times, to provide
+ *         the certificate (possibly in chunks).
+ *       - `end_cert()` at the end of the certificate.
+ *
+ *   - `end_chain()` is called when the last certificate in the chain
+ *     was processed.
+ *   - `get_pkey()` is called after chain processing, if the chain
+ *     validation was succesfull.
+ *
+ * A context structure may be reused; the `start_chain()` method shall
+ * ensure (re)initialisation.
+ */
 typedef struct br_x509_class_ br_x509_class;
 struct br_x509_class_ {
+	/**
+	 * \brief X.509 context size, in bytes.
+	 */
 	size_t context_size;
+
+	/**
+	 * \brief Start a new chain.
+	 *
+	 * This method shall set the vtable (first field) of the context
+	 * structure.
+	 *
+	 * The `expected_key_type` is a combination of the algorithm type
+	 * (`BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC`) and the key usage
+	 * (`BR_KEYTYPE_KEYX` or `BR_KEYTYPE_SIGN`).
+	 *
+	 * The `server_name`, if not `NULL`, will be considered as a
+	 * fully qualified domain name, to be matched against the `dNSName`
+	 * elements of the end-entity certificate's SAN extension (if there
+	 * is no SAN, then the Common Name from the subjectDN will be used).
+	 * If `server_name` is `NULL` then no such matching is performed.
+	 *
+	 * \param ctx                 validation context.
+	 * \param expected_key_type   expected key type (algorithm and usage).
+	 * \param server_name         server name to match (or `NULL`).
+	 */
 	void (*start_chain)(const br_x509_class **ctx,
 		unsigned expected_key_type,
 		const char *server_name);
+
+	/**
+	 * \brief Start a new certificate.
+	 *
+	 * \param ctx      validation context.
+	 * \param length   new certificate length (in bytes).
+	 */
 	void (*start_cert)(const br_x509_class **ctx, uint32_t length);
+
+	/**
+	 * \brief Receive some bytes for the current certificate.
+	 *
+	 * This function may be called several times in succession for
+	 * a given certificate. The caller guarantees that for each
+	 * call, `len` is not zero, and the sum of all chunk lengths
+	 * for a certificate matches the total certificate length which
+	 * was provided in the previous `start_cert()` call.
+	 *
+	 * If the new certificate is empty (no byte at all) then this
+	 * function won't be called at all.
+	 *
+	 * \param ctx   validation context.
+	 * \param buf   certificate data chunk.
+	 * \param len   certificate data chunk length (in bytes).
+	 */
 	void (*append)(const br_x509_class **ctx,
 		const unsigned char *buf, size_t len);
+
+	/**
+	 * \brief Finish the current certificate.
+	 *
+	 * This function is called when the end of the current certificate
+	 * is reached.
+	 *
+	 * \param ctx   validation context.
+	 */
 	void (*end_cert)(const br_x509_class **ctx);
+
+	/**
+	 * \brief Finish the chain.
+	 *
+	 * This function is called at the end of the chain. It shall
+	 * return either 0 if the validation was successful, or a
+	 * non-zero error code. The `BR_ERR_X509_*` constants are
+	 * error codes, though other values may be possible.
+	 *
+	 * \param ctx   validation context.
+	 * \return  0 on success, or a non-zero error code.
+	 */
 	unsigned (*end_chain)(const br_x509_class **ctx);
+
+	/**
+	 * \brief Get the resulting end-entity public key.
+	 *
+	 * The decoded public key is returned. The returned pointer
+	 * may be valid only as long as the context structure is
+	 * unmodified, i.e. it may cease to be valid if the context
+	 * is released or reused.
+	 *
+	 * This function _may_ return `NULL` if the validation failed.
+	 * However, returning a public key does not mean that the
+	 * validation was wholly successful; some engines may return
+	 * a decoded public key even if the chain did not end on a
+	 * trusted anchor.
+	 *
+	 * \param ctx   validation context.
+	 * \return  the end-entity public key, or `NULL`.
+	 */
 	const br_x509_pkey *(*get_pkey)(const br_x509_class *const *ctx);
 };
 
-/*
- * The "known key" X.509 engine is a trivial engine that completely
- * ignores the certificates, and instead reports an externally
- * configured public key.
+/**
+ * \brief The "known key" X.509 engine structure.
+ *
+ * The structure contents are opaque (they shall not be accessed directly),
+ * except for the first field (the vtable).
+ *
+ * The "known key" engine returns an externally configured public key,
+ * and totally ignores the certificate contents.
  */
 typedef struct {
+	/** \brief Reference to the context vtable. */
 	const br_x509_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
 	br_x509_pkey pkey;
+#endif
 } br_x509_knownkey_context;
+
+/**
+ * \brief Class instance for the "known key" X.509 engine.
+ */
 extern const br_x509_class br_x509_knownkey_vtable;
 
-/*
- * Initialize a "known key" X.509 engine with a known RSA public key.
- * The provided pointers are linked in, not copied, so they must
- * remain valid while the public key may be in usage (i.e. at least up
- * to the end of the handshake -- and since there may be renegotiations,
- * these buffers should stay until the connection is finished).
+/**
+ * \brief Initialize a "known key" X.509 engine with a known RSA public key.
+ *
+ * The provided pointers are linked in, not copied, so they must remain
+ * valid while the public key may be in usage.
+ *
+ * \param ctx   context to initialise.
+ * \param pk    known public key.
  */
 void br_x509_knownkey_init_rsa(br_x509_knownkey_context *ctx,
 	const br_rsa_public_key *pk);
 
-/*
- * Initialize a "known key" X.509 engine with a known EC public key.
- * The provided pointers are linked in, not copied, so they must
- * remain valid while the public key may be in usage (i.e. at least up
- * to the end of the handshake -- and since there may be renegotiations,
- * these buffers should stay until the connection is finished).
+/**
+ * \brief Initialize a "known key" X.509 engine with a known EC public key.
+ *
+ * The provided pointers are linked in, not copied, so they must remain
+ * valid while the public key may be in usage.
+ *
+ * \param ctx   context to initialise.
+ * \param pk    known public key.
  */
 void br_x509_knownkey_init_ec(br_x509_knownkey_context *ctx,
 	const br_ec_public_key *pk);
 
+#ifndef BR_DOXYGEN_IGNORE
 /*
  * The minimal X.509 engine has some state buffers which must be large
  * enough to simultaneously accommodate:
@@ -282,10 +516,12 @@ void br_x509_knownkey_init_ec(br_x509_knownkey_context *ctx,
  * Though RSA public exponents can formally be as large as the modulus
  * (mathematically, even larger exponents would work, but PKCS#1 forbids
  * them), exponents that do not fit on 32 bits are extremely rare,
- * notably because some widespread implementation (e.g. Microsoft's
+ * notably because some widespread implementations (e.g. Microsoft's
  * CryptoAPI) don't support them. Moreover, large public exponent do not
  * seem to imply any tangible security benefit, and they increase the
- * cost of public key operations.
+ * cost of public key operations. The X.509 "minimal" engine will tolerate
+ * public exponents of arbitrary size as long as the modulus and the
+ * exponent can fit together in the dedicated buffer.
  *
  * EC public keys are shorter than RSA public keys; even with curve
  * NIST P-521 (the largest curve we care to support), a public key is
@@ -293,19 +529,21 @@ void br_x509_knownkey_init_ec(br_x509_knownkey_context *ctx,
  */
 #define BR_X509_BUFSIZE_KEY   520
 #define BR_X509_BUFSIZE_SIG   512
+#endif
 
-/*
- * The "minimal" X.509 engine performs basic decoding of certificates and
- * some validations:
- *  -- DN matching
- *  -- signatures
- *  -- validity dates
- *  -- Basic Constraints extension
- *  -- Server name check against SAN extension
+/**
+ * \brief The "minimal" X.509 engine structure.
+ *
+ * The structure contents are opaque (they shall not be accessed directly),
+ * except for the first field (the vtable).
+ *
+ * The "minimal" engine performs a rudimentary but serviceable X.509 path
+ * validation.
  */
 typedef struct {
 	const br_x509_class *vtable;
 
+#ifndef BR_DOXYGEN_IGNORE
 	/* Structure for returning the EE public key. */
 	br_x509_pkey pkey;
 
@@ -391,27 +629,51 @@ typedef struct {
 	br_rsa_pkcs1_vrfy irsa;
 	br_ecdsa_vrfy iecdsa;
 	const br_ec_impl *iec;
+#endif
 
 } br_x509_minimal_context;
+
+/**
+ * \brief Class instance for the "minimal" X.509 engine.
+ */
 extern const br_x509_class br_x509_minimal_vtable;
 
-/*
- * Initialize a "minimal" X.509 engine. Parameters are:
- *  -- context to initialize
- *  -- hash function to use for hashing normalized DN
- *  -- list of trust anchors
+/**
+ * \brief Initialise a "minimal" X.509 engine.
  *
- * After initialization, some hash function implementations for signature
- * verification MUST be added.
+ * The `dn_hash_impl` parameter shall be a hash function internally used
+ * to match X.500 names (subject/issuer DN, and anchor names). Any standard
+ * hash function may be used, but a collision-resistant hash function is
+ * advised.
+ *
+ * After initialization, some implementations for signature verification
+ * (hash functions and signature algorithms) MUST be added.
+ *
+ * \param ctx                 context to initialise.
+ * \param dn_hash_impl        hash function for DN comparisons.
+ * \param trust_anchors       trust anchors.
+ * \param trust_anchors_num   number of trust anchors.
  */
 void br_x509_minimal_init(br_x509_minimal_context *ctx,
 	const br_hash_class *dn_hash_impl,
 	const br_x509_trust_anchor *trust_anchors, size_t trust_anchors_num);
 
-/*
- * Set a hash function implementation, identified by ID, for purposes of
- * verifying signatures on certificates. This must be called after
- * br_x509_minimal_init().
+/**
+ * \brief Set a supported hash function in an X.509 "minimal" engine.
+ *
+ * Hash functions are used with signature verification algorithms.
+ * Once initialised (with `br_x509_minimal_init()`), the context must
+ * be configured with the hash functions it shall support for that
+ * purpose. The hash function identifier MUST be one of the standard
+ * hash function identifiers (1 to 6, for MD5, SHA-1, SHA-224, SHA-256,
+ * SHA-384 and SHA-512).
+ *
+ * If `impl` is `NULL`, this _removes_ support for the designated
+ * hash function.
+ *
+ * \param ctx    validation context.
+ * \param id     hash function identifier (from 1 to 6).
+ * \param impl   hash function implementation (or `NULL`).
  */
 static inline void
 br_x509_minimal_set_hash(br_x509_minimal_context *ctx,
@@ -420,9 +682,17 @@ br_x509_minimal_set_hash(br_x509_minimal_context *ctx,
 	br_multihash_setimpl(&ctx->mhash, id, impl);
 }
 
-/*
- * Set a RSA implementation, for purposes of verifying signatures on
- * certificates. This must be called after br_x509_minimal_init().
+/**
+ * \brief Set a RSA signature verification implementation in the X.509
+ * "minimal" engine.
+ *
+ * Once initialised (with `br_x509_minimal_init()`), the context must
+ * be configured with the signature verification implementations that
+ * it is supposed to support. If `irsa` is `0`, then the RSA support
+ * is disabled.
+ *
+ * \param ctx    validation context.
+ * \param irsa   RSA signature verification implementation (or `0`).
  */
 static inline void
 br_x509_minimal_set_rsa(br_x509_minimal_context *ctx,
@@ -431,9 +701,22 @@ br_x509_minimal_set_rsa(br_x509_minimal_context *ctx,
 	ctx->irsa = irsa;
 }
 
-/*
- * Set an ECDSA implementation, for purposes of verifying signatures on
- * certificates. This must be called after br_x509_minimal_init().
+/**
+ * \brief Set a ECDSA signature verification implementation in the X.509
+ * "minimal" engine.
+ *
+ * Once initialised (with `br_x509_minimal_init()`), the context must
+ * be configured with the signature verification implementations that
+ * it is supposed to support.
+ *
+ * If `iecdsa` is `0`, then this call disables ECDSA support; in that
+ * case, `iec` may be `NULL`. Otherwise, `iecdsa` MUST point to a function
+ * that verifies ECDSA signatures with format "asn1", and it will use
+ * `iec` as underlying elliptic curve support.
+ *
+ * \param ctx      validation context.
+ * \param iec      elliptic curve implementation (or `NULL`).
+ * \param iecdsa   ECDSA implementation (or `0`).
  */
 static inline void
 br_x509_minimal_set_ecdsa(br_x509_minimal_context *ctx,
@@ -443,21 +726,30 @@ br_x509_minimal_set_ecdsa(br_x509_minimal_context *ctx,
 	ctx->iec = iec;
 }
 
-/*
- * Set the validation time, normally to the current date and time.
- * This consists in two 32-bit counts:
+/**
+ * \brief Set the validation time for the X.509 "minimal" engine.
  *
- * -- Days are counted in a proleptic Gregorian calendar since
- * January 1st, 0 AD. Year "0 AD" is the one that preceded "1 AD";
- * it is also traditionally known as "1 BC".
+ * The validation time is set as two 32-bit integers, for days and
+ * seconds since a fixed epoch:
  *
- * -- Seconds are counted since midnight, from 0 to 86400 (a count of
- * 86400 is possible only if a leap second happened).
+ *   - Days are counted in a proleptic Gregorian calendar since
+ *     January 1st, 0 AD. Year "0 AD" is the one that preceded "1 AD";
+ *     it is also traditionally known as "1 BC".
+ *
+ *   - Seconds are counted since midnight, from 0 to 86400 (a count of
+ *     86400 is possible only if a leap second happened).
+ *
+ * The validation date and time is understood in the UTC time zone.
  *
  * If the validation date and time are not explicitly set, but BearSSL
  * was compiled with support for the system clock on the underlying
  * platform, then the current time will automatically be used. Otherwise,
- * validation will fail (except in case of direct trust of the EE key).
+ * not setting the validation date and time implies a validation
+ * failure (except in case of direct trust of the EE key).
+ *
+ * \param ctx       validation context.
+ * \param days      days since January 1st, 0 AD (Gregorian calendar).
+ * \param seconds   seconds since midnight (0 to 86400).
  */
 static inline void
 br_x509_minimal_set_time(br_x509_minimal_context *ctx,
@@ -467,11 +759,18 @@ br_x509_minimal_set_time(br_x509_minimal_context *ctx,
 	ctx->seconds = seconds;
 }
 
-/*
- * Set the minimal acceptable length for RSA keys, in bytes. Default
- * is 128 bytes, which means RSA keys of 1017 bits or more. This setting
- * applies to keys extracted from certificates (EE and intermediate CA).
- * It does _not_ apply to "CA" trust anchors.
+/**
+ * \brief Set the minimal acceptable length for RSA keys (X.509 "minimal"
+ * engine).
+ *
+ * The RSA key length is expressed in bytes. The default minimum key
+ * length is 128 bytes, corresponding to 1017 bits. RSA keys shorter
+ * than the configured length will be rejected, implying validation
+ * failure. This setting applies to keys extracted from certificates
+ * (both end-entity, and intermediate CA) but not to "CA" trust anchors.
+ *
+ * \param ctx           validation context.
+ * \param byte_length   minimum RSA key length, **in bytes** (not bits).
  */
 static inline void
 br_x509_minimal_set_minrsa(br_x509_minimal_context *ctx, int byte_length)
@@ -479,13 +778,18 @@ br_x509_minimal_set_minrsa(br_x509_minimal_context *ctx, int byte_length)
 	ctx->min_rsa_size = (int16_t)(byte_length - 128);
 }
 
-/*
- * An X.509 decoder context. This is not for X.509 validation, but for
- * using certificates as trust anchors (e.g. self-signed certificates
- * read from files).
+/**
+ * \brief X.509 decoder context.
+ *
+ * This structure is _not_ for X.509 validation, but for extracting
+ * names and public keys from encoded certificates. Intended usage is
+ * to use (self-signed) certificates as trust anchors.
+ *
+ * Contents are opaque and shall not be accessed directly.
  */
 typedef struct {
 
+#ifndef BR_DOXYGEN_IGNORE
 	/* Structure for returning the public key. */
 	br_x509_pkey pkey;
 
@@ -529,28 +833,51 @@ typedef struct {
 	/* Type of key and hash function used in the certificate signature. */
 	unsigned char signer_key_type;
 	unsigned char signer_hash_id;
+#endif
 
 } br_x509_decoder_context;
 
-/*
- * Initialise an X.509 decoder context for processing a new certificate.
+/**
+ * \brief Initialise an X.509 decoder context for processing a new
+ * certificate.
+ *
+ * The `append_dn()` callback (with opaque context `append_dn_ctx`)
+ * will be invoked to receive, chunk by chunk, the certificate's
+ * subject DN. If `append_dn` is `0` then the subject DN will be
+ * ignored.
+ *
+ * \param ctx             X.509 decoder context to initialise.
+ * \param append_dn       DN receiver callback (or `0`).
+ * \param append_dn_ctx   context for the DN receiver callback.
  */
 void br_x509_decoder_init(br_x509_decoder_context *ctx,
 	void (*append_dn)(void *ctx, const void *buf, size_t len),
 	void *append_dn_ctx);
 
-/*
- * Push some certificate bytes into a decoder context.
+/**
+ * \brief Push some certificate bytes into a decoder context.
+ *
+ * If `len` is non-zero, then that many bytes are pushed, from address
+ * `data`, into the provided decoder context.
+ *
+ * \param ctx    X.509 decoder context.
+ * \param data   certificate data chunk.
+ * \param len    certificate data chunk length (in bytes).
  */
 void br_x509_decoder_push(br_x509_decoder_context *ctx,
 	const void *data, size_t len);
 
-/*
- * Obtain the decoded public key. Returned value is a pointer to a
- * structure internal to the decoder context; releasing or reusing the
- * decoder context invalidates that structure.
+/**
+ * \brief Obtain the decoded public key.
  *
- * If decoding was not finished, or failed, then NULL is returned.
+ * Returned value is a pointer to a structure internal to the decoder
+ * context; releasing or reusing the decoder context invalidates that
+ * structure.
+ *
+ * If decoding was not finished, or failed, then `NULL` is returned.
+ *
+ * \param ctx   X.509 decoder context.
+ * \return  the public key, or `NULL` on unfinished/error.
  */
 static inline br_x509_pkey *
 br_x509_decoder_get_pkey(br_x509_decoder_context *ctx)
@@ -562,10 +889,15 @@ br_x509_decoder_get_pkey(br_x509_decoder_context *ctx)
 	}
 }
 
-/*
- * Get decoder error. If no error was reported yet but the certificate
- * decoding is not finished, then the error code is BR_ERR_X509_TRUNCATED.
- * If decoding was successful, then 0 is returned.
+/**
+ * \brief Get decoder error status.
+ *
+ * If no error was reported yet but the certificate decoding is not
+ * finished, then the error code is `BR_ERR_X509_TRUNCATED`. If decoding
+ * was successful, then 0 is returned.
+ *
+ * \param ctx   X.509 decoder context.
+ * \return  0 on successful decoding, or a non-zero error code.
  */
 static inline int
 br_x509_decoder_last_error(br_x509_decoder_context *ctx)
@@ -579,10 +911,15 @@ br_x509_decoder_last_error(br_x509_decoder_context *ctx)
 	return 0;
 }
 
-/*
- * Get the "isCA" flag from an X.509 decoder context. This flag is set
- * if the decoded certificate claims to be a CA through a Basic
- * Constraints extension.
+/**
+ * \brief Get the "isCA" flag from an X.509 decoder context.
+ *
+ * This flag is set if the decoded certificate claims to be a CA through
+ * a Basic Constraints extension. This flag should not be read before
+ * decoding completed successfully.
+ *
+ * \param ctx   X.509 decoder context.
+ * \return  the "isCA" flag.
  */
 static inline int
 br_x509_decoder_isCA(br_x509_decoder_context *ctx)
@@ -590,10 +927,15 @@ br_x509_decoder_isCA(br_x509_decoder_context *ctx)
 	return ctx->isCA;
 }
 
-/*
- * Get the issuing CA key type (type of key used to sign the decoded
- * certificate). This is BR_KEYTYPE_RSA or BR_KEYTYPE_EC. The value 0
- * is returned if the signature type was not recognised.
+/**
+ * \brief Get the issuing CA key type (type of algorithm used to sign the
+ * decoded certificate).
+ *
+ * This is `BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC`. The value 0 is returned
+ * if the signature type was not recognised.
+ *
+ * \param ctx   X.509 decoder context.
+ * \return  the issuing CA key type.
  */
 static inline int
 br_x509_decoder_get_signer_key_type(br_x509_decoder_context *ctx)
@@ -601,9 +943,14 @@ br_x509_decoder_get_signer_key_type(br_x509_decoder_context *ctx)
 	return ctx->signer_key_type;
 }
 
-/*
- * Get the identifier for the hash function used to sign the decoded
- * certificate. This is 0 if the hash function was not recognised.
+/**
+ * \brief Get the identifier for the hash function used to sign the decoded
+ * certificate.
+ *
+ * This is 0 if the hash function was not recognised.
+ *
+ * \param ctx   X.509 decoder context.
+ * \return  the signature hash function identifier.
  */
 static inline int
 br_x509_decoder_get_signer_hash_id(br_x509_decoder_context *ctx)
@@ -611,19 +958,27 @@ br_x509_decoder_get_signer_hash_id(br_x509_decoder_context *ctx)
 	return ctx->signer_hash_id;
 }
 
-/*
- * Type for an X.509 certificate (DER-encoded).
+/**
+ * \brief Type for an X.509 certificate (DER-encoded).
  */
 typedef struct {
+	/** \brief The DER-encoded certificate data. */
 	unsigned char *data;
+	/** \brief The DER-encoded certificate length (in bytes). */
 	size_t data_len;
 } br_x509_certificate;
 
-/*
- * Private key decoder context.
+/**
+ * \brief Private key decoder context.
+ *
+ * The private key decoder recognises RSA and EC private keys, either in
+ * their raw, DER-encoded format, or wrapped in an unencrypted PKCS#8
+ * archive (again DER-encoded).
+ *
+ * Structure contents are opaque and shall not be accessed directly.
  */
 typedef struct {
-
+#ifndef BR_DOXYGEN_IGNORE
 	/* Structure for returning the private key. */
 	union {
 		br_rsa_private_key rsa;
@@ -654,23 +1009,38 @@ typedef struct {
 	   to accommodate all elements for a RSA-4096 private key (roughly
 	   five 2048-bit integers, possibly a bit more). */
 	unsigned char key_data[3 * BR_X509_BUFSIZE_SIG];
-
+#endif
 } br_skey_decoder_context;
 
-/*
- * Initialise a private key decoder context.
+/**
+ * \brief Initialise a private key decoder context.
+ *
+ * \param ctx   key decoder context to initialise.
  */
 void br_skey_decoder_init(br_skey_decoder_context *ctx);
 
-/*
- * Push some data bytes into a private key decoder context.
+/**
+ * \brief Push some data bytes into a private key decoder context.
+ *
+ * If `len` is non-zero, then that many data bytes, starting at address
+ * `data`, are pushed into the decoder.
+ *
+ * \param ctx    key decoder context.
+ * \param data   private key data chunk.
+ * \param len    private key data chunk length (in bytes).
  */
 void br_skey_decoder_push(br_skey_decoder_context *ctx,
 	const void *data, size_t len);
 
-/*
- * Get the decoding status for a private key. This is either 0 on success,
- * or a non-zero error code.
+/**
+ * \brief Get the decoding status for a private key.
+ *
+ * Decoding status is 0 on success, or a non-zero error code. If the
+ * decoding is unfinished when this function is called, then the
+ * status code `BR_ERR_X509_TRUNCATED` is returned.
+ *
+ * \param ctx   key decoder context.
+ * \return  0 on successful decoding, or a non-zero error code.
  */
 static inline int
 br_skey_decoder_last_error(const br_skey_decoder_context *ctx)
@@ -684,9 +1054,14 @@ br_skey_decoder_last_error(const br_skey_decoder_context *ctx)
 	return 0;
 }
 
-/*
- * Get the decoded private key type. This is 0 if decoding is not finished
- * or failed.
+/**
+ * \brief Get the decoded private key type.
+ *
+ * Private key type is `BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC`. If decoding is
+ * not finished or failed, then 0 is returned.
+ *
+ * \param ctx   key decoder context.
+ * \return  decoded private key type, or 0.
  */
 static inline int
 br_skey_decoder_key_type(const br_skey_decoder_context *ctx)
@@ -698,11 +1073,16 @@ br_skey_decoder_key_type(const br_skey_decoder_context *ctx)
 	}
 }
 
-/*
- * Get the decoded RSA private key. This function returns NULL if the
- * decoding failed, or is not finished, or the key is not RSA. The returned
- * pointer references structures within the context that can become
- * invalid if the context is reused or released.
+/**
+ * \brief Get the decoded RSA private key.
+ *
+ * This function returns `NULL` if the decoding failed, or is not
+ * finished, or the key is not RSA. The returned pointer references
+ * structures within the context that can become invalid if the context
+ * is reused or released.
+ *
+ * \param ctx   key decoder context.
+ * \return  decoded RSA private key, or `NULL`.
  */
 static inline const br_rsa_private_key *
 br_skey_decoder_get_rsa(const br_skey_decoder_context *ctx)
@@ -714,11 +1094,16 @@ br_skey_decoder_get_rsa(const br_skey_decoder_context *ctx)
 	}
 }
 
-/*
- * Get the decoded EC private key. This function returns NULL if the
- * decoding failed, or is not finished, or the key is not EC. The returned
- * pointer references structures within the context that can become
- * invalid if the context is reused or released.
+/**
+ * \brief Get the decoded EC private key.
+ *
+ * This function returns `NULL` if the decoding failed, or is not
+ * finished, or the key is not EC. The returned pointer references
+ * structures within the context that can become invalid if the context
+ * is reused or released.
+ *
+ * \param ctx   key decoder context.
+ * \return  decoded EC private key, or `NULL`.
  */
 static inline const br_ec_private_key *
 br_skey_decoder_get_ec(const br_skey_decoder_context *ctx)

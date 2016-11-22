@@ -75,6 +75,16 @@
  * total code footprint ligther.
  *
  *
+ * ## `NULL` values
+ *
+ * Function parameters with a pointer type shall not be `NULL` unless
+ * explicitly authorised by the documentation. As an exception, then
+ * the pointer aims at a sequence of bytes and is accompanied with
+ * a length parameter, and the length is zero (meaning that there is
+ * no byte at all to retrieve), then the pointer may be `NULL` even if
+ * not explicitly allowed.
+ *
+ *
  * ## Memory Allocation
  *
  * BearSSL does not perform dynamic memory allocation. This implies that
