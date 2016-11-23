@@ -149,6 +149,9 @@ br_sslio_read(br_sslio_context *ctx, void *dst, size_t len)
 	unsigned char *buf;
 	size_t alen;
 
+	if (len == 0) {
+		return 0;
+	}
 	if (run_until(ctx, BR_SSL_RECVAPP) < 0) {
 		return -1;
 	}
@@ -188,6 +191,9 @@ br_sslio_write(br_sslio_context *ctx, const void *src, size_t len)
 	unsigned char *buf;
 	size_t alen;
 
+	if (len == 0) {
+		return 0;
+	}
 	if (run_until(ctx, BR_SSL_SENDAPP) < 0) {
 		return -1;
 	}
