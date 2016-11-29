@@ -53,7 +53,7 @@ br_aes_ct64_ctr_run(const br_aes_ct64_ctr_keys *ctx,
 {
 	unsigned char *buf;
 	uint32_t ivw[16];
-	uint64_t sk_exp[240];
+	uint64_t sk_exp[120];
 
 	br_aes_ct64_skey_expand(sk_exp, ctx->num_rounds, ctx->skey);
 	br_range_dec32le(ivw, 3, iv);

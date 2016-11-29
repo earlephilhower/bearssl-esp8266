@@ -378,7 +378,7 @@ br_aes_ct64_skey_expand(uint64_t *skey,
 {
 	unsigned u, v, n;
 
-	n = (num_rounds + 1) << 2;
+	n = (num_rounds + 1) << 1;
 	for (u = 0, v = 0; u < n; u ++, v += 4) {
 		uint64_t x0, x1, x2, x3;
 

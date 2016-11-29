@@ -39,7 +39,7 @@ br_aes_ct64_cbcenc_run(const br_aes_ct64_cbcenc_keys *ctx,
 	void *iv, void *data, size_t len)
 {
 	unsigned char *buf;
-	uint64_t sk_exp[240];
+	uint64_t sk_exp[120];
 	uint32_t ivw[4];
 
 	br_aes_ct64_skey_expand(sk_exp, ctx->num_rounds, ctx->skey);
