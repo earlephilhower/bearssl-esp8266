@@ -72,13 +72,13 @@
  * does not include much failsafes or error reporting when the problem
  * does not arise from external transient conditions, and can be fixed
  * only in the application code. This is done so in order to make the
- * total code footprint ligther.
+ * total code footprint lighter.
  *
  *
  * ## `NULL` values
  *
  * Function parameters with a pointer type shall not be `NULL` unless
- * explicitly authorised by the documentation. As an exception, then
+ * explicitly authorised by the documentation. As an exception, when
  * the pointer aims at a sequence of bytes and is accompanied with
  * a length parameter, and the length is zero (meaning that there is
  * no byte at all to retrieve), then the pointer may be `NULL` even if
