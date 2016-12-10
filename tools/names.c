@@ -651,3 +651,20 @@ ec_curve_name(int curve)
 		return "unknown";
 	}
 }
+
+/* see brssl.h */
+const char *
+hash_function_name(int id)
+{
+	switch (id) {
+	case br_md5sha1_ID:  return "MD5+SHA-1";
+	case br_md5_ID:      return "MD5";
+	case br_sha1_ID:     return "SHA-1";
+	case br_sha224_ID:   return "SHA-224";
+	case br_sha256_ID:   return "SHA-256";
+	case br_sha384_ID:   return "SHA-384";
+	case br_sha512_ID:   return "SHA-512";
+	default:
+		return "unknown";
+	}
+}

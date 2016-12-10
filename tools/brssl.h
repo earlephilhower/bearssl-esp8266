@@ -280,6 +280,11 @@ void list_names(void);
 const char *ec_curve_name(int curve);
 
 /*
+ * Get the symbolic name for a hash function name (by ID).
+ */
+const char *hash_function_name(int id);
+
+/*
  * Read a file completely. The returned block is allocated with xmalloc()
  * and must be released by the caller.
  * If the file cannot be found or read completely, or is empty, then an
@@ -343,6 +348,12 @@ pem_object *decode_pem(const void *src, size_t len, size_t *num);
 br_x509_certificate *read_certificates(const char *fname, size_t *num);
 
 /*
+ * Release certificates. This releases all certificate data arrays,
+ * and the whole array as well.
+ */
+void free_certificates(br_x509_certificate *certs, size_t num);
+
+/*
  * Interpret a certificate as a trust anchor. The trust anchor is
  * newly allocated with xmalloc() and the caller must release it.
  * On decoding error, an error message is printed, and this function
@@ -368,6 +379,12 @@ void free_ta_contents(br_x509_trust_anchor *ta);
  * all is considered an error). An appropriate error message is displayed.
  */
 size_t read_trust_anchors(anchor_list *dst, const char *fname);
+
+/*
+ * Get the "signer key type" for the certificate (key type of the
+ * issuing CA). On error, this prints a message on stderr, and returns 0.
+ */
+int get_cert_signer_algo(br_x509_certificate *xc);
 
 /*
  * Special "no anchor" X.509 validator that wraps around another X.509
@@ -407,6 +424,20 @@ private_key *read_private_key(const char *fname);
  * Free a private key.
  */
 void free_private_key(private_key *sk);
+
+/*
+ * Get the encoded OID for a given hash function (to use with PKCS#1
+ * signatures). If the hash function ID is 0 (for MD5+SHA-1), or if
+ * the ID is not one of the SHA-* functions (SHA-1, SHA-224, SHA-256,
+ * SHA-384, SHA-512), then this function returns NULL.
+ */
+const unsigned char *get_hash_oid(int id);
+
+/*
+ * Get a hash implementation by ID. This returns NULL if the hash
+ * implementation is not available.
+ */
+const br_hash_class *get_hash_impl(int id);
 
 /*
  * Find the symbolic name and the description for an error. If 'err' is

@@ -1438,6 +1438,7 @@ run_test_case(test_case *tc)
 	blob *certs;
 	br_x509_pkey *ee_pkey_ref;
 	const br_x509_pkey *ee_pkey;
+	unsigned usages;
 	unsigned status;
 
 	printf("%s: ", tc->name);
@@ -1477,8 +1478,8 @@ run_test_case(test_case *tc)
 				tta->key_name);
 			exit(EXIT_FAILURE);
 		}
-		anchors[u].dn = tta->dn;
-		anchors[u].dn_len = tta->dn_len;
+		anchors[u].dn.data = tta->dn;
+		anchors[u].dn.len = tta->dn_len;
 		anchors[u].flags = tta->flags;
 		anchors[u].pkey = *tak;
 	}
@@ -1541,8 +1542,7 @@ run_test_case(test_case *tc)
 	 * Run the engine. We inject certificates by chunks of 100 bytes
 	 * in order to exercise the coroutine API.
 	 */
-	ctx.vtable->start_chain(&ctx.vtable,
-		tc->key_type_usage, tc->servername);
+	ctx.vtable->start_chain(&ctx.vtable, tc->servername);
 	for (u = 0; u < num_certs; u ++) {
 		size_t v;
 
@@ -1561,7 +1561,22 @@ run_test_case(test_case *tc)
 		ctx.vtable->end_cert(&ctx.vtable);
 	}
 	status = ctx.vtable->end_chain(&ctx.vtable);
-	ee_pkey = ctx.vtable->get_pkey(&ctx.vtable);
+	ee_pkey = ctx.vtable->get_pkey(&ctx.vtable, &usages);
+
+	/*
+	 * Check key type and usage.
+	 */
+	if (ee_pkey != NULL) {
+		unsigned ktu;
+
+		ktu = ee_pkey->key_type | usages;
+		if (tc->key_type_usage != (ktu & tc->key_type_usage)) {
+			fprintf(stderr, "wrong key type + usage"
+				" (expected 0x%02X, got 0x%02X)\n",
+				tc->key_type_usage, ktu);
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	/*
 	 * Check results. Note that we may still get a public key if

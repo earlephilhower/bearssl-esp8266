@@ -181,9 +181,11 @@ do_verify(int argc, char *argv[])
 	cert_list chain = VEC_INIT;
 	size_t u;
 	br_x509_minimal_context mc;
-	int err_keyx, err_sign;
+	int err;
 	int print_text, print_C;
 	br_x509_pkey *pk;
+	const br_x509_pkey *tpk;
+	unsigned usages;
 
 	retcode = 0;
 	verbose = 1;
@@ -191,8 +193,6 @@ do_verify(int argc, char *argv[])
 	print_text = 0;
 	print_C = 0;
 	pk = NULL;
-	err_keyx = 0;
-	err_sign = 0;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
 
@@ -266,55 +266,44 @@ do_verify(int argc, char *argv[])
 	br_x509_minimal_set_rsa(&mc, &br_rsa_i31_pkcs1_vrfy);
 	br_x509_minimal_set_ecdsa(&mc,
 		&br_ec_prime_i31, &br_ecdsa_i31_vrfy_asn1);
-	for (i = 0; i < 2; i ++) {
-		const br_x509_pkey *tpk;
-		int err;
 
-		mc.vtable->start_chain(&mc.vtable,
-			i == 0 ? BR_KEYTYPE_KEYX : BR_KEYTYPE_SIGN, sni);
-		for (u = 0; u < VEC_LEN(chain); u ++) {
-			br_x509_certificate *xc;
+	mc.vtable->start_chain(&mc.vtable, sni);
+	for (u = 0; u < VEC_LEN(chain); u ++) {
+		br_x509_certificate *xc;
 
-			xc = &VEC_ELT(chain, u);
-			mc.vtable->start_cert(&mc.vtable, xc->data_len);
-			mc.vtable->append(&mc.vtable, xc->data, xc->data_len);
-			mc.vtable->end_cert(&mc.vtable);
-		}
-		err = mc.vtable->end_chain(&mc.vtable);
-		if (i == 0) {
-			err_keyx = err;
-		} else {
-			err_sign = err;
-		}
-		tpk = mc.vtable->get_pkey(&mc.vtable);
-		if (pk == NULL && tpk != NULL) {
-			pk = xpkeydup(tpk);
-		}
+		xc = &VEC_ELT(chain, u);
+		mc.vtable->start_cert(&mc.vtable, xc->data_len);
+		mc.vtable->append(&mc.vtable, xc->data, xc->data_len);
+		mc.vtable->end_cert(&mc.vtable);
 	}
-	if (err_keyx == 0 || err_sign == 0) {
+	err = mc.vtable->end_chain(&mc.vtable);
+	tpk = mc.vtable->get_pkey(&mc.vtable, &usages);
+	if (tpk != NULL) {
+		pk = xpkeydup(tpk);
+	}
+
+	if (err == 0) {
 		if (verbose) {
-			fprintf(stderr, "Validation success");
-			if (err_keyx == 0 && err_sign == 0) {
-				fprintf(stderr, " (key exchange, sign)\n");
-			} else if (err_keyx == 0) {
-				fprintf(stderr, " (key exchange)\n");
-			} else if (err_sign == 0) {
-				fprintf(stderr, " (signature)\n");
+			int hkx;
+
+			fprintf(stderr, "Validation success; usages:");
+			hkx = 0;
+			if (usages & BR_KEYTYPE_KEYX) {
+				fprintf(stderr, " key exchange");
+				hkx = 1;
 			}
+			if (usages & BR_KEYTYPE_SIGN) {
+				if (hkx) {
+					fprintf(stderr, ",");
+				}
+				fprintf(stderr, " signature");
+			}
+			fprintf(stderr, "\n");
 		}
 	} else {
 		if (verbose) {
-			int err;
 			const char *errname, *errmsg;
 
-			/*
-			 * If the two error codes differ, we want the one
-			 * which is not a "forbidden key usage".
-			 */
-			err = err_keyx;
-			if (err == BR_ERR_X509_FORBIDDEN_KEY_USAGE) {
-				err = err_sign;
-			}
 			fprintf(stderr, "Validation failed, err = %d", err);
 			errname = find_error_name(err, &errmsg);
 			if (errname != NULL) {

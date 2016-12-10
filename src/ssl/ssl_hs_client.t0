@@ -55,7 +55,7 @@ make_pms_rsa(br_ssl_client_context *ctx, int prf_id)
 	size_t nlen, u;
 
 	xc = ctx->eng.x509ctx;
-	pk = (*xc)->get_pkey(xc);
+	pk = (*xc)->get_pkey(xc, NULL);
 
 	/*
 	 * Compute actual RSA key length, in case there are leading zeros.
@@ -145,9 +145,11 @@ static const unsigned char *HASH_OID[] = {
 
 /*
  * Check the RSA signature on the ServerKeyExchange message.
+ *
  *   hash      hash function ID (2 to 6), or 0 for MD5+SHA-1 (with RSA only)
  *   use_rsa   non-zero for RSA signature, zero for ECDSA
  *   sig_len   signature length (in bytes); signature value is in the pad
+ *
  * Returned value is 0 on success, or an error code.
  */
 static int
@@ -161,7 +163,7 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 	size_t hv_len;
 
 	xc = ctx->eng.x509ctx;
-	pk = (*xc)->get_pkey(xc);
+	pk = (*xc)->get_pkey(xc, NULL);
 	br_multihash_zero(&mhc);
 	br_multihash_copyimpl(&mhc, &ctx->eng.mhash);
 	br_multihash_init(&mhc);
@@ -198,14 +200,14 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 		} else {
 			hash_oid = NULL;
 		}
-		if (!ctx->irsavrfy(ctx->eng.pad, sig_len,
+		if (!ctx->eng.irsavrfy(ctx->eng.pad, sig_len,
 			hash_oid, hv_len, &pk->key.rsa, tmp)
 			|| memcmp(tmp, hv, hv_len) != 0)
 		{
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	} else {
-		if (!ctx->iecdsa(ctx->eng.iec, hv, hv_len, &pk->key.ec,
+		if (!ctx->eng.iecdsa(ctx->eng.iec, hv, hv_len, &pk->key.ec,
 			ctx->eng.pad, sig_len))
 		{
 			return BR_ERR_BAD_SIGNATURE;
@@ -215,7 +217,7 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 }
 
 /*
- * Perform client-size ECDH (or ECDHE). The point that should be sent to
+ * Perform client-side ECDH (or ECDHE). The point that should be sent to
  * the server is written in the pad; returned value is either the point
  * length (in bytes), or -x on error, with 'x' being an error code.
  *
@@ -241,7 +243,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 		const br_x509_pkey *pk;
 
 		xc = ctx->eng.x509ctx;
-		pk = (*xc)->get_pkey(xc);
+		pk = (*xc)->get_pkey(xc, NULL);
 		curve = pk->key.ec.curve;
 		point_src = pk->key.ec.q;
 		point_len = pk->key.ec.qlen;
@@ -292,6 +294,73 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	return (int)glen;
 }
 
+/*
+ * Perform full static ECDH. This occurs only in the context of client
+ * authentication with certificates: the server uses an EC public key,
+ * the cipher suite is of type ECDH (not ECDHE), the server requested a
+ * client certificate and accepts static ECDH, the client has a
+ * certificate with an EC public key in the same curve, and accepts
+ * static ECDH as well.
+ *
+ * Returned value is 0 on success, -1 on error.
+ */
+static int
+make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
+{
+	unsigned char point[133];
+	size_t point_len;
+	const br_x509_class **xc;
+	const br_x509_pkey *pk;
+
+	xc = ctx->eng.x509ctx;
+	pk = (*xc)->get_pkey(xc, NULL);
+	point_len = pk->key.ec.qlen;
+	if (point_len > sizeof point) {
+		return -1;
+	}
+	memcpy(point, pk->key.ec.q, point_len);
+	if (!(*ctx->client_auth_vtable)->do_keyx(
+		ctx->client_auth_vtable, point, point_len))
+	{
+		return -1;
+	}
+	br_ssl_engine_compute_master(&ctx->eng,
+		prf_id, point + 1, point_len >> 1);
+	return 0;
+}
+
+/*
+ * Compute the client-side signature. This is invoked only when a
+ * signature-based client authentication was selected. The computed
+ * signature is in the pad; its length (in bytes) is returned. On
+ * error, 0 is returned.
+ */
+static size_t
+make_client_sign(br_ssl_client_context *ctx)
+{
+	size_t hv_len;
+
+	/*
+	 * Compute hash of handshake messages so far. This "cannot" fail
+	 * because the list of supported hash functions provided to the
+	 * client certificate handler was trimmed to include only the
+	 * hash functions that the multi-hasher supports.
+	 */
+	if (ctx->hash_id) {
+		hv_len = br_multihash_out(&ctx->eng.mhash,
+			ctx->hash_id, ctx->eng.pad);
+	} else {
+		br_multihash_out(&ctx->eng.mhash,
+			br_md5_ID, ctx->eng.pad);
+		br_multihash_out(&ctx->eng.mhash,
+			br_sha1_ID, ctx->eng.pad + 16);
+		hv_len = 36;
+	}
+	return (*ctx->client_auth_vtable)->do_sign(
+		ctx->client_auth_vtable, ctx->hash_id, hv_len,
+		ctx->eng.pad, sizeof ctx->eng.pad);
+}
+
 }
 
 \ =======================================================================
@@ -303,6 +372,9 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	postpone literal postpone ; ;
 
 addr-ctx: min_clienthello_len
+addr-ctx: hashes
+addr-ctx: auth_type
+addr-ctx: hash_id
 
 \ Length of the Secure Renegotiation extension. This is 5 for the
 \ first handshake, 17 for a renegotiation (if the server supports the
@@ -318,16 +390,6 @@ addr-ctx: min_clienthello_len
 \ Length of Maximum Fragment Length extension.
 : ext-frag-length ( -- len )
 	addr-log_max_frag_len get8 14 = if 0 else 5 then ;
-
-\ Test support for RSA signatures.
-cc: supports-rsa-sign? ( -- bool ) {
-	T0_PUSHi(-(CTX->irsavrfy != 0));
-}
-
-\ Test support for ECDSA signatures.
-cc: supports-ecdsa? ( -- bool ) {
-	T0_PUSHi(-(CTX->iecdsa != 0));
-}
 
 \ Length of Signatures extension.
 : ext-signatures-length ( -- len )
@@ -709,80 +771,26 @@ cc: DEBUG-BLOB ( addr len -- ) {
 	resume
 	;
 
-cc: x509-start-chain ( expected-key-type -- ) {
+cc: set-server-curve ( -- ) {
 	const br_x509_class *xc;
+	const br_x509_pkey *pk;
 
 	xc = *(ENG->x509ctx);
-	xc->start_chain(ENG->x509ctx, T0_POP(), ENG->server_name);
+	pk = xc->get_pkey(ENG->x509ctx, NULL);
+	CTX->server_curve =
+		(pk->key_type == BR_KEYTYPE_EC) ? pk->key.ec.curve : 0;
 }
 
-cc: x509-start-cert ( length -- ) {
-	const br_x509_class *xc;
-
-	xc = *(ENG->x509ctx);
-	xc->start_cert(ENG->x509ctx, T0_POP());
-}
-
-cc: x509-append ( length -- ) {
-	const br_x509_class *xc;
-	size_t len;
-
-	xc = *(ENG->x509ctx);
-	len = T0_POP();
-	xc->append(ENG->x509ctx, ENG->pad, len);
-}
-
-cc: x509-end-cert ( -- ) {
-	const br_x509_class *xc;
-
-	xc = *(ENG->x509ctx);
-	xc->end_cert(ENG->x509ctx);
-}
-
-cc: x509-end-chain ( -- err ) {
-	const br_x509_class *xc;
-
-	xc = *(ENG->x509ctx);
-	T0_PUSH(xc->end_chain(ENG->x509ctx));
-}
-
-\ Parse Certificate
-: read-Certificate ( -- )
-	\ Get header, and check message type.
-	read-handshake-header 11 = ifnot ERR_UNEXPECTED fail then
-
-	\ Start processing the chain through the X.509 engine.
+\ Read Certificate message from server.
+: read-Certificate-from-server ( -- )
 	addr-cipher_suite get16 expected-key-type
-	x509-start-chain
+	-1 read-Certificate
+	dup 0< if neg fail then
+	dup ifnot ERR_UNEXPECTED fail then
+	over and <> if ERR_WRONG_KEY_USAGE fail then
 
-	\ Total chain length is a 24-bit integer.
-	read24 open-elt
-	begin
-		dup while
-		read24 open-elt
-		dup x509-start-cert
-
-		\ We read the certificate by chunks through the pad, so
-		\ as to use the existing reading function (read-blob)
-		\ that also ensures proper hashing.
-		begin
-			dup while
-			dup 256 > if 256 else dup then { len }
-			addr-pad len read-blob
-			len x509-append
-		repeat
-		close-elt
-		x509-end-cert
-	repeat
-
-	\ We must close the chain AND the handshake message.
-	close-elt
-	close-elt
-
-	\ Chain processing is finished; get the error code.
-	x509-end-chain
-	dup if fail then drop
-	;
+	\ Set server curve (used for static ECDH).
+	set-server-curve ;
 
 \ Verify signature on ECDHE point sent by the server.
 \   'hash' is the hash function to use (1 to 6, or 0 for RSA with MD5+SHA-1)
@@ -851,15 +859,166 @@ cc: verify-SKE-sig ( hash use-rsa sig-len -- err ) {
 
 	close-elt ;
 
+\ Client certificate: start processing of anchor names.
+cc: anchor-dn-start-name-list ( -- ) {
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->start_name_list(
+			CTX->client_auth_vtable);
+	}
+}
+
+\ Client certificate: start a new anchor DN (length is 16-bit).
+cc: anchor-dn-start-name ( length -- ) {
+	size_t len;
+
+	len = T0_POP();
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->start_name(
+			CTX->client_auth_vtable, len);
+	}
+}
+
+\ Client certificate: push some data for current anchor DN.
+cc: anchor-dn-append-name ( length -- ) {
+	size_t len;
+
+	len = T0_POP();
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->append_name(
+			CTX->client_auth_vtable, ENG->pad, len);
+	}
+}
+
+\ Client certificate: end current anchor DN.
+cc: anchor-dn-end-name ( -- ) {
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->end_name(
+			CTX->client_auth_vtable);
+	}
+}
+
+\ Client certificate: end list of anchor DN.
+cc: anchor-dn-end-name-list ( -- ) {
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->end_name_list(
+			CTX->client_auth_vtable);
+	}
+}
+
+\ Client certificate: obtain the client certificate chain.
+cc: get-client-chain ( auth_types -- ) {
+	uint32_t auth_types;
+
+	auth_types = T0_POP();
+	if (CTX->client_auth_vtable != NULL) {
+		br_ssl_client_certificate ux;
+
+		(*CTX->client_auth_vtable)->choose(CTX->client_auth_vtable,
+			CTX, auth_types, &ux);
+		CTX->auth_type = (unsigned char)ux.auth_type;
+		CTX->hash_id = (unsigned char)ux.hash_id;
+		ENG->chain = ux.chain;
+		ENG->chain_len = ux.chain_len;
+	} else {
+		CTX->hash_id = 0;
+		ENG->chain_len = 0;
+	}
+}
+
 \ Parse CertificateRequest. Header has already been read.
 : read-contents-CertificateRequest ( lim -- )
-	\ TODO: implement client certificates. Right now, we simply
-	\ drop the complete message.
-	begin dup while read8 drop repeat drop ;
+	\ Read supported client authentification types. We keep only
+	\ RSA, ECDSA, and ECDH.
+	0 { auth_types }
+	read8 open-elt
+	begin dup while
+		read8 case
+			1  of 0x0000FF endof
+			64 of 0x00FF00 endof
+			65 of 0x010000 endof
+			66 of 0x020000 endof
+			0 swap
+		endcase
+		auth_types or >auth_types
+	repeat
+	close-elt
 
+	\ Full static ECDH is allowed only if the cipher suite is ECDH
+	\ (not ECDHE). It would be theoretically feasible to use static
+	\ ECDH on the client side with an ephemeral key pair from the
+	\ server, but RFC 4492 (section 3) forbids it because ECDHE suites
+	\ are supposed to provide forward secrecy, and static ECDH would
+	\ negate that property.
+	addr-cipher_suite get16 use-ecdh? ifnot
+		auth_types 0xFFFF and >auth_types
+	then
+
+	\ Note: if the cipher suite is ECDH, then the X.509 validation
+	\ engine was invoked with the BR_KEYTYPE_EC | BR_KEYTYPE_KEYX
+	\ combination, so the server's public key has already been
+	\ checked to be fit for a key exchange.
+
+	\ With TLS 1.2:
+	\  - rsa_fixed_ecdh and ecdsa_fixed_ecdh are synoymous.
+	\  - There is an explicit list of supported sign+hash.
+	\ With TLS 1.0,
+	addr-version get16 0x0303 >= if
+		\ With TLS 1.2:
+		\  - There is an explicit list of supported sign+hash.
+		\  - The ECDH flags must be adjusted for RSA/ECDSA
+		\    support.
+		read-list-sign-algos dup addr-hashes set16
+
+		\ Trim down the list depending on what hash functions
+		\ we support (since the hashing itself is done by the SSL
+		\ engine, not by the certificate handler).
+		supported-hash-functions drop dup 8 << or 0x030000 or and
+
+		auth_types and
+		auth_types 0x030000 and if
+			dup 0x0000FF and if 0x010000 or then
+			dup 0x00FF00 and if 0x020000 or then
+		then
+		>auth_types
+	else
+		\ TLS 1.0 or 1.1. The hash function is fixed for signatures
+		\ (MD5+SHA-1 for RSA, SHA-1 for ECDSA).
+		auth_types 0x030401 and >auth_types
+	then
+
+	\ Parse list of anchor DN.
+	anchor-dn-start-name-list
+	read16 open-elt
+	begin dup while
+		read16 open-elt
+		dup anchor-dn-start-name
+
+		\ We read the DN by chunks through the pad, so
+		\ as to use the existing reading function (read-blob)
+		\ that also ensures proper hashing.
+		begin
+			dup while
+			dup 256 > if 256 else dup then { len }
+			addr-pad len read-blob
+			len anchor-dn-append-name
+		repeat
+		close-elt
+		anchor-dn-end-name
+	repeat
+	close-elt
+	anchor-dn-end-name-list
+
+	\ We should have reached the message end.
+	close-elt
+
+	\ Obtain the client chain.
+	auth_types get-client-chain
+	;
+
+\ (obsolete)
 \ Write an empty Certificate message.
-: write-empty-Certificate ( -- )
-	11 write8 3 write24 0 write24 ;
+\ : write-empty-Certificate ( -- )
+\ 	11 write8 3 write24 0 write24 ;
 
 cc: do-rsa-encrypt ( prf_id -- nlen ) {
 	int x;
@@ -887,7 +1046,27 @@ cc: do-ecdh ( echde prf_id -- ulen ) {
 	}
 }
 
-\ Write ClientKeyExchange
+cc: do-static-ecdh ( prf-id -- ) {
+	unsigned prf_id = T0_POP();
+
+	if (make_pms_static_ecdh(CTX, prf_id) < 0) {
+		br_ssl_engine_fail(ENG, BR_ERR_INVALID_ALGORITHM);
+		T0_CO();
+	}
+}
+
+cc: do-client-sign ( -- sig_len ) {
+	size_t sig_len;
+
+	sig_len = make_client_sign(CTX);
+	if (sig_len == 0) {
+		br_ssl_engine_fail(ENG, BR_ERR_INVALID_ALGORITHM);
+		T0_CO();
+	}
+	T0_PUSH(sig_len);
+}
+
+\ Write ClientKeyExchange.
 : write-ClientKeyExchange ( -- )
 	16 write8
 	addr-cipher_suite get16
@@ -902,6 +1081,20 @@ cc: do-ecdh ( echde prf_id -- ulen ) {
 		dup write8
 		addr-pad swap write-blob
 	then ;
+
+\ Write CertificateVerify. This is invoked only if a client certificate
+\ was requested and sent, and the authentication is not full static ECDH.
+: write-CertificateVerify ( -- )
+	do-client-sign
+	15 write8 dup
+	addr-version get16 0x0303 >= if
+		4 + write24
+		addr-hash_id get8 write8
+		addr-auth_type get8 write8
+	else
+		2+ write24
+	then
+	dup write16 addr-pad swap write-blob ;
 
 \ =======================================================================
 
@@ -924,7 +1117,9 @@ cc: do-ecdh ( echde prf_id -- ulen ) {
 
 		\ Not a session resumption.
 
-		read-Certificate
+		\ Read certificate; then check key type and usages against
+		\ cipher suite.
+		read-Certificate-from-server
 
 		\ Depending on cipher suite, we may now expect a
 		\ ServerKeyExchange.
@@ -956,12 +1151,27 @@ cc: do-ecdh ( echde prf_id -- ulen ) {
 		more-incoming-bytes? if ERR_UNEXPECTED fail then
 
 		seen-CR if
-			\ TODO: client certificate support.
-			write-empty-Certificate
-		then
-		write-ClientKeyExchange
+			\ If the server requested a client certificate, then
+			\ we must write a Certificate message (it may be
+			\ empty).
+			write-Certificate
 
-		\ TODO: CertificateVerify
+			\ If using static ECDH, then the ClientKeyExchange
+			\ is empty, and there is no CertificateVerify.
+			\ Otherwise, there is a ClientKeyExchange; there
+			\ will then be a CertificateVerify if a client chain
+			\ was indeed sent.
+			addr-hash_id get8 0xFF = if
+				drop
+				16 write8 0 write24
+				addr-cipher_suite get16 prf-id do-static-ecdh
+			else
+				write-ClientKeyExchange
+				if write-CertificateVerify then
+			then
+		else
+			write-ClientKeyExchange
+		then
 
 		-1 write-CCS-Finished
 		-1 read-CCS-Finished

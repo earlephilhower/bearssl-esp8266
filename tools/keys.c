@@ -168,3 +168,64 @@ free_private_key(private_key *sk)
 	}
 	xfree(sk);
 }
+
+/*
+ * OID for hash functions in RSA signatures.
+ */
+static const unsigned char HASH_OID_SHA1[] = {
+	0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A
+};
+
+static const unsigned char HASH_OID_SHA224[] = {
+	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04
+};
+
+static const unsigned char HASH_OID_SHA256[] = {
+	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01
+};
+
+static const unsigned char HASH_OID_SHA384[] = {
+	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02
+};
+
+static const unsigned char HASH_OID_SHA512[] = {
+	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03
+};
+
+static const unsigned char *HASH_OID[] = {
+	HASH_OID_SHA1,
+	HASH_OID_SHA224,
+	HASH_OID_SHA256,
+	HASH_OID_SHA384,
+	HASH_OID_SHA512
+};
+
+/* see brssl.h */
+const unsigned char *
+get_hash_oid(int id)
+{
+	if (id >= 2 && id <= 6) {
+		return HASH_OID[id - 2];
+	} else {
+		return NULL;
+	}
+}
+
+/* see brssl.h */
+const br_hash_class *
+get_hash_impl(int hash_id)
+{
+	size_t u;
+
+	for (u = 0; hash_functions[u].name; u ++) {
+		const br_hash_class *hc;
+		int id;
+
+		hc = hash_functions[u].hclass;
+		id = (hc->desc >> BR_HASHDESC_ID_OFF) & BR_HASHDESC_ID_MASK;
+		if (id == hash_id) {
+			return hc;
+		}
+	}
+	return NULL;
+}

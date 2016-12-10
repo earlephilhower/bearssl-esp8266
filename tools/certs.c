@@ -53,8 +53,8 @@ certificate_to_trust_anchor_inner(br_x509_trust_anchor *ta,
 		VEC_CLEAR(vdn);
 		return -1;
 	}
-	ta->dn = VEC_TOARRAY(vdn);
-	ta->dn_len = VEC_LEN(vdn);
+	ta->dn.data = VEC_TOARRAY(vdn);
+	ta->dn.len = VEC_LEN(vdn);
 	VEC_CLEAR(vdn);
 	ta->flags = 0;
 	if (br_x509_decoder_isCA(&dc)) {
@@ -76,7 +76,7 @@ certificate_to_trust_anchor_inner(br_x509_trust_anchor *ta,
 		break;
 	default:
 		fprintf(stderr, "ERROR: unsupported public key type in CA\n");
-		xfree(ta->dn);
+		xfree(ta->dn.data);
 		return -1;
 	}
 	return 0;
@@ -99,7 +99,7 @@ certificate_to_trust_anchor(br_x509_certificate *xc)
 void
 free_ta_contents(br_x509_trust_anchor *ta)
 {
-	xfree(ta->dn);
+	xfree(ta->dn.data);
 	switch (ta->pkey.key_type) {
 	case BR_KEYTYPE_RSA:
 		xfree(ta->pkey.key.rsa.n);
@@ -137,15 +137,32 @@ read_trust_anchors(anchor_list *dst, const char *fname)
 	return num;
 }
 
+/* see brssl.h */
+int
+get_cert_signer_algo(br_x509_certificate *xc)
+{
+	br_x509_decoder_context dc;
+	int err;
+
+	br_x509_decoder_init(&dc, 0, 0);
+	br_x509_decoder_push(&dc, xc->data, xc->data_len);
+	err = br_x509_decoder_last_error(&dc);
+	if (err != 0) {
+		fprintf(stderr,
+			"ERROR: certificate decoding failed with error %d\n",
+			-err);
+		return 0;
+	}
+	return br_x509_decoder_get_signer_key_type(&dc);
+}
+
 static void
-xwc_start_chain(const br_x509_class **ctx,
-	unsigned expected_key_type, const char *server_name)
+xwc_start_chain(const br_x509_class **ctx, const char *server_name)
 {
 	x509_noanchor_context *xwc;
 
 	xwc = (x509_noanchor_context *)ctx;
-	(*xwc->inner)->start_chain(xwc->inner,
-		expected_key_type, server_name);
+	(*xwc->inner)->start_chain(xwc->inner, server_name);
 }
 
 static void
@@ -190,12 +207,12 @@ xwc_end_chain(const br_x509_class **ctx)
 }
 
 static const br_x509_pkey *
-xwc_get_pkey(const br_x509_class *const *ctx)
+xwc_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
 {
 	x509_noanchor_context *xwc;
 
 	xwc = (x509_noanchor_context *)ctx;
-	return (*xwc->inner)->get_pkey(xwc->inner);
+	return (*xwc->inner)->get_pkey(xwc->inner, usages);
 }
 
 /* see brssl.h */

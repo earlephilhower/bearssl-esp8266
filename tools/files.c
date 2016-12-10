@@ -300,3 +300,15 @@ read_certificates(const char *fname, size_t *num)
 	VEC_CLEAR(cert_list);
 	return xcs;
 }
+
+/* see brssl.h */
+void
+free_certificates(br_x509_certificate *certs, size_t num)
+{
+	size_t u;
+
+	for (u = 0; u < num; u ++) {
+		xfree(certs[u].data);
+	}
+	xfree(certs);
+}

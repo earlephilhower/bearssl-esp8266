@@ -214,6 +214,10 @@ usage_server(void)
 	fprintf(stderr,
 "   -key fname      read private key from file 'fname'\n");
 	fprintf(stderr,
+"   -CA file        add trust anchors from 'file' (for client auth)\n");
+	fprintf(stderr,
+"   -anon_ok        request but do not require a client certificate\n");
+	fprintf(stderr,
 "   -list           list supported names (protocols, algorithms...)\n");
 	fprintf(stderr,
 "   -vmin name      set minimum supported version (default: TLS-1.0)\n");
@@ -237,20 +241,43 @@ typedef struct {
 	private_key *sk;
 } policy_context;
 
-static int
-get_cert_signer_algo(br_x509_certificate *xc)
+static void
+print_hashes(unsigned chashes)
 {
-	br_x509_decoder_context dc;
-	int err;
+	int i;
 
-	br_x509_decoder_init(&dc, 0, 0);
-	br_x509_decoder_push(&dc, xc->data, xc->data_len);
-	err = br_x509_decoder_last_error(&dc);
-	if (err != 0) {
-		return -err;
-	} else {
-		return br_x509_decoder_get_signer_key_type(&dc);
+	for (i = 2; i <= 6; i ++) {
+		if ((chashes >> i) & 1) {
+			int z;
+
+			switch (i) {
+			case 3: z = 224; break;
+			case 4: z = 256; break;
+			case 5: z = 384; break;
+			case 6: z = 512; break;
+			default:
+				z = 1;
+				break;
+			}
+			fprintf(stderr, " sha%d", z);
+		}
 	}
+}
+
+static int
+choose_hash(unsigned chashes)
+{
+	int hash_id;
+
+	for (hash_id = 6; hash_id >= 2; hash_id --) {
+		if (((chashes >> hash_id) & 1) != 0) {
+			return hash_id;
+		}
+	}
+	/*
+	 * Normally unreachable.
+	 */
+	return 0;
 }
 
 static int
@@ -262,16 +289,10 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 	const br_suite_translated *st;
 	size_t u, st_num;
 	unsigned chashes;
-	int hash_id;
 
 	pc = (policy_context *)pctx;
 	st = br_ssl_server_get_client_suites(cc, &st_num);
 	chashes = br_ssl_server_get_client_hashes(cc);
-	for (hash_id = 6; hash_id >= 2; hash_id --) {
-		if ((chashes >> hash_id) & 1) {
-			break;
-		}
-	}
 	if (pc->verbose) {
 		fprintf(stderr, "Client parameters:\n");
 		fprintf(stderr, "   Maximum version:      ");
@@ -301,24 +322,17 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 			get_suite_name_ext(st[u][0], csn, sizeof csn);
 			fprintf(stderr, "      %s\n", csn);
 		}
-		fprintf(stderr, "   Common hash functions:");
-		for (u = 2; u <= 6; u ++) {
-			if ((chashes >> u) & 1) {
-				int z;
-
-				switch (u) {
-				case 3: z = 224; break;
-				case 4: z = 256; break;
-				case 5: z = 384; break;
-				case 6: z = 512; break;
-				default:
-					z = 1;
-					break;
-				}
-				fprintf(stderr, " sha%d", z);
-			}
+		fprintf(stderr, "   Common sign+hash functions:\n");
+		if ((chashes & 0xFF) != 0) {
+			fprintf(stderr, "      with RSA:");
+			print_hashes(chashes);
+			fprintf(stderr, "\n");
 		}
-		fprintf(stderr, "\n");
+		if ((chashes >> 8) != 0) {
+			fprintf(stderr, "      with ECDSA:");
+			print_hashes(chashes >> 8);
+			fprintf(stderr, "\n");
+		}
 	}
 	for (u = 0; u < st_num; u ++) {
 		unsigned tt;
@@ -337,9 +351,10 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 				if (br_ssl_engine_get_version(&cc->eng)
 					< BR_TLS12)
 				{
-					hash_id = 0;
+					choices->hash_id = 0;
+				} else {
+					choices->hash_id = choose_hash(chashes);
 				}
-				choices->hash_id = hash_id;
 				goto choose_ok;
 			}
 			break;
@@ -349,9 +364,11 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 				if (br_ssl_engine_get_version(&cc->eng)
 					< BR_TLS12)
 				{
-					hash_id = br_sha1_ID;
+					choices->hash_id = br_sha1_ID;
+				} else {
+					choices->hash_id =
+						choose_hash(chashes >> 8);
 				}
-				choices->hash_id = hash_id;
 				goto choose_ok;
 			}
 			break;
@@ -409,55 +426,6 @@ sp_do_keyx(const br_ssl_server_policy_class **pctx,
 	}
 }
 
-/*
- * OID for hash functions in RSA signatures.
- */
-static const unsigned char HASH_OID_SHA1[] = {
-	0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A
-};
-
-static const unsigned char HASH_OID_SHA224[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04
-};
-
-static const unsigned char HASH_OID_SHA256[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01
-};
-
-static const unsigned char HASH_OID_SHA384[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02
-};
-
-static const unsigned char HASH_OID_SHA512[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03
-};
-
-static const unsigned char *HASH_OID[] = {
-	HASH_OID_SHA1,
-	HASH_OID_SHA224,
-	HASH_OID_SHA256,
-	HASH_OID_SHA384,
-	HASH_OID_SHA512
-};
-
-static const br_hash_class *
-get_hash_impl(int hash_id)
-{
-	size_t u;
-
-	for (u = 0; hash_functions[u].name; u ++) {
-		const br_hash_class *hc;
-		int id;
-
-		hc = hash_functions[u].hclass;
-		id = (hc->desc >> BR_HASHDESC_ID_OFF) & BR_HASHDESC_ID_MASK;
-		if (id == hash_id) {
-			return hc;
-		}
-	}
-	return NULL;
-}
-
 static size_t
 sp_do_sign(const br_ssl_server_policy_class **pctx,
 	int hash_id, size_t hv_len, unsigned char *data, size_t len)
@@ -474,11 +442,8 @@ sp_do_sign(const br_ssl_server_policy_class **pctx,
 		const br_hash_class *hc;
 
 	case BR_KEYTYPE_RSA:
-		if (hash_id == 0) {
-			hash_oid = NULL;
-		} else if (hash_id >= 2 && hash_id <= 6) {
-			hash_oid = HASH_OID[hash_id - 2];
-		} else {
+		hash_oid = get_hash_oid(hash_id);
+		if (hash_oid == NULL && hash_id != 0) {
 			if (pc->verbose) {
 				fprintf(stderr, "ERROR: cannot RSA-sign with"
 					" unknown hash function: %d\n",
@@ -566,6 +531,9 @@ do_server(int argc, char *argv[])
 	size_t chain_len;
 	int cert_signer_algo;
 	private_key *sk;
+	anchor_list anchors = VEC_INIT;
+	br_x509_minimal_context xc;
+	const br_hash_class *dnhash;
 	size_t u;
 	br_ssl_server_context cc;
 	policy_context pc;
@@ -713,6 +681,20 @@ do_server(int argc, char *argv[])
 			if (sk == NULL) {
 				goto server_exit_error;
 			}
+		} else if (eqstr(arg, "-CA")) {
+			if (++ i >= argc) {
+				fprintf(stderr,
+					"ERROR: no argument for '-CA'\n");
+				usage_server();
+				goto server_exit_error;
+			}
+			arg = argv[i];
+			if (read_trust_anchors(&anchors, arg) == 0) {
+				usage_server();
+				goto server_exit_error;
+			}
+		} else if (eqstr(arg, "-anon_ok")) {
+			flags |= BR_OPT_TOLERATE_NO_CLIENT_AUTH;
 		} else if (eqstr(arg, "-list")) {
 			list_names();
 			goto server_exit;
@@ -872,11 +854,10 @@ do_server(int argc, char *argv[])
 		break;
 	}
 	cert_signer_algo = get_cert_signer_algo(chain);
-	if (cert_signer_algo < 0) {
-		fprintf(stderr, "ERROR: server certificate cannot be"
-			" decoded (err=%d)\n", -cert_signer_algo);
+	if (cert_signer_algo == 0) {
 		goto server_exit_error;
-	} else if (verbose) {
+	}
+	if (verbose) {
 		const char *csas;
 
 		switch (cert_signer_algo) {
@@ -980,6 +961,7 @@ do_server(int argc, char *argv[])
 	}
 	br_ssl_engine_set_suites(&cc.eng, suite_ids, num_suites);
 
+	dnhash = NULL;
 	for (u = 0; hash_functions[u].name; u ++) {
 		const br_hash_class *hc;
 		int id;
@@ -987,6 +969,7 @@ do_server(int argc, char *argv[])
 		hc = hash_functions[u].hclass;
 		id = (hc->desc >> BR_HASHDESC_ID_OFF) & BR_HASHDESC_ID_MASK;
 		if ((hfuns & ((unsigned)1 << id)) != 0) {
+			dnhash = hc;
 			br_ssl_engine_set_hash(&cc.eng, id, hc);
 		}
 	}
@@ -1007,6 +990,11 @@ do_server(int argc, char *argv[])
 	br_ssl_session_cache_lru_init(&lru, cache, cache_len);
 	br_ssl_server_set_cache(&cc, &lru.vtable);
 
+	/*
+	 * Set the policy handler (that chooses the actual cipher suite,
+	 * selects the certificate chain, and runs the private key
+	 * operations).
+	 */
 	pc.vtable = &policy_vtable;
 	pc.verbose = verbose;
 	pc.chain = chain;
@@ -1014,6 +1002,36 @@ do_server(int argc, char *argv[])
 	pc.cert_signer_algo = cert_signer_algo;
 	pc.sk = sk;
 	br_ssl_server_set_policy(&cc, &pc.vtable);
+
+	/*
+	 * If trust anchors have been configured, then set an X.509
+	 * validation engine and activate client certificate
+	 * authentication.
+	 */
+	if (VEC_LEN(anchors) != 0) {
+		br_x509_minimal_init(&xc, dnhash,
+			&VEC_ELT(anchors, 0), VEC_LEN(anchors));
+		for (u = 0; hash_functions[u].name; u ++) {
+			const br_hash_class *hc;
+			int id;
+
+			hc = hash_functions[u].hclass;
+			id = (hc->desc >> BR_HASHDESC_ID_OFF)
+				& BR_HASHDESC_ID_MASK;
+			if ((hfuns & ((unsigned)1 << id)) != 0) {
+				br_x509_minimal_set_hash(&xc, id, hc);
+			}
+		}
+		br_ssl_engine_set_rsavrfy(&cc.eng, &br_rsa_i31_pkcs1_vrfy);
+		br_ssl_engine_set_ec(&cc.eng, &br_ec_prime_i31);
+		br_ssl_engine_set_ecdsa(&cc.eng, &br_ecdsa_i31_vrfy_asn1);
+		br_x509_minimal_set_rsa(&xc, &br_rsa_i31_pkcs1_vrfy);
+		br_x509_minimal_set_ecdsa(&xc,
+			&br_ec_prime_i31, &br_ecdsa_i31_vrfy_asn1);
+		br_ssl_engine_set_x509(&cc.eng, &xc.vtable);
+		br_ssl_server_set_trust_anchor_names_alt(&cc,
+			&VEC_ELT(anchors, 0), VEC_LEN(anchors));
+	}
 
 	br_ssl_engine_set_buffer(&cc.eng, iobuf, iobuf_len, bidi);
 
@@ -1061,13 +1079,9 @@ do_server(int argc, char *argv[])
 server_exit:
 	xfree(suites);
 	xfree(suite_ids);
-	if (chain != NULL) {
-		for (u = 0; u < chain_len; u ++) {
-			xfree(chain[u].data);
-		}
-		xfree(chain);
-	}
+	free_certificates(chain, chain_len);
 	free_private_key(sk);
+	VEC_CLEAREXT(anchors, &free_ta_contents);
 	xfree(iobuf);
 	xfree(cache);
 	if (fd >= 0) {

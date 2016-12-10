@@ -191,8 +191,17 @@
     signature algorithm, hash function). */
 #define BR_ERR_INVALID_ALGORITHM      26
 
-/** \brief SSL status: invalid signature on ServerKeyExchange message. */
+/** \brief SSL status: invalid signature (on ServerKeyExchange from
+    server, or in CertificateVerify from client). */
 #define BR_ERR_BAD_SIGNATURE          27
+
+/** \brief SSL status: peer's public key does not have the proper type
+    or is not allowed for requested operation. */
+#define BR_ERR_WRONG_KEY_USAGE        28
+
+/** \brief SSL status: client did not send a certificate upon request,
+    or the client certificate could not be validated. */
+#define BR_ERR_NO_CLIENT_AUTH         29
 
 /** \brief SSL status: I/O error or premature close on underlying
     transport stream. This error code is set only by the simplified
@@ -769,12 +778,11 @@ typedef struct {
 	uint32_t flags;
 
 	/*
-	 * Context variables for the handshake processor.
-	 * The 'pad' must be large enough to accommodate an
-	 * RSA-encrypted pre-master secret, or a RSA signature on
-	 * key exchange parameters; since we want to support up to
-	 * RSA-4096, this means at least 512 bytes.
-	 * (Other pad usages require its length to be at least 256.)
+	 * Context variables for the handshake processor. The 'pad' must
+	 * be large enough to accommodate an RSA-encrypted pre-master
+	 * secret, or an RSA signature; since we want to support up to
+	 * RSA-4096, this means at least 512 bytes. (Other pad usages
+	 * require its length to be at least 256.)
 	 */
 	struct {
 		uint32_t *dp;
@@ -826,6 +834,16 @@ typedef struct {
 	const br_x509_class **x509ctx;
 
 	/*
+	 * Certificate chain to send. This is used by both client and
+	 * server, when they send their respective Certificate messages.
+	 * If chain_len is 0, then chain may be NULL.
+	 */
+	const br_x509_certificate *chain;
+	size_t chain_len;
+	const unsigned char *cert_cur;
+	size_t cert_len;
+
+	/*
 	 * Pointers to implementations; left to NULL for unsupported
 	 * functions. For the raw hash functions, implementations are
 	 * referenced from the multihasher (mhash field).
@@ -844,6 +862,8 @@ typedef struct {
 	const br_sslrec_in_gcm_class *igcm_in;
 	const br_sslrec_out_gcm_class *igcm_out;
 	const br_ec_impl *iec;
+	br_rsa_pkcs1_vrfy irsavrfy;
+	br_ecdsa_vrfy iecdsa;
 #endif
 } br_ssl_engine_context;
 
@@ -909,7 +929,7 @@ br_ssl_engine_remove_flags(br_ssl_engine_context *cc, uint32_t flags)
  */
 #define BR_OPT_ENFORCE_SERVER_PREFERENCES      ((uint32_t)1 << 0)
 
-/*
+/**
  * \brief Behavioural flag: disable renegotiation.
  *
  * If this flag is set, then renegotiations are rejected unconditionally:
@@ -917,6 +937,26 @@ br_ssl_engine_remove_flags(br_ssl_engine_context *cc, uint32_t flags)
  * the peer are rejected.
  */
 #define BR_OPT_NO_RENEGOTIATION                ((uint32_t)1 << 1)
+
+/**
+ * \brief Behavioural flag: tolerate lack of client authentication.
+ *
+ * If this flag is set in a server and the server requests a client
+ * certificate, but the authentication fails (the client does not send
+ * a certificate, or the client's certificate chain cannot be validated),
+ * then the connection keeps on. Without this flag, a failed client
+ * authentication terminates the connection.
+ *
+ * Notes:
+ *
+ *   - If the client's certificate can be validated and its public key is
+ *     supported, then a wrong signature value terminates the connection
+ *     regardless of that flag.
+ *
+ *   - If using full-static ECDH, then a failure to validate the client's
+ *     certificate prevents the handshake from succeeding.
+ */
+#define BR_OPT_TOLERATE_NO_CLIENT_AUTH         ((uint32_t)1 << 2)
 
 /**
  * \brief Set the minimum and maximum supported protocol versions.
@@ -1155,6 +1195,44 @@ static inline void
 br_ssl_engine_set_ec(br_ssl_engine_context *cc, const br_ec_impl *iec)
 {
 	cc->iec = iec;
+}
+
+/**
+ * \brief Set the RSA signature verification implementation.
+ *
+ * On the client, this is used to verify the server's signature on its
+ * ServerKeyExchange message (for ECDHE_RSA cipher suites). On the server,
+ * this is used to verify the client's CertificateVerify message (if a
+ * client certificate is requested, and that certificate contains a RSA key).
+ *
+ * \param cc         SSL engine context.
+ * \param irsavrfy   RSA signature verification implementation.
+ */
+static inline void
+br_ssl_engine_set_rsavrfy(br_ssl_engine_context *cc, br_rsa_pkcs1_vrfy irsavrfy)
+{
+	cc->irsavrfy = irsavrfy;
+}
+
+/*
+ * \brief Set the ECDSA implementation (signature verification).
+ *
+ * On the client, this is used to verify the server's signature on its
+ * ServerKeyExchange message (for ECDHE_ECDSA cipher suites). On the server,
+ * this is used to verify the client's CertificateVerify message (if a
+ * client certificate is requested, that certificate contains an EC key,
+ * and full-static ECDH is not used).
+ *
+ * The ECDSA implementation will use the EC core implementation configured
+ * in the engine context.
+ *
+ * \param cc       client context.
+ * \param iecdsa   ECDSA verification implementation.
+ */
+static inline void
+br_ssl_engine_set_ecdsa(br_ssl_engine_context *cc, br_ecdsa_vrfy iecdsa)
+{
+	cc->iecdsa = iecdsa;
 }
 
 /**
@@ -1597,6 +1675,326 @@ void br_ssl_engine_close(br_ssl_engine_context *cc);
  */
 int br_ssl_engine_renegotiate(br_ssl_engine_context *cc);
 
+/*
+ * Pre-declaration for the SSL client context.
+ */
+typedef struct br_ssl_client_context_ br_ssl_client_context;
+
+/**
+ * \brief Type for the client certificate, if requested by the server.
+ */
+typedef struct {
+	/**
+	 * \brief Authentication type.
+	 *
+	 * This is either `BR_AUTH_RSA` (RSA signature), `BR_AUTH_ECDSA`
+	 * (ECDSA signature), or `BR_AUTH_ECDH` (static ECDH key exchange).
+	 */
+	int auth_type;
+
+	/**
+	 * \brief Hash function for computing the CertificateVerify.
+	 *
+	 * This is the symbolic identifier for the hash function that
+	 * will be used to produce the hash of handshake messages, to
+	 * be signed into the CertificateVerify. For full static ECDH
+	 * (client and server certificates are both EC in the same
+	 * curve, and static ECDH is used), this value is set to -1.
+	 *
+	 * Take care that with TLS 1.0 and 1.1, that value MUST match
+	 * the protocol requirements: value must be 0 (MD5+SHA-1) for
+	 * a RSA signature, or 2 (SHA-1) for an ECDSA signature. Only
+	 * TLS 1.2 allows for other hash functions.
+	 */
+	int hash_id;
+
+	/**
+	 * \brief Certificate chain to send to the server.
+	 *
+	 * This is an array of `br_x509_certificate` objects, each
+	 * normally containing a DER-encoded certificate. The client
+	 * code does not try to decode these elements. If there is no
+	 * chain to send to the server, then this pointer shall be
+	 * set to `NULL`.
+	 */
+	const br_x509_certificate *chain;
+
+	/**
+	 * \brief Certificate chain length (number of certificates).
+	 *
+	 * If there is no chain to send to the server, then this value
+	 * shall be set to 0.
+	 */
+	size_t chain_len;
+
+} br_ssl_client_certificate;
+
+/*
+ * Note: the constants below for signatures match the TLS constants.
+ */
+
+/** \brief Client authentication type: static ECDH. */
+#define BR_AUTH_ECDH    0
+/** \brief Client authentication type: RSA signature. */
+#define BR_AUTH_RSA     1
+/** \brief Client authentication type: ECDSA signature. */
+#define BR_AUTH_ECDSA   3
+
+/**
+ * \brief Class type for a certificate handler (client side).
+ *
+ * A certificate handler selects a client certificate chain to send to
+ * the server, upon explicit request from that server. It receives
+ * the list of trust anchor DN from the server, and supported types
+ * of certificates and signatures, and returns the chain to use. It
+ * is also invoked to perform the corresponding private key operation
+ * (a signature, or an ECDH computation).
+ *
+ * The SSL client engine will first push the trust anchor DN with
+ * `start_name_list()`, `start_name()`, `append_name()`, `end_name()`
+ * and `end_name_list()`. Then it will call `choose()`, to select the
+ * actual chain (and signature/hash algorithms). Finally, it will call
+ * either `do_sign()` or `do_keyx()`, depending on the algorithm choices.
+ */
+typedef struct br_ssl_client_certificate_class_ br_ssl_client_certificate_class;
+struct br_ssl_client_certificate_class_ {
+	/**
+	 * \brief Context size (in bytes).
+	 */
+	size_t context_size;
+
+	/**
+	 * \brief Begin reception of a list of trust anchor names. This
+	 * is called while parsing the incoming CertificateRequest.
+	 *
+	 * \param pctx   certificate handler context.
+	 */
+	void (*start_name_list)(const br_ssl_client_certificate_class **pctx);
+
+	/**
+	 * \brief Begin reception of a new trust anchor name.
+	 *
+	 * The total encoded name length is provided; it is less than
+	 * 65535 bytes.
+	 *
+	 * \param pctx   certificate handler context.
+	 * \param len    encoded name length (in bytes).
+	 */
+	void (*start_name)(const br_ssl_client_certificate_class **pctx,
+		size_t len);
+
+	/**
+	 * \brief Receive some more bytes for the current trust anchor name.
+	 *
+	 * The provided reference (`data`) points to a transient buffer
+	 * they may be reused as soon as this function returns. The chunk
+	 * length (`len`) is never zero.
+	 *
+	 * \param pctx   certificate handler context.
+	 * \param data   anchor name chunk.
+	 * \param len    anchor name chunk length (in bytes).
+	 */
+	void (*append_name)(const br_ssl_client_certificate_class **pctx,
+		const unsigned char *data, size_t len);
+
+	/**
+	 * \brief End current trust anchor name.
+	 *
+	 * This function is called when all the encoded anchor name data
+	 * has been provided.
+	 *
+	 * \param pctx   certificate handler context.
+	 */
+	void (*end_name)(const br_ssl_client_certificate_class **pctx);
+
+	/**
+	 * \brief End list of trust anchor names.
+	 *
+	 * This function is called when all the anchor names in the
+	 * CertificateRequest message have been obtained.
+	 *
+	 * \param pctx   certificate handler context.
+	 */
+	void (*end_name_list)(const br_ssl_client_certificate_class **pctx);
+
+	/**
+	 * \brief Select client certificate and algorithms.
+	 *
+	 * This callback function shall fill the provided `choices`
+	 * structure with the selected algorithms and certificate chain.
+	 * The `hash_id`, `chain` and `chain_len` fields must be set. If
+	 * the client cannot or does not wish to send a certificate,
+	 * then it shall set `chain` to `NULL` and `chain_len` to 0.
+	 *
+	 * The `auth_types` parameter describes the authentication types,
+	 * signature algorithms and hash functions that are supported by
+	 * both the client context and the server, and compatible with
+	 * the current protocol version. This is a bit field with the
+	 * following contents:
+	 *
+	 *   - If RSA signatures with hash function x are supported, then
+	 *     bit x is set.
+	 *
+	 *   - If ECDSA signatures with hash function x are supported,
+	 *     then bit 8+x is set.
+	 *
+	 *   - If static ECDH is supported, with a RSA-signed certificate,
+	 *     then bit 16 is set.
+	 *
+	 *   - If static ECDH is supported, with an ECDSA-signed certificate,
+	 *     then bit 17 is set.
+	 *
+	 * Notes:
+	 *
+	 *   - When using TLS 1.0 or 1.1, the hash function for RSA
+	 *     signatures is always the special MD5+SHA-1 (id 0), and the
+	 *     hash function for ECDSA signatures is always SHA-1 (id 2).
+	 *
+	 *   - When using TLS 1.2, the list of hash functions is trimmed
+	 *     down to include only hash functions that the client context
+	 *     can support. The actual server list can be obtained with
+	 *     `br_ssl_client_get_server_hashes()`; that list may be used
+	 *     to select the certificate chain to send to the server.
+	 *
+	 * \param pctx         certificate handler context.
+	 * \param cc           SSL client context.
+	 * \param auth_types   supported authentication types and algorithms.
+	 * \param choices      destination structure for the policy choices.
+	 */
+	void (*choose)(const br_ssl_client_certificate_class **pctx,
+		const br_ssl_client_context *cc, uint32_t auth_types,
+		br_ssl_client_certificate *choices);
+
+	/**
+	 * \brief Perform key exchange (client part).
+	 *
+	 * This callback is invoked in case of a full static ECDH key
+	 * exchange:
+	 *
+	 *   - the cipher suite uses `ECDH_RSA` or `ECDH_ECDSA`;
+	 *
+	 *   - the server requests a client certificate;
+	 *
+	 *   - the client has, and sends, a client certificate that
+	 *     uses an EC key in the same curve as the server's key,
+	 *     and chooses static ECDH (the `hash_id` field in the choice
+	 *     structure was set to -1).
+	 *
+	 * In that situation, this callback is invoked to compute the
+	 * client-side ECDH: the provided `data` (of length `len` bytes)
+	 * is the server's public key point (as decoded from its
+	 * certificate), and the client shall multiply that point with
+	 * its own private key, and write back the X coordinate of the
+	 * resulting point in the same buffer, starting at offset 1
+	 * (therefore, writing back the complete encoded point works).
+	 *
+	 * The callback must uphold the following:
+	 *
+	 *   - If the input array does not have the proper length for
+	 *     an encoded curve point, then an error (0) shall be reported.
+	 *
+	 *   - If the input array has the proper length, then processing
+	 *     MUST be constant-time, even if the data is not a valid
+	 *     encoded point.
+	 *
+	 *   - This callback MUST check that the input point is valid.
+	 *
+	 * Returned value is 1 on success, 0 on error.
+	 *
+	 * \param pctx   certificate handler context.
+	 * \param data   server public key point.
+	 * \param len    server public key point length (in bytes).
+	 * \return  1 on success, 0 on error.
+	 */
+	uint32_t (*do_keyx)(const br_ssl_client_certificate_class **pctx,
+		unsigned char *data, size_t len);
+
+	/**
+	 * \brief Perform a signature (client authentication).
+	 *
+	 * This callback is invoked when a client certificate was sent,
+	 * and static ECDH is not used. It shall compute a signature,
+	 * using the client's private key, over the provided hash value
+	 * (which is the hash of all previous handshake messages).
+	 *
+	 * On input, the hash value to sign is in `data`, of size
+	 * `hv_len`; the involved hash function is identified by
+	 * `hash_id`. The signature shall be computed and written
+	 * back into `data`; the total size of that buffer is `len`
+	 * bytes.
+	 *
+	 * This callback shall verify that the signature length does not
+	 * exceed `len` bytes, and abstain from writing the signature if
+	 * it does not fit.
+	 *
+	 * For RSA signatures, the `hash_id` may be 0, in which case
+	 * this is the special header-less signature specified in TLS 1.0
+	 * and 1.1, with a 36-byte hash value. Otherwise, normal PKCS#1
+	 * v1.5 signatures shall be computed.
+	 *
+	 * For ECDSA signatures, the signature value shall use the ASN.1
+	 * based encoding.
+	 *
+	 * Returned value is the signature length (in bytes), or 0 on error.
+	 *
+	 * \param pctx      certificate handler context.
+	 * \param hash_id   hash function identifier.
+	 * \param hv_len    hash value length (in bytes).
+	 * \param data      input/output buffer (hash value, then signature).
+	 * \param len       total buffer length (in bytes).
+	 * \return  signature length (in bytes) on success, or 0 on error.
+	 */
+	size_t (*do_sign)(const br_ssl_client_certificate_class **pctx,
+		int hash_id, size_t hv_len, unsigned char *data, size_t len);
+};
+
+/**
+ * \brief A single-chain RSA client certificate handler.
+ *
+ * This handler uses a single certificate chain, with a RSA
+ * signature. The list of trust anchor DN is ignored.
+ *
+ * Apart from the first field (vtable pointer), its contents are
+ * opaque and shall not be accessed directly.
+ */
+typedef struct {
+	/** \brief Pointer to vtable. */
+	const br_ssl_client_certificate_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	const br_x509_certificate *chain;
+	size_t chain_len;
+	const br_rsa_private_key *sk;
+	br_rsa_pkcs1_sign irsasign;
+#endif
+} br_ssl_client_certificate_rsa_context;
+
+/**
+ * \brief A single-chain EC client certificate handler.
+ *
+ * This handler uses a single certificate chain, with a RSA
+ * signature. The list of trust anchor DN is ignored.
+ *
+ * This handler may support both static ECDH, and ECDSA signatures
+ * (either usage may be selectively disabled).
+ *
+ * Apart from the first field (vtable pointer), its contents are
+ * opaque and shall not be accessed directly.
+ */
+typedef struct {
+	/** \brief Pointer to vtable. */
+	const br_ssl_client_certificate_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	const br_x509_certificate *chain;
+	size_t chain_len;
+	const br_ec_private_key *sk;
+	unsigned allowed_usages;
+	unsigned issuer_key_type;
+	const br_multihash_context *mhash;
+	const br_ec_impl *iec;
+	br_ecdsa_sign iecdsa;
+#endif
+} br_ssl_client_certificate_ec_context;
+
 /**
  * \brief Context structure for a SSL client.
  *
@@ -1605,7 +2003,7 @@ int br_ssl_engine_renegotiate(br_ssl_engine_context *cc);
  * a pointer to that field. The other structure fields are opaque and
  * must not be accessed directly.
  */
-typedef struct {
+struct br_ssl_client_context_ {
 	/**
 	 * \brief The encapsulated engine context.
 	 */
@@ -1621,13 +2019,81 @@ typedef struct {
 	uint16_t min_clienthello_len;
 
 	/*
+	 * Bit field for algoithms (hash + signature) supported by the
+	 * server when requesting a client certificate.
+	 */
+	uint16_t hashes;
+
+	/*
+	 * Server's public key curve.
+	 */
+	int server_curve;
+
+	/*
+	 * Context for certificate handler.
+	 */
+	const br_ssl_client_certificate_class **client_auth_vtable;
+
+	/*
+	 * Client authentication type.
+	 */
+	unsigned char auth_type;
+
+	/*
+	 * Hash function to use for the client signature. This is 0xFF
+	 * if static ECDH is used.
+	 */
+	unsigned char hash_id;
+
+	/*
+	 * For the core certificate handlers, thus avoiding (in most
+	 * cases) the need for an externally provided policy context.
+	 */
+	union {
+		const br_ssl_client_certificate_class *vtable;
+		br_ssl_client_certificate_rsa_context single_rsa;
+		br_ssl_client_certificate_ec_context single_ec;
+	} client_auth;
+
+	/*
 	 * Implementations.
 	 */
 	br_rsa_public irsapub;
-	br_rsa_pkcs1_vrfy irsavrfy;
-	br_ecdsa_vrfy iecdsa;
 #endif
-} br_ssl_client_context;
+};
+
+/**
+ * \brief Get the hash functions and signature algorithms supported by
+ * the server.
+ *
+ * This is a field of bits: for hash function of ID x, bit x is set if
+ * the hash function is supported in RSA signatures, 8+x if it is supported
+ * with ECDSA. This information is conveyed by the server when requesting
+ * a client certificate.
+ *
+ * \param cc   client context.
+ * \return  the server-supported hash functions (for signatures).
+ */
+static inline uint16_t
+br_ssl_client_get_server_hashes(const br_ssl_client_context *cc)
+{
+	return cc->hashes;
+}
+
+/**
+ * \brief Get the server key curve.
+ *
+ * This function returns the ID for the curve used by the server's public
+ * key. This is set when the server's certificate chain is processed;
+ * this value is 0 if the server's key is not an EC key.
+ *
+ * \return  the server's public key curve ID, or 0.
+ */
+static inline int
+br_ssl_client_get_server_curve(const br_ssl_client_context *cc)
+{
+	return cc->server_curve;
+}
 
 /*
  * Each br_ssl_client_init_xxx() function sets the list of supported
@@ -1668,6 +2134,22 @@ void br_ssl_client_init_full(br_ssl_client_context *cc,
 void br_ssl_client_zero(br_ssl_client_context *cc);
 
 /**
+ * \brief Set an externally provided client certificate handler context.
+ *
+ * The handler's methods are invoked when the server requests a client
+ * certificate.
+ *
+ * \param cc     client context.
+ * \param pctx   certificate handler context (pointer to its vtable field).
+ */
+static inline void
+br_ssl_client_set_client_certificate(br_ssl_client_context *cc,
+	const br_ssl_client_certificate_class **pctx)
+{
+	cc->client_auth_vtable = pctx;
+}
+
+/**
  * \brief Set the RSA public-key operations implementation.
  *
  * This will be used to encrypt the pre-master secret with the server's
@@ -1680,36 +2162,6 @@ static inline void
 br_ssl_client_set_rsapub(br_ssl_client_context *cc, br_rsa_public irsapub)
 {
 	cc->irsapub = irsapub;
-}
-
-/**
- * \brief Set the RSA signature verification implementation.
- *
- * This will be used to verify the server's signature on its
- * ServerKeyExchange message (ECDHE_RSA cipher suites only).
- *
- * \param cc         client context.
- * \param irsavrfy   RSA signature verification implementation.
- */
-static inline void
-br_ssl_client_set_rsavrfy(br_ssl_client_context *cc, br_rsa_pkcs1_vrfy irsavrfy)
-{
-	cc->irsavrfy = irsavrfy;
-}
-
-/*
- * \brief Set the ECDSA implementation (signature verification).
- *
- * The ECDSA implementation will use the EC core implementation configured
- * in the engine context.
- *
- * \param cc       client context.
- * \param iecdsa   ECDSA verification implementation.
- */
-static inline void
-br_ssl_client_set_ecdsa(br_ssl_client_context *cc, br_ecdsa_vrfy iecdsa)
-{
-	cc->iecdsa = iecdsa;
 }
 
 /**
@@ -1782,6 +2234,73 @@ br_ssl_client_forget_session(br_ssl_client_context *cc)
 {
 	cc->eng.session.session_id_len = 0;
 }
+
+/**
+ * \brief Set client certificate chain and key (single RSA case).
+ *
+ * This function sets a client certificate chain, that the client will
+ * send to the server whenever a client certificate is requested. This
+ * certificate uses an RSA public key; the corresponding private key is
+ * invoked for authentication. Trust anchor names sent by the server are
+ * ignored.
+ *
+ * The provided chain and private key are linked in the client context;
+ * they must remain valid as long as they may be used, i.e. normally
+ * for the duration of the connection, since they might be invoked
+ * again upon renegotiations.
+ *
+ * \param cc          SSL client context.
+ * \param chain       client certificate chain (SSL order: EE comes first).
+ * \param chain_len   client chain length (number of certificates).
+ * \param sk          client private key.
+ * \param irsasign    RSA signature implementation (PKCS#1 v1.5).
+ */
+void br_ssl_client_set_single_rsa(br_ssl_client_context *cc,
+	const br_x509_certificate *chain, size_t chain_len,
+	const br_rsa_private_key *sk, br_rsa_pkcs1_sign irsasign);
+
+/*
+ * \brief Set the client certificate chain and key (single EC case).
+ *
+ * This function sets a client certificate chain, that the client will
+ * send to the server whenever a client certificate is requested. This
+ * certificate uses an EC public key; the corresponding private key is
+ * invoked for authentication. Trust anchor names sent by the server are
+ * ignored.
+ *
+ * The provided chain and private key are linked in the client context;
+ * they must remain valid as long as they may be used, i.e. normally
+ * for the duration of the connection, since they might be invoked
+ * again upon renegotiations.
+ *
+ * The `allowed_usages` is a combination of usages, namely
+ * `BR_KEYTYPE_KEYX` and/or `BR_KEYTYPE_SIGN`. The `BR_KEYTYPE_KEYX`
+ * value allows full static ECDH, while the `BR_KEYTYPE_SIGN` value
+ * allows ECDSA signatures. If ECDSA signatures are used, then an ECDSA
+ * signature implementation must be provided; otherwise, the `iecdsa`
+ * parameter may be 0.
+ *
+ * The `cert_issuer_key_type` value is either `BR_KEYTYPE_RSA` or
+ * `BR_KEYTYPE_EC`; it is the type of the public key used the the CA
+ * that issued (signed) the client certificate. That value is used with
+ * full static ECDH: support of the certificate by the server depends
+ * on how the certificate was signed. (Note: when using TLS 1.2, this
+ * parameter is ignored; but its value matters for TLS 1.0 and 1.1.)
+ *
+ * \param cc                     server context.
+ * \param chain                  server certificate chain to send.
+ * \param chain_len              chain length (number of certificates).
+ * \param sk                     server private key (EC).
+ * \param allowed_usages         allowed private key usages.
+ * \param cert_issuer_key_type   issuing CA's key type.
+ * \param iec                    EC core implementation.
+ * \param iecdsa                 ECDSA signature implementation ("asn1" format).
+ */
+void br_ssl_client_set_single_ec(br_ssl_client_context *cc,
+	const br_x509_certificate *chain, size_t chain_len,
+	const br_ec_private_key *sk, unsigned allowed_usages,
+	unsigned cert_issuer_key_type,
+	const br_ec_impl *iec, br_ecdsa_sign iecdsa);
 
 /**
  * \brief Type for a "translated cipher suite", as an array of two
@@ -1906,6 +2425,7 @@ typedef struct {
 	 * \brief Certificate chain length (number of certificates).
 	 */
 	size_t chain_len;
+
 } br_ssl_server_choices;
 
 /**
@@ -2244,10 +2764,6 @@ struct br_ssl_server_context_ {
 	 * Context for chain handler.
 	 */
 	const br_ssl_server_policy_class **policy_vtable;
-	const br_x509_certificate *chain;
-	size_t chain_len;
-	const unsigned char *cert_cur;
-	size_t cert_len;
 	unsigned char sign_hash_id;
 
 	/*
@@ -2265,6 +2781,25 @@ struct br_ssl_server_context_ {
 	 */
 	unsigned char ecdhe_key[70];
 	size_t ecdhe_key_len;
+
+	/*
+	 * Trust anchor names for client authentication. "ta_names" and
+	 * "tas" cannot be both non-NULL.
+	 */
+	const br_x500_name *ta_names;
+	const br_x509_trust_anchor *tas;
+	size_t num_tas;
+	size_t cur_dn_index;
+	const unsigned char *cur_dn;
+	size_t cur_dn_len;
+
+	/*
+	 * Buffer for the hash value computed over all handshake messages
+	 * prior to CertificateVerify, and identifier for the hash function.
+	 */
+	unsigned char hash_CV[64];
+	size_t hash_CV_len;
+	int hash_CV_id;
 
 	/*
 	 * Server-specific implementations.
@@ -2539,7 +3074,7 @@ void br_ssl_server_set_single_rsa(br_ssl_server_context *cc,
 	const br_rsa_private_key *sk, unsigned allowed_usages,
 	br_rsa_private irsacore, br_rsa_pkcs1_sign irsasign);
 
-/*
+/**
  * \brief Set the server certificate chain and key (single EC case).
  *
  * This function uses a policy context included in the server context.
@@ -2568,6 +3103,61 @@ void br_ssl_server_set_single_ec(br_ssl_server_context *cc,
 	const br_ec_private_key *sk, unsigned allowed_usages,
 	unsigned cert_issuer_key_type,
 	const br_ec_impl *iec, br_ecdsa_sign iecdsa);
+
+/**
+ * \brief Activate client certificate authentication.
+ *
+ * The trust anchor encoded X.500 names (DN) to send to the client are
+ * provided. A client certificate will be requested and validated through
+ * the X.509 validator configured in the SSL engine. If `num` is 0, then
+ * client certificate authentication is disabled.
+ *
+ * If the client does not send a certificate, or on validation failure,
+ * the handshake aborts. Unauthenticated clients can be tolerated by
+ * setting the `BR_OPT_TOLERATE_NO_CLIENT_AUTH` flag.
+ *
+ * The provided array is linked in, not copied, so that pointer must
+ * remain valid as long as anchor names may be used.
+ *
+ * \param cc         server context.
+ * \param ta_names   encoded trust anchor names.
+ * \param num        number of encoded trust anchor names.
+ */
+static inline void
+br_ssl_server_set_trust_anchor_names(br_ssl_server_context *cc,
+	const br_x500_name *ta_names, size_t num)
+{
+	cc->ta_names = ta_names;
+	cc->tas = NULL;
+	cc->num_tas = num;
+}
+
+/**
+ * \brief Activate client certificate authentication.
+ *
+ * This is a variant for `br_ssl_server_set_trust_anchor_names()`: the
+ * trust anchor names are provided not as an array of stand-alone names
+ * (`br_x500_name` structures), but as an array of trust anchors
+ * (`br_x509_trust_anchor` structures). The server engine itself will
+ * only use the `dn` field of each trust anchor. This is meant to allow
+ * defining a single array of trust anchors, to be used here and in the
+ * X.509 validation engine itself.
+ *
+ * The provided array is linked in, not copied, so that pointer must
+ * remain valid as long as anchor names may be used.
+ *
+ * \param cc    server context.
+ * \param tas   trust anchors (only names are used).
+ * \param num   number of trust anchors.
+ */
+static inline void
+br_ssl_server_set_trust_anchor_names_alt(br_ssl_server_context *cc,
+	const br_x509_trust_anchor *tas, size_t num)
+{
+	cc->ta_names = NULL;
+	cc->tas = tas;
+	cc->num_tas = num;
+}
 
 /**
  * \brief Configure the cache for session parameters.

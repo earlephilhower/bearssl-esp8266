@@ -145,12 +145,8 @@ addr-eng: version_max
 addr-eng: suites_buf
 addr-eng: suites_num
 addr-eng: server_name
-\ addr-eng: version
-\ addr-eng: cipher_suite
 addr-eng: client_random
 addr-eng: server_random
-\ addr-eng: session_id_len
-\ addr-eng: session_id
 addr-eng: ecdhe_curve
 addr-eng: ecdhe_point
 addr-eng: ecdhe_point_len
@@ -212,6 +208,9 @@ err: ERR_LIMIT_EXCEEDED
 err: ERR_BAD_FINISHED
 err: ERR_RESUME_MISMATCH
 err: ERR_INVALID_ALGORITHM
+err: ERR_BAD_SIGNATURE
+err: ERR_WRONG_KEY_USAGE
+err: ERR_NO_CLIENT_AUTH
 
 \ Get supported curves (bit mask).
 cc: supported-curves ( -- x ) {
@@ -220,6 +219,7 @@ cc: supported-curves ( -- x ) {
 }
 
 \ Get supported hash functions (bit mask and number).
+\ Note: this (on purpose) skips MD5.
 cc: supported-hash-functions ( -- x num ) {
 	int i;
 	unsigned x, num;
@@ -234,6 +234,16 @@ cc: supported-hash-functions ( -- x num ) {
 	}
 	T0_PUSH(x);
 	T0_PUSH(num);
+}
+
+\ Test support for RSA signatures.
+cc: supports-rsa-sign? ( -- bool ) {
+	T0_PUSHi(-(ENG->irsavrfy != 0));
+}
+
+\ Test support for ECDSA signatures.
+cc: supports-ecdsa? ( -- bool ) {
+	T0_PUSHi(-(ENG->iecdsa != 0));
 }
 
 \ (Re)initialise the multihasher.
@@ -1020,3 +1030,186 @@ cc: compute-Finished-inner ( from_client prf_id -- ) {
 	22 wait-rectype-out
 	write-Finished
 	flush-record ;
+
+\ Read and parse a list of supported signature algorithms (with hash
+\ functions). The resulting bit field is returned.
+: read-list-sign-algos ( lim -- lim value )
+	0 { hashes }
+	read16 open-elt
+	begin dup while
+		read8 { hash } read8 { sign }
+		\ We keep the value if the signature is either 1 (RSA)
+		\ or 3 (ECDSA), and the hash is one of the SHA-* functions
+		\ (2 to 6, from SHA-1 to SHA-512); we reject MD5.
+		hash 2 >= hash 6 <= and
+		sign 1 = sign 3 = or
+		and if
+			hashes 1 sign 1- 2 << hash + << or >hashes
+		then
+	repeat
+	close-elt
+	hashes ;
+
+\ =======================================================================
+
+\ Compute total chain length. This includes the individual certificate
+\ headers, but not the total chain header. This also sets the cert_cur,
+\ cert_len and chain_len context fields.
+cc: total-chain-length ( -- len ) {
+	size_t u;
+	uint32_t total;
+
+	total = 0;
+	for (u = 0; u < ENG->chain_len; u ++) {
+		total += 3 + (uint32_t)ENG->chain[u].data_len;
+	}
+	T0_PUSH(total);
+}
+
+\ Get length for current certificate in the chain; if the chain end was
+\ reached, then this returns -1.
+cc: begin-cert ( -- len ) {
+	if (ENG->chain_len == 0) {
+		T0_PUSHi(-1);
+	} else {
+		ENG->cert_cur = ENG->chain->data;
+		ENG->cert_len = ENG->chain->data_len;
+		ENG->chain ++;
+		ENG->chain_len --;
+		T0_PUSH(ENG->cert_len);
+	}
+}
+
+\ Copy a chunk of certificate data into the pad. Returned value is the
+\ chunk length, or 0 if the certificate end is reached.
+cc: copy-cert-chunk ( -- len ) {
+	size_t clen;
+
+	clen = ENG->cert_len;
+	if (clen > sizeof ENG->pad) {
+		clen = sizeof ENG->pad;
+	}
+	memcpy(ENG->pad, ENG->cert_cur, clen);
+	ENG->cert_cur += clen;
+	ENG->cert_len -= clen;
+	T0_PUSH(clen);
+}
+
+\ Write a Certificate message. Total chain length (excluding the 3-byte
+\ header) is returned; it is 0 if the chain is empty.
+: write-Certificate ( -- total_chain_len )
+	11 write8
+	total-chain-length dup
+	dup 3 + write24 write24
+	begin
+		begin-cert
+		dup 0< if drop ret then write24
+		begin copy-cert-chunk dup while
+			addr-pad swap write-blob
+		repeat
+		drop
+	again ;
+
+cc: x509-start-chain ( by_client -- ) {
+	const br_x509_class *xc;
+	uint32_t bc;
+
+	bc = T0_POP();
+	xc = *(ENG->x509ctx);
+	xc->start_chain(ENG->x509ctx, bc ? ENG->server_name : NULL);
+}
+
+cc: x509-start-cert ( length -- ) {
+	const br_x509_class *xc;
+
+	xc = *(ENG->x509ctx);
+	xc->start_cert(ENG->x509ctx, T0_POP());
+}
+
+cc: x509-append ( length -- ) {
+	const br_x509_class *xc;
+	size_t len;
+
+	xc = *(ENG->x509ctx);
+	len = T0_POP();
+	xc->append(ENG->x509ctx, ENG->pad, len);
+}
+
+cc: x509-end-cert ( -- ) {
+	const br_x509_class *xc;
+
+	xc = *(ENG->x509ctx);
+	xc->end_cert(ENG->x509ctx);
+}
+
+cc: x509-end-chain ( -- err ) {
+	const br_x509_class *xc;
+
+	xc = *(ENG->x509ctx);
+	T0_PUSH(xc->end_chain(ENG->x509ctx));
+}
+
+cc: get-key-type-usages ( -- key-type-usages ) {
+	const br_x509_class *xc;
+	const br_x509_pkey *pk;
+	unsigned usages;
+
+	xc = *(ENG->x509ctx);
+	pk = xc->get_pkey(ENG->x509ctx, &usages);
+	if (pk == NULL) {
+		T0_PUSH(0);
+	} else {
+		T0_PUSH(pk->key_type | usages);
+	}
+}
+
+\ Read a Certificate message.
+\ Parameter: non-zero if this is a read by the client of a certificate
+\ sent by the server; zero otherwise.
+\ Returned value:
+\   - Empty: 0
+\   - Valid: combination of key type and allowed key usages.
+\   - Invalid: negative (-x for error code x)
+: read-Certificate ( by_client -- key-type-usages )
+	\ Get header, and check message type.
+	read-handshake-header 11 = ifnot ERR_UNEXPECTED fail then
+
+	\ If the chain is empty, do some special processing.
+	dup 3 = if
+		read24 if ERR_BAD_PARAM fail then
+		swap drop ret
+	then
+
+	\ Start processing the chain through the X.509 engine.
+	swap x509-start-chain
+
+	\ Total chain length is a 24-bit integer.
+	read24 open-elt
+	begin
+		dup while
+		read24 open-elt
+		dup x509-start-cert
+
+		\ We read the certificate by chunks through the pad, so
+		\ as to use the existing reading function (read-blob)
+		\ that also ensures proper hashing.
+		begin
+			dup while
+			dup 256 > if 256 else dup then { len }
+			addr-pad len read-blob
+			len x509-append
+		repeat
+		close-elt
+		x509-end-cert
+	repeat
+
+	\ We must close the chain AND the handshake message.
+	close-elt
+	close-elt
+
+	\ Chain processing is finished; get the error code.
+	x509-end-chain
+	dup if neg ret then drop
+
+	\ Return key type and usages.
+	get-key-type-usages ;

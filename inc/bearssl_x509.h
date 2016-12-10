@@ -95,12 +95,12 @@
  *     include some limited processing for case-insensitive matching and
  *     whitespace normalisation).
  *
- *   - When doing validation, a target public key type is provided. That
- *     type is the combination of a key algorithm (RSA or EC) and an
- *     intended key usage (key exchange or signature); in the context
- *     of a SSL/TLS client validating a server's certificate, the algorithm
- *     and usage are obtained from the cipher suite (e.g. ECDHE_RSA means
- *     that an RSA key for signatures is expected).
+ *   - Successful validation produces a public key type but also a set
+ *     of allowed usages (`BR_KEYTYPE_KEYX` and/or `BR_KEYTYPE_SIGN`).
+ *     The caller is responsible for checking that the key type and
+ *     usages are compatible with the expected values (e.g. with the
+ *     selected cipher suite, when the client validates the server's
+ *     certificate).
  *
  * **Important caveats:**
  *
@@ -234,13 +234,23 @@ typedef struct {
 } br_x509_pkey;
 
 /**
+ * \brief Distinguished Name (X.500) structure.
+ *
+ * The DN is DER-encoded.
+ */
+typedef struct {
+	/** \brief Encoded DN data. */
+	unsigned char *data;
+	/** \brief Encoded DN length (in bytes). */
+	size_t len;
+} br_x500_name;
+
+/**
  * \brief Trust anchor structure.
  */
 typedef struct {
 	/** \brief Encoded DN (X.500 name). */
-	unsigned char *dn;
-	/** \brief Encoded DN length (in bytes). */
-	size_t dn_len;
+	br_x500_name dn;
 	/** \brief Anchor flags (e.g. `BR_X509_TA_CA`). */
 	unsigned flags;
 	/** \brief Anchor public key. */
@@ -364,22 +374,16 @@ struct br_x509_class_ {
 	 * This method shall set the vtable (first field) of the context
 	 * structure.
 	 *
-	 * The `expected_key_type` is a combination of the algorithm type
-	 * (`BR_KEYTYPE_RSA` or `BR_KEYTYPE_EC`) and the key usage
-	 * (`BR_KEYTYPE_KEYX` or `BR_KEYTYPE_SIGN`).
-	 *
 	 * The `server_name`, if not `NULL`, will be considered as a
 	 * fully qualified domain name, to be matched against the `dNSName`
 	 * elements of the end-entity certificate's SAN extension (if there
 	 * is no SAN, then the Common Name from the subjectDN will be used).
 	 * If `server_name` is `NULL` then no such matching is performed.
 	 *
-	 * \param ctx                 validation context.
-	 * \param expected_key_type   expected key type (algorithm and usage).
-	 * \param server_name         server name to match (or `NULL`).
+	 * \param ctx           validation context.
+	 * \param server_name   server name to match (or `NULL`).
 	 */
 	void (*start_chain)(const br_x509_class **ctx,
-		unsigned expected_key_type,
 		const char *server_name);
 
 	/**
@@ -446,10 +450,17 @@ struct br_x509_class_ {
 	 * a decoded public key even if the chain did not end on a
 	 * trusted anchor.
 	 *
+	 * If validation succeeded and `usage` is not `NULL`, then
+	 * `*usage` is filled with a combination of `BR_KEYTYPE_SIGN`
+	 * and/or `BR_KEYTYPE_KEYX` that specifies the validated key
+	 * usage types. It is the caller's responsibility to check
+	 * that value against the intended use of the public key.
+	 *
 	 * \param ctx   validation context.
 	 * \return  the end-entity public key, or `NULL`.
 	 */
-	const br_x509_pkey *(*get_pkey)(const br_x509_class *const *ctx);
+	const br_x509_pkey *(*get_pkey)(
+		const br_x509_class *const *ctx, unsigned *usages);
 };
 
 /**
@@ -466,6 +477,7 @@ typedef struct {
 	const br_x509_class *vtable;
 #ifndef BR_DOXYGEN_IGNORE
 	br_x509_pkey pkey;
+	unsigned usages;
 #endif
 } br_x509_knownkey_context;
 
@@ -477,26 +489,34 @@ extern const br_x509_class br_x509_knownkey_vtable;
 /**
  * \brief Initialize a "known key" X.509 engine with a known RSA public key.
  *
+ * The `usages` parameter indicates the allowed key usages for that key
+ * (`BR_KEYTYPE_KEYX` and/or `BR_KEYTYPE_SIGN`).
+ *
  * The provided pointers are linked in, not copied, so they must remain
  * valid while the public key may be in usage.
  *
- * \param ctx   context to initialise.
- * \param pk    known public key.
+ * \param ctx      context to initialise.
+ * \param pk       known public key.
+ * \param usages   allowed key usages.
  */
 void br_x509_knownkey_init_rsa(br_x509_knownkey_context *ctx,
-	const br_rsa_public_key *pk);
+	const br_rsa_public_key *pk, unsigned usages);
 
 /**
  * \brief Initialize a "known key" X.509 engine with a known EC public key.
  *
+ * The `usages` parameter indicates the allowed key usages for that key
+ * (`BR_KEYTYPE_KEYX` and/or `BR_KEYTYPE_SIGN`).
+ *
  * The provided pointers are linked in, not copied, so they must remain
  * valid while the public key may be in usage.
  *
- * \param ctx   context to initialise.
- * \param pk    known public key.
+ * \param ctx      context to initialise.
+ * \param pk       known public key.
+ * \param usages   allowed key usages.
  */
 void br_x509_knownkey_init_ec(br_x509_knownkey_context *ctx,
-	const br_ec_public_key *pk);
+	const br_ec_public_key *pk, unsigned usages);
 
 #ifndef BR_DOXYGEN_IGNORE
 /*
@@ -560,8 +580,8 @@ typedef struct {
 	/* Server name to match with the SAN / CN of the EE certificate. */
 	const char *server_name;
 
-	/* Expected EE key type and usage. */
-	unsigned char expected_key_type;
+	/* Validated key usages. */
+	unsigned char key_usages;
 
 	/* Explicitly set date and time. */
 	uint32_t days, seconds;

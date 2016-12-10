@@ -27,29 +27,29 @@
 /* see bearssl_x509.h */
 void
 br_x509_knownkey_init_rsa(br_x509_knownkey_context *ctx,
-	const br_rsa_public_key *pk)
+	const br_rsa_public_key *pk, unsigned usages)
 {
 	ctx->vtable = &br_x509_knownkey_vtable;
 	ctx->pkey.key_type = BR_KEYTYPE_RSA;
 	ctx->pkey.key.rsa = *pk;
+	ctx->usages = usages;
 }
 
 /* see bearssl_x509.h */
 void
 br_x509_knownkey_init_ec(br_x509_knownkey_context *ctx,
-	const br_ec_public_key *pk)
+	const br_ec_public_key *pk, unsigned usages)
 {
 	ctx->vtable = &br_x509_knownkey_vtable;
 	ctx->pkey.key_type = BR_KEYTYPE_EC;
 	ctx->pkey.key.ec = *pk;
+	ctx->usages = usages;
 }
 
 static void
-kk_start_chain(const br_x509_class **ctx,
-	unsigned expected_key_type, const char *server_name)
+kk_start_chain(const br_x509_class **ctx, const char *server_name)
 {
 	(void)ctx;
-	(void)expected_key_type;
 	(void)server_name;
 }
 
@@ -82,9 +82,15 @@ kk_end_chain(const br_x509_class **ctx)
 }
 
 static const br_x509_pkey *
-kk_get_pkey(const br_x509_class *const *ctx)
+kk_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
 {
-	return &((const br_x509_knownkey_context *)ctx)->pkey;
+	const br_x509_knownkey_context *xc;
+
+	xc = (const br_x509_knownkey_context *)ctx;
+	if (usages != NULL) {
+		*usages = xc->usages;
+	}
+	return &xc->pkey;
 }
 
 /* see bearssl_x509.h */

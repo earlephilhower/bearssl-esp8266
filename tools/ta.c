@@ -93,7 +93,7 @@ print_ta_internals(br_x509_trust_anchor *ta, long ctr)
 	char tmp[25];
 
 	sprintf(tmp, "TA%ld_DN", ctr);
-	print_blob(tmp, ta->dn, ta->dn_len);
+	print_blob(tmp, ta->dn.data, ta->dn.len);
 	switch (ta->pkey.key_type) {
 	case BR_KEYTYPE_RSA:
 		sprintf(tmp, "TA%ld_RSA_N", ctr);
@@ -119,7 +119,8 @@ print_ta(br_x509_trust_anchor *ta, long ctr)
 	char tmp[25];
 
 	printf("\t{\n");
-	printf("\t\t(unsigned char *)TA%ld_DN, sizeof TA%ld_DN,\n", ctr, ctr);
+	printf("\t\t{ (unsigned char *)TA%ld_DN, sizeof TA%ld_DN },\n",
+		ctr, ctr);
 	printf("\t\t%s,\n", (ta->flags & BR_X509_TA_CA)
 		? "BR_X509_TA_CA" : "0");
 	printf("\t\t{\n");

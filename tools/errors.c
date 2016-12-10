@@ -157,7 +157,18 @@ static struct {
 	}, {
 		BR_ERR_BAD_SIGNATURE,
 		"BR_ERR_BAD_SIGNATURE",
-		"Invalid signature on ServerKeyExchange message."
+		"Invalid signature in ServerKeyExchange or"
+		" CertificateVerify message."
+	}, {
+		BR_ERR_WRONG_KEY_USAGE,
+		"BR_ERR_WRONG_KEY_USAGE",
+		"Peer's public key does not have the proper type or is"
+		" not allowed for the requested operation."
+	}, {
+		BR_ERR_NO_CLIENT_AUTH,
+		"BR_ERR_NO_CLIENT_AUTH",
+		"Client did not send a certificate upon request, or the"
+		" client certificate could not be validated."
 	}, {
 		BR_ERR_IO,
 		"BR_ERR_IO",

@@ -188,8 +188,7 @@ br_x509_minimal_init(br_x509_minimal_context *ctx,
 }
 
 static void
-xm_start_chain(const br_x509_class **ctx,
-	unsigned expected_key_type, const char *server_name)
+xm_start_chain(const br_x509_class **ctx, const char *server_name)
 {
 	br_x509_minimal_context *cc;
 
@@ -200,7 +199,6 @@ xm_start_chain(const br_x509_class **ctx,
 	cc->cpu.dp = cc->dp_stack;
 	cc->cpu.rp = cc->rp_stack;
 	br_x509_minimal_init_main(&cc->cpu);
-	cc->expected_key_type = expected_key_type;
 	if (server_name == NULL || *server_name == 0) {
 		cc->server_name = NULL;
 	} else {
@@ -269,7 +267,7 @@ xm_end_chain(const br_x509_class **ctx)
 }
 
 static const br_x509_pkey *
-xm_get_pkey(const br_x509_class *const *ctx)
+xm_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
 {
 	br_x509_minimal_context *cc;
 
@@ -277,6 +275,9 @@ xm_get_pkey(const br_x509_class *const *ctx)
 	if (cc->err == BR_ERR_X509_OK
 		|| cc->err == BR_ERR_X509_NOT_TRUSTED)
 	{
+		if (usages != NULL) {
+			*usages = cc->key_usages;
+		}
 		return &((br_x509_minimal_context *)ctx)->pkey;
 	} else {
 		return NULL;
@@ -472,7 +473,7 @@ cc: zero-server-name ( -- bool ) {
 	T0_PUSHi(-(CTX->server_name == NULL));
 }
 
-addr: expected_key_type
+addr: key_usages
 addr: cert_sig
 addr: cert_sig_len
 addr: cert_signer_key_type
@@ -705,7 +706,7 @@ cc: check-direct-trust ( -- ) {
 		if (ta->flags & BR_X509_TA_CA) {
 			continue;
 		}
-		hash_dn(CTX, ta->dn, ta->dn_len, hashed_DN);
+		hash_dn(CTX, ta->dn.data, ta->dn.len, hashed_DN);
 		if (memcmp(hashed_DN, CTX->current_dn_hash, DNHASH_LEN)) {
 			continue;
 		}
@@ -765,7 +766,7 @@ cc: check-trust-anchor-CA ( -- ) {
 		if (!(ta->flags & BR_X509_TA_CA)) {
 			continue;
 		}
-		hash_dn(CTX, ta->dn, ta->dn_len, hashed_DN);
+		hash_dn(CTX, ta->dn.data, ta->dn.len, hashed_DN);
 		if (memcmp(hashed_DN, CTX->saved_dn_hash, DNHASH_LEN)) {
 			continue;
 		}
@@ -892,20 +893,14 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 
 \ Process a Key Usage extension.
 \ For the EE certificate:
-\   -- if the expected key usage is "key exchange", then the extension
-\      must contain either keyEncipherment (2) or dataEncipherment (3);
-\   -- if the expected key usage is "signature", then the extension
-\      must contain either digitalSignature (0) or nonRepudiation (1).
+\   -- if the key usage contains keyEncipherment (2), dataEncipherment (3)
+\      or keyAgreement (4), then the "key exchange" usage is allowed;
+\   -- if the key usage contains digitalSignature (0) or nonRepudiation (1),
+\      then the "signature" usage is allowed.
 \ For CA certificates, the extension must contain keyCertSign (5).
 : process-keyUsage ( lim ee -- lim )
-	\ Compute flags, depending on EE status and expected key usage.
-	\ This is a mask of bits in the first byte.
-	if
-		addr-expected_key_type get8 0x10 and if 0x30 else 0xC0 then
-	else
-		0x04
-	then
-	{ mask }
+	{ ee }
+
 	\ Read tag for the BIT STRING and open it.
 	read-tag 0x03 check-tag-primitive
 	read-length-open-elt
@@ -919,7 +914,20 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 		1 of read8 ign >> ign << endof
 		drop read8 0
 	endcase
-	mask and ifnot ERR_X509_FORBIDDEN_KEY_USAGE fail then
+
+	\ Check bits.
+	ee if
+		\ EE: get usages.
+		0
+		over 0x38 and if 0x10 or then
+		swap 0xC0 and if 0x20 or then
+		addr-key_usages set8
+	else
+		\ Not EE: keyCertSign must be set.
+		0x04 and ifnot ERR_X509_FORBIDDEN_KEY_USAGE fail then
+	then
+
+	\ We don't care about subsequent bytes.
 	skip-close-elt ;
 
 \ Process a Subject Alt Name extension. Returned value is a boolean set
@@ -1070,15 +1078,8 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 
 	\ Process public key.
 	ee if
-		\ For the EE certificate, check that the key type
-		\ matches that which was expected, then copy the
-		\ data to the relevant buffer.
-		addr-expected_key_type get8 0x0F and
-		dup if
-			pkey-type = ifnot ERR_X509_WRONG_KEY_TYPE fail then
-		else
-			drop
-		then
+		\ For the EE certificate, copy the key data to the
+		\ relevant buffer.
 		pkey-type case
 			KEYTYPE_RSA of nlen elen copy-ee-rsa-pkey endof
 			KEYTYPE_EC of curve qlen copy-ee-ec-pkey endof
@@ -1286,6 +1287,9 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 	check-trust-anchor-CA ;
 
 : main
+	\ Unless restricted by a Key Usage extension, all usages are
+	\ deemed allowed.
+	0x30 addr-key_usages set8
 	-1 decode-certificate
 	co
 	begin
