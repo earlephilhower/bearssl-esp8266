@@ -191,8 +191,13 @@ static void
 xm_start_chain(const br_x509_class **ctx, const char *server_name)
 {
 	br_x509_minimal_context *cc;
+	size_t u;
 
 	cc = (br_x509_minimal_context *)ctx;
+	for (u = 0; u < cc->num_name_elts; u ++) {
+		cc->name_elts[u].status = 0;
+		cc->name_elts[u].buf[0] = 0;
+	}
 	memset(&cc->pkey, 0, sizeof cc->pkey);
 	cc->num_certs = 0;
 	cc->err = 0;
@@ -523,17 +528,124 @@ addr: current_dn_hash
 addr: next_dn_hash
 addr: saved_dn_hash
 
-\ Read a DN. The normalized DN hash is computed and stored in the
-\ current_dn_hash. The Common Name is also extracted to the pad, if
-\ it is present and small enough (255 bytes at most); the CN length is
-\ then written in pad[0]. If these conditions are not met, then pad[0]
-\ is set to 0.
+\ Read a DN, hashing it into current_dn_hash. The DN contents are not
+\ inspected (only the outer tag, for SEQUENCE, is checked).
 : read-DN ( lim -- lim )
+	start-dn-hash
+	read-sequence-open skip-close-elt
+	compute-dn-hash ;
+
+cc: offset-name-element ( san -- n ) {
+	unsigned san = T0_POP();
+	size_t u;
+
+	for (u = 0; u < CTX->num_name_elts; u ++) {
+		if (CTX->name_elts[u].status == 0) {
+			const unsigned char *oid;
+			size_t len, off;
+
+			oid = CTX->name_elts[u].oid;
+			if (san) {
+				if (oid[0] != 0 || oid[1] != 0) {
+					continue;
+				}
+				off = 2;
+			} else {
+				off = 0;
+			}
+			len = oid[off];
+			if (len != 0 && len == CTX->pad[0]
+				&& memcmp(oid + off + 1,
+					CTX->pad + 1, len) == 0)
+			{
+				T0_PUSH(u);
+				T0_RET();
+			}
+		}
+	}
+	T0_PUSHi(-1);
+}
+
+cc: copy-name-element ( bool offbuf -- ) {
+	size_t len;
+	int32_t off = T0_POPi();
+	int ok = T0_POPi();
+
+	if (off >= 0) {
+		br_name_element *ne = &CTX->name_elts[off];
+
+		if (ok) {
+			len = CTX->pad[0];
+			if (len < ne->len) {
+				memcpy(ne->buf, CTX->pad + 1, len);
+				ne->buf[len] = 0;
+				ne->status = 1;
+			} else {
+				ne->status = -1;
+			}
+		} else {
+			ne->status = -1;
+		}
+	}
+}
+
+cc: copy-name-SAN ( bool tag -- ) {
+	unsigned tag = T0_POP();
+	unsigned ok = T0_POP();
+	size_t u, len;
+
+	len = CTX->pad[0];
+	for (u = 0; u < CTX->num_name_elts; u ++) {
+		br_name_element *ne;
+
+		ne = &CTX->name_elts[u];
+		if (ne->status == 0 && ne->oid[0] == 0 && ne->oid[1] == tag) {
+			if (ok && ne->len > len) {
+				memcpy(ne->buf, CTX->pad + 1, len);
+				ne->buf[len] = 0;
+				ne->status = 1;
+			} else {
+				ne->status = -1;
+			}
+			break;
+		}
+	}
+}
+
+\ Read a value, decoding string types. If the string type is recognised
+\ and the value could be converted to UTF-8 into the pad, then true (-1)
+\ is returned; in all other cases, false (0) is returned. Either way, the
+\ object is consumed.
+: read-string ( lim -- lim bool )
+	read-tag case
+		\ UTF8String
+		12 of check-primitive read-value-UTF8 endof
+		\ NumericString
+		18 of check-primitive read-value-latin1 endof
+		\ PrintableString
+		19 of check-primitive read-value-latin1 endof
+		\ TeletexString
+		20 of check-primitive read-value-latin1 endof
+		\ IA5String
+		22 of check-primitive read-value-latin1 endof
+		\ BMPString
+		30 of check-primitive read-value-UTF16 endof
+		2drop read-length-skip 0 0
+	endcase ;
+
+\ Read a DN for the EE. The normalized DN hash is computed and stored in the
+\ current_dn_hash.
+\ Name elements are gathered. Also, the Common Name is matched against the
+\ intended server name.
+\ Returned value is true (-1) if the CN matches the intended server name,
+\ false (0) otherwise.
+: read-DN-EE ( lim -- lim bool )
+	\ Flag will be set to true if there is a CN and it matches the
+	\ intended server name.
+	0 { eename-matches }
+
 	\ Activate DN hashing.
 	start-dn-hash
-
-	\ Prepare pad.
-	0 addr-pad set8
 
 	\ Parse the DN structure: it is a SEQUENCE of SET of
 	\ AttributeTypeAndValue. Each AttributeTypeAndValue is a
@@ -548,44 +660,45 @@ addr: saved_dn_hash
 			dup while
 
 			read-sequence-open
-			\ We want to recognize the OID for Common Name,
-			\ but we don't want to use read-OID because we
-			\ need to preserve the pad contents. Instead, we
-			\ use the fact that the encoding for the value of
-			\ id-at-commonName is 55 04 03 (three bytes).
-			read-tag 0x06 check-tag-primitive read-length-open-elt
-			dup 3 = if
-				read8 16 << { tmp }
-				read8 8 << tmp + >tmp
-				read8 tmp +
-				0x550403 = { isCN }
-			then
-			skip-close-elt
-			
-			\ If this is a Common Name, then we want to copy
-			\ it to the pad, but only if it uses a mono-byte
-			\ encoding (Printable, Teletex or UTF-8).
-			isCN if
-				read-tag
-				dup dup 0x0C = swap 0x13 = or swap 0x14 = or if
-					check-primitive
-					read-small-value drop
-					close-elt
-				else
-					drop
-					0 addr-pad set8
-					skip-close-elt
+
+			\ Read the OID. If the OID could not be read (too
+			\ long) then the first pad byte will be 0.
+			read-OID drop
+
+			\ If it is the Common Name then we'll need to
+			\ match it against the intended server name (if
+			\ applicable).
+			id-at-commonName eqOID { isCN }
+
+			\ Get offset for reception buffer for that element
+			\ (or -1).
+			0 offset-name-element { offbuf }
+
+			\ Try to read the value as a string.
+			read-string
+
+			\ If the value could be decoded as a string,
+			\ copy it and/or match it, as appropriate.
+			dup isCN and if
+				match-server-name if
+					-1 >eename-matches
 				then
-			else
-				skip-close-elt
 			then
+			offbuf copy-name-element
+
+			\ Close the SEQUENCE
+			close-elt
+
 		repeat
 		close-elt
 	repeat
 	close-elt
 
 	\ Compute DN hash and deactivate DN hashing.
-	compute-dn-hash ;
+	compute-dn-hash
+
+	\ Return the CN match flag.
+	eename-matches ;
 
 \ Get the validation date and time from the context or system.
 cc: get-system-date ( -- days seconds ) {
@@ -937,15 +1050,55 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 	0 { m }
 	read-sequence-open
 	begin dup while
+		\ Read the tag. If the tag is context-0, then parse an
+		\ 'otherName'. If the tag is context-2, then parse a
+		\ dNSName. If the tag is context-1 or context-6,
+		\ parse 
+		read-tag case
+			\ OtherName
+			0x20 of
+				\ OtherName ::= SEQUENCE {
+				\     type-id   OBJECT IDENTIFIER,
+				\     value     [0] EXPLICIT ANY
+				\ }
+				check-constructed read-length-open-elt
+				read-OID drop
+				-1 offset-name-element { offbuf }
+				read-tag 0x20 check-tag-constructed
+				read-length-open-elt
+				read-string offbuf copy-name-element
+				close-elt
+				close-elt
+			endof
+			\ rfc822Name (IA5String)
+			0x21 of
+				check-primitive
+				read-value-UTF8 1 copy-name-SAN
+			endof
+			\ dNSName (IA5String)
+			0x22 of
+				check-primitive
+				read-value-UTF8
+				dup if match-server-name m or >m then
+				2 copy-name-SAN
+			endof
+			\ uniformResourceIdentifier (IA5String)
+			0x26 of
+				check-primitive
+				read-value-UTF8 6 copy-name-SAN
+			endof
+			2drop read-length-skip 0
+		endcase
+
 		\ We check only names of type dNSName; they use IA5String,
 		\ which is basically ASCII.
-		read-tag 0x22 = if
-			check-primitive
-			read-small-value drop
-			match-server-name m or >m
-		else
-			drop read-length-skip
-		then
+		\ read-tag 0x22 = if
+		\ 	check-primitive
+		\ 	read-small-value drop
+		\ 	match-server-name m or >m
+		\ else
+		\ 	drop read-length-skip
+		\ then
 	repeat
 	close-elt
 	m ;
@@ -996,14 +1149,14 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 	close-elt
 
 	\ Subject name.
-	read-DN
 	ee if
 		\ For the EE, we must check whether the Common Name, if
 		\ any, matches the expected server name.
-		match-server-name { eename }
+		read-DN-EE { eename }
 	else
 		\ For a non-EE certificate, the hashed subject DN must match
 		\ the saved hashed issuer DN from the previous certificate.
+		read-DN
 		addr-current_dn_hash addr-saved_dn_hash dn-hash-length eqblob
 		ifnot ERR_X509_DN_MISMATCH fail then
 	then

@@ -168,6 +168,14 @@ cc: fail ( err -- ! ) {
 	dup ifnot ERR_X509_INNER_TRUNC fail then
 	1- read8-nc ;
 
+\ Read a 16-bit value, big-endian encoding.
+: read16be ( lim -- lim x )
+	read8 8 << swap read8 rot + ;
+
+\ Read a 16-bit value, little-endian encoding.
+: read16le ( lim -- lim x )
+	read8 swap read8 8 << rot + ;
+
 \ Read all bytes from the current element, then close it (i.e. drop the
 \ limit). Destination address is an offset within the context.
 : read-blob ( lim addr -- )
@@ -365,9 +373,11 @@ OID: ecdsa-with-SHA256           1.2.840.10045.4.3.2
 OID: ecdsa-with-SHA384           1.2.840.10045.4.3.3
 OID: ecdsa-with-SHA512           1.2.840.10045.4.3.4
 
+OID: id-at-commonName            2.5.4.3
+
 \ Read a "small value". This assumes that the tag has just been read
 \ and processed, but not the length. The first pad byte is set to the
-\ value length; the encoded value iself follows. If the value length
+\ value length; the encoded value itself follows. If the value length
 \ exceeds 255 bytes, then a single 0 is written in the pad, and this
 \ method returns false (0). Otherwise, it returns true (-1).
 \ Either way, the element is fully read.
@@ -383,6 +393,174 @@ OID: ecdsa-with-SHA512           1.2.840.10045.4.3.4
 \ false (0) otherwise.
 : read-OID ( lim -- lim bool )
 	read-tag 0x06 check-tag-primitive read-small-value ;
+
+\ Read a UTF-8 code point. On error, return 0. Reading a code point of
+\ value 0 is considered to be an error.
+: read-UTF8 ( lim -- lim val )
+	read8
+	choice
+		dup 0x80 < uf ret enduf
+		dup 0xC0 < uf drop 0 ret enduf
+		dup 0xE0 < uf 0x1F and 1 read-UTF8-next 0x80 0x7FF enduf
+		dup 0xF0 < uf 0x0F and 2 read-UTF8-next 0x800 0xFFFF enduf
+		dup 0xF8 < uf 0x07 and 3 read-UTF8-next 0x10000 0x10FFFF enduf
+		drop 0 ret
+	endchoice
+	between? ifnot drop 0 then
+	;
+
+\ Read n subsequent bytes to complete the provided first byte. The final
+\ value is -1 on error, or the code point numerical value. The final
+\ value is duplicated.
+: read-UTF8-next ( lim val n -- lim val val )
+	begin dup while
+		-rot
+		read-UTF8-chunk
+		rot 1-
+	repeat
+	drop dup ;
+
+\ Read one byte, that should be a trailing UTF-8 byte, and complement the
+\ current value. On error, value is set to -1.
+: read-UTF8-chunk ( lim val -- lim val )
+	swap
+	\ If we are at the end of the value, report an error but don't fail.
+	dup ifnot 2drop 0 -1 ret then
+	read8 rot
+	dup 0< if swap drop ret then 6 <<
+	swap dup 6 >> 2 <> if 2drop -1 ret then
+	0x3F and + ;
+
+: high-surrogate? ( x -- x bool )
+	dup 0xD800 0xDBFF between? ;
+
+: low-surrogate? ( x -- x bool )
+	dup 0xDC00 0xDFFF between? ;
+
+: assemble-surrogate-pair ( hi lim lo -- lim val )
+	low-surrogate? ifnot rot 2drop 0 ret then
+	rot 10 << + 0x35FDC00 - ;
+
+\ Read a UTF-16 code point (big-endian). Returned value is 0 on error.
+: read-UTF16BE ( lim -- lim val )
+	read16be
+	choice
+		high-surrogate? uf
+			swap dup ifnot 2drop 0 0 ret then
+			read16be assemble-surrogate-pair
+		enduf
+		low-surrogate? uf
+			drop 0
+		enduf
+	endchoice ;
+
+\ Read a UTF-16 code point (little-endian). Returned value is 0 on error.
+: read-UTF16LE ( lim -- lim val )
+	read16le
+	choice
+		high-surrogate? uf
+			swap dup ifnot 2drop 0 0 ret then
+			read16le assemble-surrogate-pair
+		enduf
+		low-surrogate? uf
+			drop 0
+		enduf
+	endchoice ;
+
+\ Add byte to current pad value. Offset is updated, or set to 0 on error.
+: pad-append ( off val -- off )
+	over dup 0= swap 256 >= or if 2drop 0 ret then
+	over addr-pad + set8 1+ ;
+
+\ Add UTF-8 chunk byte to the pad. The 'nn' parameter is the shift count.
+: pad-append-UTF8-chunk ( off val nn -- off )
+	>> 0x3F and 0x80 or pad-append ;
+
+\ Test whether a code point is invalid when encoding. This rejects the
+\ 66 noncharacters, and also the surrogate range; this function does NOT
+\ check that the value is in the 0..10FFFF range.
+: valid-unicode? ( val -- bool )
+	dup 0xFDD0 0xFEDF between? if drop 0 ret then
+	dup 0xD800 0xDFFF between? if drop 0 ret then
+	0xFFFF and 0xFFFE < ;
+
+\ Encode a code point in UTF-8. Offset is in the pad; it is updated, or
+\ set to 0 on error. Leading BOM are ignored.
+: encode-UTF8 ( val off -- off )
+	\ Skip leading BOM (U+FEFF when off is 1).
+	dup2 1 = swap 0xFEFF = and if swap drop ret then
+
+	swap dup { val }
+	dup valid-unicode? ifnot 2drop 0 ret then
+	choice
+		dup 0x80 < uf pad-append enduf
+		dup 0x800 < uf
+			6 >> 0xC0 or pad-append
+			val 0 pad-append-UTF8-chunk
+		enduf
+		dup 0xFFFF < uf
+			12 >> 0xE0 or pad-append
+			val 6 pad-append-UTF8-chunk
+			val 0 pad-append-UTF8-chunk
+		enduf
+		18 >> 0xF0 or pad-append
+		val 12 pad-append-UTF8-chunk
+		val 6 pad-append-UTF8-chunk
+		val 0 pad-append-UTF8-chunk
+	endchoice ;
+
+\ Read a string value into the pad; this function checks that the source
+\ characters are UTF-8 and non-zero. The string length (in bytes) is
+\ written in the first pad byte. Returned value is true (-1) on success,
+\ false (0) on error.
+: read-value-UTF8 ( lim -- lim bool )
+	read-length-open-elt
+	1 { off }
+	begin dup while
+		read-UTF8 dup ifnot drop skip-close-elt 0 ret then
+		off encode-UTF8 >off
+	repeat
+	drop off dup ifnot ret then 1- addr-pad set8 -1 ;
+
+\ Decode a UTF-16 string into the pad. The string is converted to UTF-8,
+\ and the length is written in the first pad byte. A leading BOM is
+\ honoured (big-endian is assumed if there is no BOM). A code point of
+\ value 0 is an error. Returned value is true (-1) on success, false (0)
+\ on error.
+: read-value-UTF16 ( lim -- lim bool )
+	read-length-open-elt
+	dup ifnot addr-pad set8 -1 ret then
+	1 { off }
+	read-UTF16BE dup 0xFFFE = if
+		\ Leading BOM, and indicates little-endian.
+		drop
+		begin dup while
+			read-UTF16LE dup ifnot drop skip-close-elt 0 ret then
+			off encode-UTF8 >off
+		repeat
+	else
+		dup ifnot drop skip-close-elt 0 ret then
+		\ Big-endian BOM, or no BOM.
+		begin
+			off encode-UTF8 >off
+			dup while
+			read-UTF16BE dup ifnot drop skip-close-elt 0 ret then
+		repeat
+	then
+	drop off dup ifnot ret then 1- addr-pad set8 -1 ;
+
+\ Decode a latin-1 string into the pad. The string is converted to UTF-8,
+\ and the length is written in the first pad byte. A source byte of
+\ value 0 is an error. Returned value is true (-1) on success, false (0)
+\ on error.
+: read-value-latin1 ( lim -- lim bool )
+	read-length-open-elt
+	1 { off }
+	begin dup while
+		read8 dup ifnot drop skip-close-elt 0 ret then
+		off encode-UTF8 >off
+	repeat
+	drop off dup ifnot ret then 1- addr-pad set8 -1 ;
 
 \ Read a value and interpret it as an INTEGER or ENUMERATED value. If
 \ the integer value does not fit on an unsigned 32-bit value, an error

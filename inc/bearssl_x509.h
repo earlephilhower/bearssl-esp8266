@@ -552,6 +552,76 @@ void br_x509_knownkey_init_ec(br_x509_knownkey_context *ctx,
 #endif
 
 /**
+ * \brief Type for receiving a name element.
+ *
+ * An array of such structures can be provided to the X.509 decoding
+ * engines. If the specified elements are found in the certificate
+ * subject DN or the SAN extension, then the name contents are copied
+ * as zero-terminated strings into the buffer.
+ *
+ * The decoder converts TeletexString and BMPString to UTF8String, and
+ * ensures that the resulting string is zero-terminated. If the string
+ * does not fit in the provided buffer, then the copy is aborted and an
+ * error is reported.
+ */
+typedef struct {
+	/**
+	 * \brief Element OID.
+	 *
+	 * For X.500 name elements (to be extracted from the subject DN),
+	 * this is the encoded OID for the requested name element; the
+	 * first byte shall contain the length of the DER-encoded OID
+	 * value, followed by the OID value (for instance, OID 2.5.4.3,
+	 * for id-at-commonName, will be `03 55 04 03`). This is
+	 * equivalent to full DER encoding with the length but without
+	 * the tag.
+	 *
+	 * For SAN name elements, the first byte (`oid[0]`) has value 0,
+	 * followed by another byte that matches the expected GeneralName
+	 * tag. Allowed second byte values are then:
+	 *
+	 *   - 1: `rfc822Name`
+	 *
+	 *   - 2: `dNSName`
+	 *
+	 *   - 6: `uniformResourceIdentifier`
+	 *
+	 *   - 0: `otherName`
+	 *
+	 * If first and second byte are 0, then this is a SAN element of
+	 * type `otherName`; the `oid[]` array should then contain, right
+	 * after the two bytes of value 0, an encoded OID (with the same
+	 * conventions as for X.500 name elements). If a match is found
+	 * for that OID, then the corresponding name element will be
+	 * extracted, as long as it is a supported string type.
+	 */
+	const unsigned char *oid;
+
+	/**
+	 * \brief Destination buffer.
+	 */
+	char *buf;
+
+	/**
+	 * \brief Length (in bytes) of the destination buffer.
+	 *
+	 * The buffer MUST NOT be smaller than 1 byte.
+	 */
+	size_t len;
+
+	/**
+	 * \brief Decoding status.
+	 *
+	 * Status is 0 if the name element was not found, 1 if it was
+	 * found and decoded, or -1 on error. Error conditions include
+	 * an unrecognised encoding, an invalid encoding, or a string
+	 * too large for the destination buffer.
+	 */
+	int status;
+
+} br_name_element;
+
+/**
  * \brief The "minimal" X.509 engine structure.
  *
  * The structure contents are opaque (they shall not be accessed directly),
@@ -642,6 +712,12 @@ typedef struct {
 	unsigned char current_dn_hash[64];
 	unsigned char next_dn_hash[64];
 	unsigned char saved_dn_hash[64];
+
+	/*
+	 * Name elements to gather.
+	 */
+	br_name_element *name_elts;
+	size_t num_name_elts;
 
 	/*
 	 * Public key cryptography implementations (signature verification).
@@ -796,6 +872,26 @@ static inline void
 br_x509_minimal_set_minrsa(br_x509_minimal_context *ctx, int byte_length)
 {
 	ctx->min_rsa_size = (int16_t)(byte_length - 128);
+}
+
+/**
+ * \brief Set the name elements to gather.
+ *
+ * The provided array is linked in the context. The elements are
+ * gathered from the EE certificate. If the same element type is
+ * requested several times, then the relevant structures will be filled
+ * in the order the matching values are encountered in the certificate.
+ *
+ * \param ctx        validation context.
+ * \param elts       array of name element structures to fill.
+ * \param num_elts   number of name element structures to fill.
+ */
+static inline void
+br_x509_minimal_set_name_elements(br_x509_minimal_context *ctx,
+	br_name_element *elts, size_t num_elts)
+{
+	ctx->name_elts = elts;
+	ctx->num_name_elts = num_elts;
 }
 
 /**

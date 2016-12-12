@@ -1519,7 +1519,7 @@ run_test_case(test_case *tc)
 			br_x509_minimal_set_hash(&ctx, id, hash_impls[u].impl);
 		}
 	}
-	br_x509_minimal_set_rsa(&ctx, br_rsa_i32_pkcs1_vrfy);
+	br_x509_minimal_set_rsa(&ctx, br_rsa_i31_pkcs1_vrfy);
 	br_x509_minimal_set_ecdsa(&ctx,
 		&br_ec_prime_i31, br_ecdsa_i31_vrfy_asn1);
 
@@ -1626,6 +1626,349 @@ run_test_case(test_case *tc)
 	printf("OK\n");
 }
 
+/*
+ * A custom structure for tests, synchronised with the test certificate
+ * names.crt.
+ *
+ * If num is 1 or more, then this is a DN element with OID '1.1.1.1.num'.
+ * If num is -1 or less, then this is a SAN element of type -num.
+ * If num is 0, then this is a SAN element of type OtherName with
+ * OID 1.3.6.1.4.1.311.20.2.3 (Microsoft UPN).
+ */
+typedef struct {
+	int num;
+	int status;
+	const char *expected;
+} name_element_test;
+
+static name_element_test names_ref[] = {
+	/* === DN tests === */
+	{
+		/* [12] 66:6f:6f */
+		1, 1, "foo"
+	},
+	{
+		/* [12] 62:61:72 */
+		1, 1, "bar"
+	},
+	{
+		/* [18] 31:32:33:34 */
+		2, 1, "1234"
+	},
+	{
+		/* [19] 66:6f:6f */
+		3, 1, "foo"
+	},
+	{
+		/* [20] 66:6f:6f */
+		4, 1, "foo"
+	},
+	{
+		/* [22] 66:6f:6f */
+		5, 1, "foo"
+	},
+	{
+		/* [30] 00:66:00:6f:00:6f */
+		6, 1, "foo"
+	},
+	{
+		/* [30] fe:ff:00:66:00:6f:00:6f */
+		7, 1, "foo"
+	},
+	{
+		/* [30] ff:fe:66:00:6f:00:6f:00 */
+		8, 1, "foo"
+	},
+	{
+		/* [20] 63:61:66:e9 */
+		9, 1, "caf\xC3\xA9"
+	},
+	{
+		/* [12] 63:61:66:c3:a9 */
+		10, 1, "caf\xC3\xA9"
+	},
+	{
+		/* [12] 63:61:66:e0:83:a9 */
+		11, -1, NULL
+	},
+	{
+		/* [12] 63:61:66:e3:90:8c */
+		12, 1, "caf\xE3\x90\x8C"
+	},
+	{
+		/* [30] 00:63:00:61:00:66:34:0c */
+		13, 1, "caf\xE3\x90\x8C"
+	},
+	{
+		/* [12] 63:61:66:c3 */
+		14, -1, NULL
+	},
+	{
+		/* [30] d8:42:df:f4:00:67:00:6f */
+		15, 1, "\xF0\xA0\xAF\xB4go"
+	},
+	{
+		/* [30] 00:66:d8:42 */
+		16, -1, NULL
+	},
+	{
+		/* [30] d8:42:00:66 */
+		17, -1, NULL
+	},
+	{
+		/* [30] df:f4:00:66 */
+		18, -1, NULL
+	},
+	{
+		/* [12] 66:00:6f */
+		19, -1, NULL
+	},
+	{
+		/* [30] 00:00:34:0c */
+		20, -1, NULL
+	},
+	{
+		/* [30] 34:0c:00:00:00:66 */
+		21, -1, NULL
+	},
+	{
+		/* [12] ef:bb:bf:66:6f:6f */
+		22, 1, "foo"
+	},
+	{
+		/* [30] 00:66:ff:fe:00:6f */
+		23, -1, NULL
+	},
+	{
+		/* [30] 00:66:ff:fd:00:6f */
+		24, 1, "f\xEF\xBF\xBDo"
+	},
+
+	/* === Value not found in the DN === */
+	{
+		127, 0, NULL
+	},
+
+	/* === SAN tests === */
+	{
+		/* SAN OtherName (Microsoft UPN) */
+		0, 1, "foo@bar.com"
+	},
+	{
+		/* SAN rfc822Name */
+		-1, 1, "bar@foo.com"
+	},
+	{
+		/* SAN dNSName */
+		-2, 1, "example.com"
+	},
+	{
+		/* SAN dNSName */
+		-2, 1, "www.example.com"
+	},
+	{
+		/* uniformResourceIdentifier */
+		-6, 1, "http://www.example.com/"
+	}
+};
+
+static void
+free_name_elements(br_name_element *elts, size_t num)
+{
+	size_t u;
+
+	for (u = 0; u < num; u ++) {
+		xfree((void *)elts[u].oid);
+		xfree(elts[u].buf);
+	}
+	xfree(elts);
+}
+
+static void
+test_name_extraction(void)
+{
+	unsigned char *data;
+	size_t len;
+	br_x509_minimal_context ctx;
+	uint32_t days, seconds;
+	size_t u;
+	unsigned status;
+	br_name_element *names;
+	size_t num_names;
+	int good;
+
+	printf("Name extraction: ");
+	fflush(stdout);
+	data = read_file("names.crt", &len);
+	br_x509_minimal_init(&ctx, &br_sha256_vtable, NULL, 0);
+	for (u = 0; hash_impls[u].id; u ++) {
+		int id;
+
+		id = hash_impls[u].id;
+		br_x509_minimal_set_hash(&ctx, id, hash_impls[u].impl);
+	}
+	br_x509_minimal_set_rsa(&ctx, br_rsa_i31_pkcs1_vrfy);
+	br_x509_minimal_set_ecdsa(&ctx,
+		&br_ec_prime_i31, br_ecdsa_i31_vrfy_asn1);
+	string_to_time(DEFAULT_TIME, &days, &seconds);
+	br_x509_minimal_set_time(&ctx, days, seconds);
+
+	num_names = (sizeof names_ref) / (sizeof names_ref[0]);
+	names = xmalloc(num_names * sizeof *names);
+	for (u = 0; u < num_names; u ++) {
+		int num;
+		unsigned char *oid;
+
+		num = names_ref[u].num;
+		if (num > 0) {
+			oid = xmalloc(5);
+			oid[0] = 4;
+			oid[1] = 0x29;
+			oid[2] = 0x01;
+			oid[3] = 0x01;
+			oid[4] = num;
+		} else if (num == 0) {
+			oid = xmalloc(13);
+			oid[0] = 0x00;
+			oid[1] = 0x00;
+			oid[2] = 0x0A;
+			oid[3] = 0x2B;
+			oid[4] = 0x06;
+			oid[5] = 0x01;
+			oid[6] = 0x04;
+			oid[7] = 0x01;
+			oid[8] = 0x82;
+			oid[9] = 0x37;
+			oid[10] = 0x14;
+			oid[11] = 0x02;
+			oid[12] = 0x03;
+		} else {
+			oid = xmalloc(2);
+			oid[0] = 0x00;
+			oid[1] = -num;
+		}
+		names[u].oid = oid;
+		names[u].buf = xmalloc(256);
+		names[u].len = 256;
+	}
+	br_x509_minimal_set_name_elements(&ctx, names, num_names);
+
+	/*
+	 * Put "canaries" to detect actual stack usage.
+	 */
+	for (u = 0; u < (sizeof ctx.dp_stack) / sizeof(uint32_t); u ++) {
+		ctx.dp_stack[u] = 0xA7C083FE;
+	}
+	for (u = 0; u < (sizeof ctx.rp_stack) / sizeof(uint32_t); u ++) {
+		ctx.rp_stack[u] = 0xA7C083FE;
+	}
+
+	/*
+	 * Run the engine. Since we set no trust anchor, we expect a status
+	 * of "not trusted".
+	 */
+	ctx.vtable->start_chain(&ctx.vtable, NULL);
+	ctx.vtable->start_cert(&ctx.vtable, len);
+	ctx.vtable->append(&ctx.vtable, data, len);
+	ctx.vtable->end_cert(&ctx.vtable);
+	status = ctx.vtable->end_chain(&ctx.vtable);
+	if (status != BR_ERR_X509_NOT_TRUSTED) {
+		fprintf(stderr, "wrong status: %u\n", status);
+		exit(EXIT_FAILURE);
+	}
+
+	/*
+	 * Check stack usage.
+	 */
+	for (u = (sizeof ctx.dp_stack) / sizeof(uint32_t); u > 0; u --) {
+		if (ctx.dp_stack[u - 1] != 0xA7C083FE) {
+			if (max_dp_usage < u) {
+				max_dp_usage = u;
+			}
+			break;
+		}
+	}
+	for (u = (sizeof ctx.rp_stack) / sizeof(uint32_t); u > 0; u --) {
+		if (ctx.rp_stack[u - 1] != 0xA7C083FE) {
+			if (max_rp_usage < u) {
+				max_rp_usage = u;
+			}
+			break;
+		}
+	}
+
+	good = 1;
+	for (u = 0; u < num_names; u ++) {
+		if (names[u].status != names_ref[u].status) {
+			printf("ERR: name %u (id=%d): status=%d, expected=%d\n",
+				(unsigned)u, names_ref[u].num,
+				names[u].status, names_ref[u].status);
+			if (names[u].status > 0) {
+				unsigned char *p;
+
+				printf("  obtained:");
+				p = (unsigned char *)names[u].buf;
+				while (*p) {
+					printf(" %02X", *p ++);
+				}
+				printf("\n");
+			}
+			good = 0;
+			continue;
+		}
+		if (names_ref[u].expected == NULL) {
+			if (names[u].buf[0] != 0) {
+				printf("ERR: name %u not zero-terminated\n",
+					(unsigned)u);
+				good = 0;
+				continue;
+			}
+		} else {
+			if (strcmp(names[u].buf, names_ref[u].expected) != 0) {
+				unsigned char *p;
+
+				printf("ERR: name %u (id=%d): wrong value\n",
+					(unsigned)u, names_ref[u].num);
+				printf("  expected:");
+				p = (unsigned char *)names_ref[u].expected;
+				while (*p) {
+					printf(" %02X", *p ++);
+				}
+				printf("\n");
+				printf("  obtained:");
+				p = (unsigned char *)names[u].buf;
+				while (*p) {
+					printf(" %02X", *p ++);
+				}
+				printf("\n");
+				good = 0;
+				continue;
+			}
+		}
+	}
+	if (!good) {
+		exit(EXIT_FAILURE);
+	}
+
+	/*
+	for (u = 0; u < num_names; u ++) {
+		printf("%u: (%d)", (unsigned)u, names[u].status);
+		if (names[u].status > 0) {
+			size_t v;
+
+			for (v = 0; names[u].buf[v]; v ++) {
+				printf(" %02x", names[u].buf[v]);
+			}
+		}
+		printf("\n");
+	}
+	*/
+
+	xfree(data);
+	free_name_elements(names, num_names);
+	printf("OK\n");
+}
+
 int
 main(void)
 {
@@ -1638,6 +1981,7 @@ main(void)
 	for (u = 0; u < all_chains_ptr; u ++) {
 		run_test_case(&all_chains[u]);
 	}
+	test_name_extraction();
 
 	printf("Maximum data stack usage:    %u\n", (unsigned)max_dp_usage);
 	printf("Maximum return stack usage:  %u\n", (unsigned)max_rp_usage);
@@ -1648,5 +1992,6 @@ main(void)
 		free_test_case_contents(&all_chains[u]);
 	}
 	xfree(all_chains);
+
 	return 0;
 }

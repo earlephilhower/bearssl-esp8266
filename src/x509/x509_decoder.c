@@ -372,6 +372,8 @@ name(void *ctx) \
 
 T0_DEFENTRY(br_x509_decoder_init_main, 92)
 
+#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)
+
 void
 br_x509_decoder_run(void *t0ctx)
 {
@@ -419,15 +421,17 @@ br_x509_decoder_run(void *t0ctx)
 #define T0_CO()         do { \
 	goto t0_exit; \
 } while (0)
-#define T0_RET()        break
+#define T0_RET()        goto t0_next
 
 	dp = ((t0_context *)t0ctx)->dp;
 	rp = ((t0_context *)t0ctx)->rp;
 	ip = ((t0_context *)t0ctx)->ip;
+	goto t0_next;
 	for (;;) {
 		uint32_t t0x;
 
-		t0x = t0_parse7E_unsigned(&ip);
+	t0_next:
+		t0x = T0_NEXT(&ip);
 		if (t0x < T0_INTERPRETED) {
 			switch (t0x) {
 				int32_t t0off;
