@@ -34,6 +34,7 @@ class CodeElementJump : CodeElement {
 		this.jumpType = jumpType;
 	}
 
+	/* obsolete
 	internal override int Length {
 		get {
 			int len = Encode7EUnsigned(jumpType, null);
@@ -45,6 +46,19 @@ class CodeElementJump : CodeElement {
 			}
 			return len;
 		}
+	}
+	*/
+
+	internal override int GetLength(bool oneByteCode)
+	{
+		int len = oneByteCode ? 1 : Encode7EUnsigned(jumpType, null);
+		int joff = JumpOff;
+		if (joff == Int32.MinValue) {
+			len ++;
+		} else {
+			len += Encode7ESigned(joff, null);
+		}
+		return len;
 	}
 
 	internal override void SetJumpTarget(CodeElement target)
@@ -63,12 +77,17 @@ class CodeElementJump : CodeElement {
 		}
 	}
 
-	internal override int Encode(BlobWriter bw)
+	internal override int Encode(BlobWriter bw, bool oneByteCode)
 	{
 		if (bw == null) {
-			return Length;
+			return GetLength(oneByteCode);
 		}
-		int len = Encode7EUnsigned(jumpType, bw);
+		int len;
+		if (oneByteCode) {
+			len = EncodeOneByte(jumpType, bw);
+		} else {
+			len = Encode7EUnsigned(jumpType, bw);
+		}
 		int joff = JumpOff;
 		if (joff == Int32.MinValue) {
 			throw new Exception("Unresolved addresses");

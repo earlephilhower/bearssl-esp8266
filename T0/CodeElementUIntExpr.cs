@@ -38,16 +38,26 @@ class CodeElementUIntExpr : CodeElement {
 		this.off = off;
 	}
 
+	/* obsolete
 	internal override int Length {
 		get {
 			return Encode7EUnsigned(val, null)
 				+ (cx.GetMaxBitLength(off) + 6) / 7;
 		}
 	}
+	*/
 
-	internal override int Encode(BlobWriter bw)
+	internal override int GetLength(bool oneByteCode)
 	{
-		int len1 = Encode7EUnsigned(val, bw);
+		int len = oneByteCode ? 1 : Encode7EUnsigned(val, null);
+		return len + (cx.GetMaxBitLength(off) + 6) / 7;
+	}
+
+	internal override int Encode(BlobWriter bw, bool oneByteCode)
+	{
+		int len1 = oneByteCode
+			? EncodeOneByte(val, bw)
+			: Encode7EUnsigned(val, bw);
 		int len2 = (cx.GetMaxBitLength(off) + 6) / 7;
 		bw.Append(String.Format("T0_INT{0}({1})",
 			len2, cx.ToCExpr(off)));

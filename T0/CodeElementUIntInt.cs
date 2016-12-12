@@ -35,16 +35,26 @@ class CodeElementUIntInt : CodeElement {
 		this.val2 = val2;
 	}
 
+	/* obsolete
 	internal override int Length {
 		get {
 			return Encode7EUnsigned(val1, null)
 				+ Encode7ESigned(val2, null);
 		}
 	}
+	*/
 
-	internal override int Encode(BlobWriter bw)
+	internal override int GetLength(bool oneByteCode)
 	{
-		int len = Encode7EUnsigned(val1, bw);
+		return (oneByteCode ? 1 : Encode7EUnsigned(val1, null))
+			+ Encode7ESigned(val2, null);
+	}
+
+	internal override int Encode(BlobWriter bw, bool oneByteCode)
+	{
+		int len = oneByteCode
+			? EncodeOneByte(val1, bw)
+			: Encode7EUnsigned(val1, bw);
 		len += Encode7ESigned(val2, bw);
 		return len;
 	}

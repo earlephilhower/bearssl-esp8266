@@ -1627,6 +1627,20 @@ public class T0Comp {
 		CodeElement[] gcode = gcodeList.ToArray();
 
 		/*
+		 * If there are less than 256 words in total (C +
+		 * interpreted) then we can use "one-byte code" which is
+		 * more compact when the number of words is in the
+		 * 128..255 range.
+		 */
+		bool oneByteCode;
+		if (slotInterpreted + numInterpreted >= 256) {
+			Console.WriteLine("WARNING: more than 255 words");
+			oneByteCode = false;
+		} else {
+			oneByteCode = true;
+		}
+
+		/*
 		 * Compute all addresses and offsets. This loops until
 		 * the addresses stabilize.
 		 */
@@ -1634,7 +1648,7 @@ public class T0Comp {
 		int[] gcodeLen = new int[gcode.Length];
 		for (;;) {
 			for (int i = 0; i < gcode.Length; i ++) {
-				gcodeLen[i] = gcode[i].Length;
+				gcodeLen[i] = gcode[i].GetLength(oneByteCode);
 			}
 			int off = 0;
 			for (int i = 0; i < gcode.Length; i ++) {
@@ -1756,7 +1770,7 @@ static const uint8_t t0_datablock[];
 			tw.Write("static const uint8_t t0_codeblock[] = {");
 			bw = new BlobWriter(tw, 78, 1);
 			foreach (CodeElement ce in gcode) {
-				ce.Encode(bw);
+				ce.Encode(bw, oneByteCode);
 			}
 			tw.WriteLine();
 			tw.WriteLine("};");
@@ -1803,6 +1817,14 @@ name(void *ctx) \
 				tw.WriteLine("T0_DEFENTRY({0}, {1})",
 					coreRun + "_init_" + ep,
 					wordSet[ep].Slot);
+			}
+			tw.WriteLine();
+			if (oneByteCode) {
+				tw.WriteLine("{0}",
+@"#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)");
+			} else {
+				tw.WriteLine("{0}",
+@"#define T0_NEXT(t0ipp)   t0_parse7E_unsigned(t0ipp)");
 			}
 			tw.WriteLine();
 			tw.WriteLine("void");
@@ -1853,15 +1875,17 @@ name(void *ctx) \
 #define T0_CO()         do { \
 	goto t0_exit; \
 } while (0)
-#define T0_RET()        break
+#define T0_RET()        goto t0_next
 
 	dp = ((t0_context *)t0ctx)->dp;
 	rp = ((t0_context *)t0ctx)->rp;
 	ip = ((t0_context *)t0ctx)->ip;
+	goto t0_next;
 	for (;;) {
 		uint32_t t0x;
 
-		t0x = t0_parse7E_unsigned(&ip);
+	t0_next:
+		t0x = T0_NEXT(&ip);
 		if (t0x < T0_INTERPRETED) {
 			switch (t0x) {
 				int32_t t0off;
@@ -1932,7 +1956,7 @@ t0_exit:
 
 		int codeLen = 0;
 		foreach (CodeElement ce in gcode) {
-			codeLen += ce.Length;
+			codeLen += ce.GetLength(oneByteCode);
 		}
 		int dataBlockLen = 0;
 		foreach (ConstData cd in blocks.Values) {
@@ -1944,8 +1968,8 @@ t0_exit:
 		 */
 		Console.WriteLine("code length: {0,6} byte(s)", codeLen);
 		Console.WriteLine("data length: {0,6} byte(s)", dataLen);
-		Console.WriteLine("interpreted words: {0}",
-			interpretedEntry.Length);
+		Console.WriteLine("total words: {0} (interpreted: {1})",
+			slotInterpreted + numInterpreted, numInterpreted);
 	}
 
 	internal Word Lookup(string name)

@@ -30,7 +30,7 @@ abstract class CodeElement {
 
 	internal int LastLength { get; set; }
 
-	internal abstract int Length { get; }
+	// internal abstract int Length { get; }
 
 	internal CodeElement()
 	{
@@ -42,7 +42,19 @@ abstract class CodeElement {
 		throw new Exception("Code element accepts no target");
 	}
 
-	internal abstract int Encode(BlobWriter bw);
+	internal abstract int GetLength(bool oneByteCode);
+
+	internal abstract int Encode(BlobWriter bw, bool oneByteCode);
+
+	internal static int EncodeOneByte(uint val, BlobWriter bw)
+	{
+		if (val > 255) {
+			throw new Exception(string.Format(
+				"Cannot encode '{0}' over one byte", val));
+		}
+		bw.Append((byte)val);
+		return 1;
+	}
 
 	internal static int Encode7EUnsigned(uint val, BlobWriter bw)
 	{
