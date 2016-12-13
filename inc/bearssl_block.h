@@ -30,9 +30,10 @@
 
 /** \file bearssl_block.h
  *
- * # Block Ciphers
+ * # Block Ciphers and Symmetric Ciphers
  *
- * This file documents the API for block ciphers.
+ * This file documents the API for block ciphers and other symmetric
+ * ciphers.
  *
  *
  * ## Procedural API
@@ -227,6 +228,27 @@
  *
  * `des_ct` is an constant-time implementation of DES/3DES. It is
  * substantially slower than `des_tab`.
+ *
+ * ## ChaCha20 and Poly1305
+ *
+ * ChaCha20 is a stream cipher. Poly1305 is a MAC algorithm. They
+ * are described in [RFC 7539](https://tools.ietf.org/html/rfc7539).
+ *
+ * Two function pointer types are defined:
+ *
+ *   - `br_chacha20_run` describes a function that implements ChaCha20
+ *     only.
+ *
+ *   - `br_poly1305_run` describes an implementation of Poly1305,
+ *     in the AEAD combination with ChaCha20 specified in RFC 7539
+ *     (the ChaCha20 implementation is provided as a function pointer).
+ *
+ * `chacha20_ct` is a straightforward implementation of ChaCha20 in
+ * plain C; it is constant-time, small, and reasonably fast.
+ *
+ * `poly1305_ctmul` is an implementation of the ChaCha20+Poly1305 AEAD
+ * construction, where the Poly1305 part is performed with mixed 32-bit
+ * multiplications (operands are 32-bit, result is 64-bit).
  */
 
 /**
@@ -1216,5 +1238,89 @@ typedef union {
 	br_des_tab_cbcdec_keys tab;
 	br_des_ct_cbcdec_keys ct;
 } br_des_gen_cbcdec_keys;
+
+/**
+ * \brief Type for a ChaCha20 implementation.
+ *
+ * An implementation follows the description in RFC 7539:
+ *
+ *   - Key is 256 bits (`key` points to exactly 32 bytes).
+ *
+ *   - IV is 96 bits (`iv` points to exactly 12 bytes).
+ *
+ *   - Block counter is oveer 32 bits and starts at value `cc`; the
+ *     resulting value is returned.
+ *
+ * Data (pointed to by `data`, of length `len`) is encrypted/decrypted
+ * in place. If `len` is not a multiple of 64, then the excess bytes from
+ * the last block processing are dropped (therefore, "chunked" processing
+ * works only as long as each non-final chunk has a length multiple of 64).
+ *
+ * \param key    secret key (32 bytes).
+ * \param iv     IV (12 bytes).
+ * \param cc     initial counter value.
+ * \param data   data to encrypt or decrypt.
+ * \param len    data length (in bytes).
+ */
+typedef uint32_t (*br_chacha20_run)(const void *key,
+	const void *iv, uint32_t cc, void *data, size_t len);
+
+/**
+ * \brief ChaCha20 implementation (straightforward C code, constant-time).
+ *
+ * \see br_chacha20_run
+ *
+ * \param key    secret key (32 bytes).
+ * \param iv     IV (12 bytes).
+ * \param cc     initial counter value.
+ * \param data   data to encrypt or decrypt.
+ * \param len    data length (in bytes).
+ */
+uint32_t br_chacha20_ct_run(const void *key,
+	const void *iv, uint32_t cc, void *data, size_t len);
+
+/**
+ * \brief Type for a ChaCha20+Poly1305 AEAD implementation.
+ *
+ * The provided data is encrypted or decrypted with ChaCha20. The
+ * authentication tag is computed on the concatenation of the
+ * additional data and the ciphertext, with the padding and lengths
+ * as described in RFC 7539 (section 2.8).
+ *
+ * After decryption, the caller is responsible for checking that the
+ * computed tag matches the expected value.
+ *
+ * \param key       secret key (32 bytes).
+ * \param iv        nonce (12 bytes).
+ * \param data      data to encrypt or decrypt.
+ * \param len       data length (in bytes).
+ * \param aad       additional authenticated data.
+ * \param aad_len   length of additional authenticated data (in bytes).
+ * \param tag       output buffer for the authentication tag.
+ * \param ichacha   implementation of ChaCha20.
+ * \param encrypt   non-zero for encryption, zero for decryption.
+ */
+typedef void (*br_poly1305_run)(const void *key, const void *iv,
+	void *data, size_t len, const void *aad, size_t aad_len,
+	void *tag, br_chacha20_run ichacha, int encrypt);
+
+/**
+ * \brief ChaCha20+Poly1305 AEAD implementation (mixed 32-bit multiplications).
+ *
+ * \see br_poly1305_run
+ *
+ * \param key       secret key (32 bytes).
+ * \param iv        nonce (12 bytes).
+ * \param data      data to encrypt or decrypt.
+ * \param len       data length (in bytes).
+ * \param aad       additional authenticated data.
+ * \param aad_len   length of additional authenticated data (in bytes).
+ * \param tag       output buffer for the authentication tag.
+ * \param ichacha   implementation of ChaCha20.
+ * \param encrypt   non-zero for encryption, zero for decryption.
+ */
+void br_poly1305_ctmul_run(const void *key, const void *iv,
+	void *data, size_t len, const void *aad, size_t aad_len,
+	void *tag, br_chacha20_run ichacha, int encrypt);
 
 #endif

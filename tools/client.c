@@ -915,6 +915,15 @@ do_client(int argc, char *argv[])
 				&br_sslrec_in_gcm_vtable,
 				&br_sslrec_out_gcm_vtable);
 		}
+		if ((req & REQ_CHAPOL) != 0) {
+			br_ssl_engine_set_chacha20(&cc.eng,
+				&br_chacha20_ct_run);
+			br_ssl_engine_set_poly1305(&cc.eng,
+				&br_poly1305_ctmul_run);
+			br_ssl_engine_set_chapol(&cc.eng,
+				&br_sslrec_in_chapol_vtable,
+				&br_sslrec_out_chapol_vtable);
+		}
 		if ((req & REQ_3DESCBC) != 0) {
 			br_ssl_engine_set_des_cbc(&cc.eng,
 				&br_des_ct_cbcenc_vtable,

@@ -54,8 +54,8 @@ OBJINT32 = $(BUILD)/i32_add.o $(BUILD)/i32_bitlen.o $(BUILD)/i32_decmod.o $(BUIL
 OBJMAC = $(BUILD)/hmac.o $(BUILD)/hmac_ct.o
 OBJRAND = $(BUILD)/hmac_drbg.o
 OBJRSA = $(BUILD)/rsa_i31_pkcs1_sign.o $(BUILD)/rsa_i31_pkcs1_vrfy.o $(BUILD)/rsa_i31_priv.o $(BUILD)/rsa_i31_pub.o $(BUILD)/rsa_i32_pkcs1_sign.o $(BUILD)/rsa_i32_pkcs1_vrfy.o $(BUILD)/rsa_i32_priv.o $(BUILD)/rsa_i32_pub.o $(BUILD)/rsa_ssl_decrypt.o
-OBJSSL = $(BUILD)/prf.o $(BUILD)/prf_md5sha1.o $(BUILD)/prf_sha256.o $(BUILD)/prf_sha384.o $(BUILD)/ssl_ccert_single_ec.o $(BUILD)/ssl_ccert_single_rsa.o $(BUILD)/ssl_client.o $(BUILD)/ssl_client_full.o $(BUILD)/ssl_engine.o $(BUILD)/ssl_hashes.o $(BUILD)/ssl_hs_client.o $(BUILD)/ssl_hs_server.o $(BUILD)/ssl_io.o $(BUILD)/ssl_lru.o $(BUILD)/ssl_rec_cbc.o $(BUILD)/ssl_rec_gcm.o $(BUILD)/ssl_server.o $(BUILD)/ssl_server_mine2g.o $(BUILD)/ssl_server_minf2g.o $(BUILD)/ssl_server_minr2g.o $(BUILD)/ssl_server_minu2g.o $(BUILD)/ssl_server_minv2g.o $(BUILD)/ssl_server_full_ec.o $(BUILD)/ssl_server_full_rsa.o $(BUILD)/ssl_scert_single_ec.o $(BUILD)/ssl_scert_single_rsa.o
-OBJSYMCIPHER = $(BUILD)/aes_big_cbcdec.o $(BUILD)/aes_big_cbcenc.o $(BUILD)/aes_big_ctr.o $(BUILD)/aes_big_dec.o $(BUILD)/aes_big_enc.o $(BUILD)/aes_common.o $(BUILD)/aes_ct.o $(BUILD)/aes_ct64.o $(BUILD)/aes_ct64_cbcdec.o $(BUILD)/aes_ct64_cbcenc.o $(BUILD)/aes_ct64_ctr.o $(BUILD)/aes_ct64_dec.o $(BUILD)/aes_ct64_enc.o $(BUILD)/aes_ct_cbcdec.o $(BUILD)/aes_ct_cbcenc.o $(BUILD)/aes_ct_ctr.o $(BUILD)/aes_ct_dec.o $(BUILD)/aes_ct_enc.o $(BUILD)/aes_small_cbcdec.o $(BUILD)/aes_small_cbcenc.o $(BUILD)/aes_small_ctr.o $(BUILD)/aes_small_dec.o $(BUILD)/aes_small_enc.o $(BUILD)/des_ct.o $(BUILD)/des_ct_cbcdec.o $(BUILD)/des_ct_cbcenc.o $(BUILD)/des_support.o $(BUILD)/des_tab.o $(BUILD)/des_tab_cbcdec.o $(BUILD)/des_tab_cbcenc.o
+OBJSSL = $(BUILD)/prf.o $(BUILD)/prf_md5sha1.o $(BUILD)/prf_sha256.o $(BUILD)/prf_sha384.o $(BUILD)/ssl_ccert_single_ec.o $(BUILD)/ssl_ccert_single_rsa.o $(BUILD)/ssl_client.o $(BUILD)/ssl_client_full.o $(BUILD)/ssl_engine.o $(BUILD)/ssl_hashes.o $(BUILD)/ssl_hs_client.o $(BUILD)/ssl_hs_server.o $(BUILD)/ssl_io.o $(BUILD)/ssl_lru.o $(BUILD)/ssl_rec_cbc.o $(BUILD)/ssl_rec_chapol.o $(BUILD)/ssl_rec_gcm.o $(BUILD)/ssl_server.o $(BUILD)/ssl_server_mine2c.o $(BUILD)/ssl_server_mine2g.o $(BUILD)/ssl_server_minf2c.o $(BUILD)/ssl_server_minf2g.o $(BUILD)/ssl_server_minr2g.o $(BUILD)/ssl_server_minu2g.o $(BUILD)/ssl_server_minv2g.o $(BUILD)/ssl_server_full_ec.o $(BUILD)/ssl_server_full_rsa.o $(BUILD)/ssl_scert_single_ec.o $(BUILD)/ssl_scert_single_rsa.o
+OBJSYMCIPHER = $(BUILD)/aes_big_cbcdec.o $(BUILD)/aes_big_cbcenc.o $(BUILD)/aes_big_ctr.o $(BUILD)/aes_big_dec.o $(BUILD)/aes_big_enc.o $(BUILD)/aes_common.o $(BUILD)/aes_ct.o $(BUILD)/aes_ct64.o $(BUILD)/aes_ct64_cbcdec.o $(BUILD)/aes_ct64_cbcenc.o $(BUILD)/aes_ct64_ctr.o $(BUILD)/aes_ct64_dec.o $(BUILD)/aes_ct64_enc.o $(BUILD)/aes_ct_cbcdec.o $(BUILD)/aes_ct_cbcenc.o $(BUILD)/aes_ct_ctr.o $(BUILD)/aes_ct_dec.o $(BUILD)/aes_ct_enc.o $(BUILD)/aes_small_cbcdec.o $(BUILD)/aes_small_cbcenc.o $(BUILD)/aes_small_ctr.o $(BUILD)/aes_small_dec.o $(BUILD)/aes_small_enc.o $(BUILD)/chacha20_ct.o $(BUILD)/des_ct.o $(BUILD)/des_ct_cbcdec.o $(BUILD)/des_ct_cbcenc.o $(BUILD)/des_support.o $(BUILD)/des_tab.o $(BUILD)/des_tab_cbcdec.o $(BUILD)/des_tab_cbcenc.o $(BUILD)/poly1305_ctmul.o
 OBJX509 = $(BUILD)/skey_decoder.o $(BUILD)/x509_decoder.o $(BUILD)/x509_knownkey.o $(BUILD)/x509_minimal.o
 OBJ = $(OBJCODEC) $(OBJEC) $(OBJHASH) $(OBJINT31) $(OBJINT32) $(OBJMAC) $(OBJRAND) $(OBJRSA) $(OBJSSL) $(OBJSYMCIPHER) $(OBJX509)
 OBJBRSSL = $(BUILD)/brssl.o $(BUILD)/certs.o $(BUILD)/chain.o $(BUILD)/client.o $(BUILD)/errors.o $(BUILD)/files.o $(BUILD)/keys.o $(BUILD)/names.o $(BUILD)/server.o $(BUILD)/skey.o $(BUILD)/sslio.o $(BUILD)/ta.o $(BUILD)/vector.o $(BUILD)/verify.o $(BUILD)/xmem.o
@@ -419,14 +419,23 @@ $(BUILD)/ssl_lru.o: src/ssl/ssl_lru.c $(HEADERS)
 $(BUILD)/ssl_rec_cbc.o: src/ssl/ssl_rec_cbc.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_rec_cbc.o src/ssl/ssl_rec_cbc.c
 
+$(BUILD)/ssl_rec_chapol.o: src/ssl/ssl_rec_chapol.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_rec_chapol.o src/ssl/ssl_rec_chapol.c
+
 $(BUILD)/ssl_rec_gcm.o: src/ssl/ssl_rec_gcm.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_rec_gcm.o src/ssl/ssl_rec_gcm.c
 
 $(BUILD)/ssl_server.o: src/ssl/ssl_server.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_server.o src/ssl/ssl_server.c
 
+$(BUILD)/ssl_server_mine2c.o: src/ssl/ssl_server_mine2c.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_server_mine2c.o src/ssl/ssl_server_mine2c.c
+
 $(BUILD)/ssl_server_mine2g.o: src/ssl/ssl_server_mine2g.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_server_mine2g.o src/ssl/ssl_server_mine2g.c
+
+$(BUILD)/ssl_server_minf2c.o: src/ssl/ssl_server_minf2c.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_server_minf2c.o src/ssl/ssl_server_minf2c.c
 
 $(BUILD)/ssl_server_minf2g.o: src/ssl/ssl_server_minf2g.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ssl_server_minf2g.o src/ssl/ssl_server_minf2g.c
@@ -521,6 +530,9 @@ $(BUILD)/aes_small_dec.o: src/symcipher/aes_small_dec.c $(HEADERS)
 $(BUILD)/aes_small_enc.o: src/symcipher/aes_small_enc.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/aes_small_enc.o src/symcipher/aes_small_enc.c
 
+$(BUILD)/chacha20_ct.o: src/symcipher/chacha20_ct.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/chacha20_ct.o src/symcipher/chacha20_ct.c
+
 $(BUILD)/des_ct.o: src/symcipher/des_ct.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/des_ct.o src/symcipher/des_ct.c
 
@@ -541,6 +553,9 @@ $(BUILD)/des_tab_cbcdec.o: src/symcipher/des_tab_cbcdec.c $(HEADERS)
 
 $(BUILD)/des_tab_cbcenc.o: src/symcipher/des_tab_cbcenc.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/des_tab_cbcenc.o src/symcipher/des_tab_cbcenc.c
+
+$(BUILD)/poly1305_ctmul.o: src/symcipher/poly1305_ctmul.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/poly1305_ctmul.o src/symcipher/poly1305_ctmul.c
 
 $(BUILD)/skey_decoder.o: src/x509/skey_decoder.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/skey_decoder.o src/x509/skey_decoder.c

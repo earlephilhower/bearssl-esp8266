@@ -161,6 +161,46 @@ test_speed_ ## fname(void) \
 	} \
 }
 
+#define SPEED_CHACHA20(Name, fname) \
+static void \
+test_speed_ ## fname(void) \
+{ \
+	unsigned char key[32]; \
+	unsigned char buf[8192]; \
+	unsigned char iv[12]; \
+	int i; \
+	long num; \
+ \
+	memset(key, 'T', sizeof key); \
+	memset(buf, 'P', sizeof buf); \
+	memset(iv, 'X', sizeof iv); \
+	for (i = 0; i < 10; i ++) { \
+		br_ ## fname ## _run(key, iv, i, buf, sizeof buf); \
+	} \
+	num = 10; \
+	for (;;) { \
+		clock_t begin, end; \
+		double tt; \
+		long k; \
+ \
+		begin = clock(); \
+		for (k = num; k > 0; k --) { \
+			br_ ## fname ## _run(key, iv, \
+				(uint32_t)k, buf, sizeof buf); \
+		} \
+		end = clock(); \
+		tt = (double)(end - begin) / CLOCKS_PER_SEC; \
+		if (tt >= 2.0) { \
+			printf("%-30s %8.2f MB/s\n", #Name, \
+				((double)sizeof buf) * (double)num \
+				/ (tt * 1000000.0)); \
+			fflush(stdout); \
+			return; \
+		} \
+		num <<= 1; \
+	} \
+}
+
 SPEED_HASH(MD5, md5)
 SPEED_HASH(SHA-1, sha1)
 SPEED_HASH(SHA-256, sha256)
@@ -190,6 +230,8 @@ SPEED_BLOCKCIPHER_CBC(3DES CBC decrypt (iname), 3des_ ## iname ## _cbcdec, des_ 
 
 SPEED_DES(tab)
 SPEED_DES(ct)
+
+SPEED_CHACHA20(ChaCha20, chacha20_ct)
 
 static void
 test_speed_ghash_inner(char *name, br_ghash gh)
@@ -1017,6 +1059,8 @@ static const struct {
 	STU(des_ct_cbcdec),
 	STU(3des_ct_cbcenc),
 	STU(3des_ct_cbcdec),
+
+	STU(chacha20_ct),
 
 	STU(ghash_ctmul),
 	STU(ghash_ctmul32),

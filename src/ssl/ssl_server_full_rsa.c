@@ -38,11 +38,13 @@ br_ssl_server_init_full_rsa(br_ssl_server_context *cc,
 	 *
 	 * -- Don't use 3DES if AES is available.
 	 * -- Try to have Forward Secrecy (ECDHE suite) if possible.
+	 * -- ChaCha20+Poly1305 is better than AES/GCM (faster, smaller).
 	 * -- GCM is better than CBC.
 	 * -- AES-128 is preferred over AES-256 (AES-128 is already
 	 *    strong enough, and AES-256 is 40% more expensive).
 	 */
 	static const uint16_t suites[] = {
+		BR_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		BR_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		BR_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
@@ -141,9 +143,13 @@ br_ssl_server_init_full_rsa(br_ssl_server_context *cc,
 	br_ssl_engine_set_des_cbc(&cc->eng,
 		&br_des_ct_cbcenc_vtable,
 		&br_des_ct_cbcdec_vtable);
+	br_ssl_engine_set_chacha20(&cc->eng,
+		&br_chacha20_ct_run);
+	br_ssl_engine_set_poly1305(&cc->eng,
+		&br_poly1305_ctmul_run);
 
 	/*
-	 * Set the SSL record engines (CBC, GCM).
+	 * Set the SSL record engines (CBC, GCM, ChaCha20).
 	 */
 	br_ssl_engine_set_cbc(&cc->eng,
 		&br_sslrec_in_cbc_vtable,
@@ -151,4 +157,7 @@ br_ssl_server_init_full_rsa(br_ssl_server_context *cc,
 	br_ssl_engine_set_gcm(&cc->eng,
 		&br_sslrec_in_gcm_vtable,
 		&br_sslrec_out_gcm_vtable);
+	br_ssl_engine_set_chapol(&cc->eng,
+		&br_sslrec_in_chapol_vtable,
+		&br_sslrec_out_chapol_vtable);
 }

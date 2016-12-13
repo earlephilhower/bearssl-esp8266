@@ -67,7 +67,7 @@ gcm_check_length(const br_sslrec_gcm_context *cc, size_t rlen)
 	 *  16 bytes for the authentication tag (after the ciphertext)
 	 */
 	(void)cc;
-	return rlen >= 24 && rlen <= (16384 + rlen);
+	return rlen >= 24 && rlen <= (16384 + 24);
 }
 
 /*

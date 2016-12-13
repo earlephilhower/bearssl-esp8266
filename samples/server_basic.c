@@ -46,6 +46,22 @@
  *
  * The macros below define which chain is selected. This impacts the list
  * of supported cipher suites.
+ *
+ * Other macros, which can be defined (with a non-zero value):
+ *
+ *   SERVER_PROFILE_MIN_FS
+ *      Select a "minimal" profile with forward security (ECDHE cipher
+ *      suite).
+ *
+ *   SERVER_PROFILE_MIN_NOFS
+ *      Select a "minimal" profile without forward security (RSA or ECDH
+ *      cipher suite, but not ECDHE).
+ *
+ *   SERVER_CHACHA20
+ *      If SERVER_PROFILE_MIN_FS is selected, then this macro selects
+ *      a cipher suite with ChaCha20+Poly1305; otherwise, AES/GCM is
+ *      used. This macro has no effect otherwise, since there is no
+ *      non-forward secure cipher suite that uses ChaCha20+Poly1305.
  */
 
 #if !(SERVER_RSA || SERVER_EC || SERVER_MIXED)
@@ -322,7 +338,11 @@ main(int argc, char *argv[])
 		 */
 #if SERVER_RSA
 #if SERVER_PROFILE_MIN_FS
+#if SERVER_CHACHA20
+		br_ssl_server_init_mine2c(&sc, CHAIN, CHAIN_LEN, &SKEY);
+#else
 		br_ssl_server_init_mine2g(&sc, CHAIN, CHAIN_LEN, &SKEY);
+#endif
 #elif SERVER_PROFILE_MIN_NOFS
 		br_ssl_server_init_minr2g(&sc, CHAIN, CHAIN_LEN, &SKEY);
 #else
@@ -330,7 +350,11 @@ main(int argc, char *argv[])
 #endif
 #elif SERVER_EC
 #if SERVER_PROFILE_MIN_FS
+#if SERVER_CHACHA20
+		br_ssl_server_init_minf2c(&sc, CHAIN, CHAIN_LEN, &SKEY);
+#else
 		br_ssl_server_init_minf2g(&sc, CHAIN, CHAIN_LEN, &SKEY);
+#endif
 #elif SERVER_PROFILE_MIN_NOFS
 		br_ssl_server_init_minv2g(&sc, CHAIN, CHAIN_LEN, &SKEY);
 #else
@@ -339,7 +363,11 @@ main(int argc, char *argv[])
 #endif
 #else /* SERVER_MIXED */
 #if SERVER_PROFILE_MIN_FS
+#if SERVER_CHACHA20
+		br_ssl_server_init_minf2c(&sc, CHAIN, CHAIN_LEN, &SKEY);
+#else
 		br_ssl_server_init_minf2g(&sc, CHAIN, CHAIN_LEN, &SKEY);
+#endif
 #elif SERVER_PROFILE_MIN_NOFS
 		br_ssl_server_init_minu2g(&sc, CHAIN, CHAIN_LEN, &SKEY);
 #else

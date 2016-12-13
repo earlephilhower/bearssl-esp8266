@@ -585,7 +585,7 @@ cc: save-session ( -- ) {
 	check-resume { resume }
 
 	\ Cipher suites. We read all cipher suites from client, each time
-	\ matching against our own list. We accumulare suites in the
+	\ matching against our own list. We accumulate suites in the
 	\ client_suites[] context buffer: we keep suites that are
 	\ supported by both the client and the server (so the list size
 	\ cannot exceed that of the server list), and we keep them in
@@ -772,7 +772,7 @@ cc: save-session ( -- ) {
 	\ In 'can-ecdhe', bit 12 is set if ECDHE_RSA is possible, bit 13 is
 	\ set if ECDHE_ECDSA is possible.
 	dup 0xFF and 0<> neg
-	swap 8 >> 0<> 2 and or { can-ecdhe }
+	swap 8 >> 0<> 2 and or 12 << { can-ecdhe }
 
 	\ Filter supported curves. If there is no common curve between
 	\ client and us, then ECDHE suites cannot be used. Note that we

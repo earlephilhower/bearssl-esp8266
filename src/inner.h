@@ -1525,6 +1525,24 @@ void br_ssl_engine_switch_gcm_out(br_ssl_engine_context *cc,
 	const br_block_ctr_class *bc_impl, size_t cipher_key_len);
 
 /*
+ * Switch to ChaCha20+Poly1305 decryption for incoming records.
+ *    cc               the engine context
+ *    is_client        non-zero for a client, zero for a server
+ *    prf_id           id of hash function for PRF
+ */
+void br_ssl_engine_switch_chapol_in(br_ssl_engine_context *cc,
+	int is_client, int prf_id);
+
+/*
+ * Switch to ChaCha20+Poly1305 encryption for outgoing records.
+ *    cc               the engine context
+ *    is_client        non-zero for a client, zero for a server
+ *    prf_id           id of hash function for PRF
+ */
+void br_ssl_engine_switch_chapol_out(br_ssl_engine_context *cc,
+	int is_client, int prf_id);
+
+/*
  * Calls to T0-generated code.
  */
 void br_ssl_hs_client_init_main(void *ctx);

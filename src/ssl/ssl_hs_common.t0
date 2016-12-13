@@ -903,8 +903,14 @@ hexb| 0000 | \ List terminator.
 			then
 		endof
 
-		\ ChaCha20/Poly1305
-		\ 5 of endof
+		\ ChaCha20+Poly1305
+		5 of drop
+			for-input if
+				switch-chapol-in
+			else
+				switch-chapol-out
+			then
+		endof
 
 		ERR_BAD_PARAM fail
 	endcase
@@ -956,6 +962,22 @@ cc: switch-aesgcm-in ( is_client prf_id cipher_key_len -- ) {
 	is_client = T0_POP();
 	br_ssl_engine_switch_gcm_in(ENG, is_client, prf_id,
 		ENG->iaes_ctr, cipher_key_len);
+}
+
+cc: switch-chapol-out ( is_client prf_id -- ) {
+	int is_client, prf_id;
+
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_chapol_out(ENG, is_client, prf_id);
+}
+
+cc: switch-chapol-in ( is_client prf_id -- ) {
+	int is_client, prf_id;
+
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_chapol_in(ENG, is_client, prf_id);
 }
 
 \ Write Finished message.

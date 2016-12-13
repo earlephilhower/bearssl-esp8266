@@ -495,7 +495,7 @@ extern const br_sslrec_out_cbc_class br_sslrec_out_cbc_vtable;
  * This class type extends the decryption engine class with an
  * initialisation method that receives the parameters needed
  * for GCM processing: block cipher implementation, block cipher key,
- * GHASH implementtion, and 4-byte IV.
+ * GHASH implementation, and 4-byte IV.
  */
 typedef struct br_sslrec_in_gcm_class_ br_sslrec_in_gcm_class;
 struct br_sslrec_in_gcm_class_ {
@@ -524,12 +524,12 @@ struct br_sslrec_in_gcm_class_ {
 };
 
 /**
- * \brief Record decryption engine class, for GCM mode.
+ * \brief Record encryption engine class, for GCM mode.
  *
- * This class type extends the decryption engine class with an
+ * This class type extends the encryption engine class with an
  * initialisation method that receives the parameters needed
  * for GCM processing: block cipher implementation, block cipher key,
- * GHASH implementtion, and 4-byte IV.
+ * GHASH implementation, and 4-byte IV.
  */
 typedef struct br_sslrec_out_gcm_class_ br_sslrec_out_gcm_class;
 struct br_sslrec_out_gcm_class_ {
@@ -593,6 +593,106 @@ extern const br_sslrec_in_gcm_class br_sslrec_in_gcm_vtable;
  * \brief Static, constant vtable for record encryption with GCM.
  */
 extern const br_sslrec_out_gcm_class br_sslrec_out_gcm_vtable;
+
+/* ===================================================================== */
+
+/**
+ * \brief Record decryption engine class, for ChaCha20+Poly1305.
+ *
+ * This class type extends the decryption engine class with an
+ * initialisation method that receives the parameters needed
+ * for ChaCha20+Poly1305 processing: ChaCha20 implementation,
+ * Poly1305 implementation, key, and 12-byte IV.
+ */
+typedef struct br_sslrec_in_chapol_class_ br_sslrec_in_chapol_class;
+struct br_sslrec_in_chapol_class_ {
+	/**
+	 * \brief Superclass, as first vtable field.
+	 */
+	br_sslrec_in_class inner;
+
+	/**
+	 * \brief Engine initialisation method.
+	 *
+	 * This method sets the vtable field in the context.
+	 *
+	 * \param ctx           context to initialise.
+	 * \param ichacha       ChaCha20 implementation.
+	 * \param ipoly         Poly1305 implementation.
+	 * \param key           secret key (32 bytes).
+	 * \param iv            static IV (12 bytes).
+	 */
+	void (*init)(const br_sslrec_in_chapol_class **ctx,
+		br_chacha20_run ichacha,
+		br_poly1305_run ipoly,
+		const void *key, const void *iv);
+};
+
+/**
+ * \brief Record encryption engine class, for ChaCha20+Poly1305.
+ *
+ * This class type extends the encryption engine class with an
+ * initialisation method that receives the parameters needed
+ * for ChaCha20+Poly1305 processing: ChaCha20 implementation,
+ * Poly1305 implementation, key, and 12-byte IV.
+ */
+typedef struct br_sslrec_out_chapol_class_ br_sslrec_out_chapol_class;
+struct br_sslrec_out_chapol_class_ {
+	/**
+	 * \brief Superclass, as first vtable field.
+	 */
+	br_sslrec_out_class inner;
+
+	/**
+	 * \brief Engine initialisation method.
+	 *
+	 * This method sets the vtable field in the context.
+	 *
+	 * \param ctx           context to initialise.
+	 * \param ichacha       ChaCha20 implementation.
+	 * \param ipoly         Poly1305 implementation.
+	 * \param key           secret key (32 bytes).
+	 * \param iv            static IV (12 bytes).
+	 */
+	void (*init)(const br_sslrec_out_chapol_class **ctx,
+		br_chacha20_run ichacha,
+		br_poly1305_run ipoly,
+		const void *key, const void *iv);
+};
+
+/**
+ * \brief Context structure for processing records with ChaCha20+Poly1305.
+ *
+ * The same context structure is used for encrypting and decrypting.
+ *
+ * The first field points to the vtable. The other fields are opaque
+ * and shall not be accessed directly.
+ */
+typedef struct {
+	/** \brief Pointer to vtable. */
+	union {
+		const void *gen;
+		const br_sslrec_in_chapol_class *in;
+		const br_sslrec_out_chapol_class *out;
+	} vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	uint64_t seq;
+	unsigned char key[32];
+	unsigned char iv[12];
+	br_chacha20_run ichacha;
+	br_poly1305_run ipoly;
+#endif
+} br_sslrec_chapol_context;
+
+/**
+ * \brief Static, constant vtable for record decryption with ChaCha20+Poly1305.
+ */
+extern const br_sslrec_in_chapol_class br_sslrec_in_chapol_vtable;
+
+/**
+ * \brief Static, constant vtable for record encryption with ChaCha20+Poly1305.
+ */
+extern const br_sslrec_out_chapol_class br_sslrec_out_chapol_vtable;
 
 /* ===================================================================== */
 
@@ -708,12 +808,14 @@ typedef struct {
 		const br_sslrec_in_class *vtable;
 		br_sslrec_in_cbc_context cbc;
 		br_sslrec_gcm_context gcm;
+		br_sslrec_chapol_context chapol;
 	} in;
 	union {
 		const br_sslrec_out_class *vtable;
 		br_sslrec_out_clear_context clear;
 		br_sslrec_out_cbc_context cbc;
 		br_sslrec_gcm_context gcm;
+		br_sslrec_chapol_context chapol;
 	} out;
 
 	/*
@@ -857,10 +959,14 @@ typedef struct {
 	const br_block_cbcenc_class *ides_cbcenc;
 	const br_block_cbcdec_class *ides_cbcdec;
 	br_ghash ighash;
+	br_chacha20_run ichacha;
+	br_poly1305_run ipoly;
 	const br_sslrec_in_cbc_class *icbc_in;
 	const br_sslrec_out_cbc_class *icbc_out;
 	const br_sslrec_in_gcm_class *igcm_in;
 	const br_sslrec_out_gcm_class *igcm_out;
+	const br_sslrec_in_chapol_class *ichapol_in;
+	const br_sslrec_out_chapol_class *ichapol_out;
 	const br_ec_impl *iec;
 	br_rsa_pkcs1_vrfy irsavrfy;
 	br_ecdsa_vrfy iecdsa;
@@ -1151,6 +1257,32 @@ br_ssl_engine_set_ghash(br_ssl_engine_context *cc, br_ghash impl)
 }
 
 /**
+ * \brief Set the ChaCha20 implementation.
+ *
+ * \param cc        SSL engine context.
+ * \param ichacha   ChaCha20 implementation (or `NULL`).
+ */
+static inline void
+br_ssl_engine_set_chacha20(br_ssl_engine_context *cc,
+	br_chacha20_run ichacha)
+{
+	cc->ichacha = ichacha;
+}
+
+/**
+ * \brief Set the Poly1305 implementation.
+ *
+ * \param cc      SSL engine context.
+ * \param ipoly   Poly1305 implementation (or `NULL`).
+ */
+static inline void
+br_ssl_engine_set_poly1305(br_ssl_engine_context *cc,
+	br_poly1305_run ipoly)
+{
+	cc->ipoly = ipoly;
+}
+
+/**
  * \brief Set the record encryption and decryption engines for CBC + HMAC.
  *
  * \param cc         SSL engine context.
@@ -1180,6 +1312,23 @@ br_ssl_engine_set_gcm(br_ssl_engine_context *cc,
 {
 	cc->igcm_in = impl_in;
 	cc->igcm_out = impl_out;
+}
+
+/**
+ * \brief Set the record encryption and decryption engines for
+ * ChaCha20+Poly1305.
+ *
+ * \param cc         SSL engine context.
+ * \param impl_in    record ChaCha20 decryption implementation (or `NULL`).
+ * \param impl_out   record ChaCha20 encryption implementation (or `NULL`).
+ */
+static inline void
+br_ssl_engine_set_chapol(br_ssl_engine_context *cc,
+	const br_sslrec_in_chapol_class *impl_in,
+	const br_sslrec_out_chapol_class *impl_out)
+{
+	cc->ichapol_in = impl_in;
+	cc->ichapol_out = impl_out;
 }
 
 /**
@@ -2961,6 +3110,38 @@ void br_ssl_server_init_minu2g(br_ssl_server_context *cc,
  * \param sk          EC private key.
  */
 void br_ssl_server_init_minv2g(br_ssl_server_context *cc,
+	const br_x509_certificate *chain, size_t chain_len,
+	const br_ec_private_key *sk);
+
+/**
+ * \brief SSL server profile: mine2c.
+ *
+ * This profile uses only TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256.
+ * Server key is RSA, and ECDHE key exchange is used. This suite
+ * provides forward security.
+ *
+ * \param cc          server context to initialise.
+ * \param chain       server certificate chain.
+ * \param chain_len   certificate chain length (number of certificate).
+ * \param sk          RSA private key.
+ */
+void br_ssl_server_init_mine2c(br_ssl_server_context *cc,
+	const br_x509_certificate *chain, size_t chain_len,
+	const br_rsa_private_key *sk);
+
+/**
+ * \brief SSL server profile: minf2c.
+ *
+ * This profile uses only TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256.
+ * Server key is EC, and ECDHE key exchange is used. This suite provides
+ * forward security.
+ *
+ * \param cc          server context to initialise.
+ * \param chain       server certificate chain.
+ * \param chain_len   certificate chain length (number of certificate).
+ * \param sk          EC private key.
+ */
+void br_ssl_server_init_minf2c(br_ssl_server_context *cc,
 	const br_x509_certificate *chain, size_t chain_len,
 	const br_ec_private_key *sk);
 
