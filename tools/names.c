@@ -56,7 +56,7 @@ const cipher_suite cipher_suites[] = {
 		"ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
 		BR_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 		REQ_ECDHE_RSA | REQ_CHAPOL | REQ_SHA256 | REQ_TLS12,
-		"ECDHE with ECDSA, ChaCha20+Poly1305 encryption (TLS 1.2+)"
+		"ECDHE with RSA, ChaCha20+Poly1305 encryption (TLS 1.2+)"
 	},
 	{
 		"ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
