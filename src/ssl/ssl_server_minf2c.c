@@ -26,7 +26,7 @@
 
 /* see bearssl_ssl.h */
 void
-br_ssl_server_init_minf2g(br_ssl_server_context *cc,
+br_ssl_server_init_minf2c(br_ssl_server_context *cc,
 	const br_x509_certificate *chain, size_t chain_len,
 	const br_ec_private_key *sk)
 {
