@@ -287,6 +287,66 @@ test_speed_ghash_ctmul64(void)
 	test_speed_ghash_inner("GHASH (ctmul64)", &br_ghash_ctmul64);
 }
 
+static uint32_t
+fake_chacha20(const void *key, const void *iv,
+	uint32_t cc, void *data, size_t len)
+{
+	(void)key;
+	(void)iv;
+	(void)data;
+	(void)len;
+	return cc + (uint32_t)((len + 63) >> 6);
+}
+
+/*
+ * To speed-test Poly1305, we run it with a do-nothing stub instead of
+ * ChaCha20.
+ */
+static void
+test_speed_poly1305_inner(char *name, br_poly1305_run pl)
+{
+	unsigned char buf[8192], key[32], iv[12], aad[13], tag[16];
+	int i;
+	long num;
+
+	memset(key, 'K', sizeof key);
+	memset(iv, 'I', sizeof iv);
+	memset(aad, 'A', sizeof aad);
+	memset(buf, 'T', sizeof buf);
+	for (i = 0; i < 10; i ++) {
+		pl(key, iv, buf, sizeof buf,
+			aad, sizeof aad, tag, &fake_chacha20, 0);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			pl(key, iv, buf, sizeof buf,
+				aad, sizeof aad, tag, &fake_chacha20, 0);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("%-30s %8.2f MB/s\n", name,
+				((double)sizeof buf) * (double)num
+				/ (tt * 1000000.0));
+			fflush(stdout);
+			return;
+		}
+		num <<= 1;
+	}
+}
+
+static void
+test_speed_poly1305_ctmul(void)
+{
+	test_speed_poly1305_inner("Poly1305 (ctmul)", &br_poly1305_ctmul_run);
+}
+
 static const unsigned char RSA_N[] = {
 	0xE9, 0xF2, 0x4A, 0x2F, 0x96, 0xDF, 0x0A, 0x23,
 	0x01, 0x85, 0xF1, 0x2C, 0xB2, 0xA8, 0xEF, 0x23,
@@ -1065,6 +1125,8 @@ static const struct {
 	STU(ghash_ctmul),
 	STU(ghash_ctmul32),
 	STU(ghash_ctmul64),
+
+	STU(poly1305_ctmul),
 
 	STU(rsa_i31),
 	STU(rsa_i32),
