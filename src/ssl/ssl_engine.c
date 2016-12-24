@@ -1091,6 +1091,9 @@ jump_handshake(br_ssl_engine_context *cc, int action)
 		cc->hlen_out = hlen_out;
 		cc->action = action;
 		cc->hsrun(&cc->cpu);
+		if (br_ssl_engine_closed(cc)) {
+			return;
+		}
 		if (cc->hbuf_out != cc->saved_hbuf_out) {
 			sendpld_ack(cc, cc->hbuf_out - cc->saved_hbuf_out);
 		}
