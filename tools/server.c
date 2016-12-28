@@ -229,6 +229,12 @@ usage_server(void)
 "   -hf names       add support for some hash functions (comma-separated)\n");
 	fprintf(stderr,
 "   -serverpref     enforce server's preferences for cipher suites\n");
+	fprintf(stderr,
+"   -noreneg        prohibit renegotiations\n");
+	fprintf(stderr,
+"   -alpn name      add protocol name to list of protocols (ALPN extension)\n");
+	fprintf(stderr,
+"   -strictalpn     fail on ALPN mismatch\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -512,6 +518,12 @@ static const br_ssl_server_policy_class policy_vtable = {
 	sp_do_sign
 };
 
+void
+free_alpn(void *alpn)
+{
+	xfree(*(char **)alpn);
+}
+
 /* see brssl.h */
 int
 do_server(int argc, char *argv[])
@@ -532,6 +544,7 @@ do_server(int argc, char *argv[])
 	int cert_signer_algo;
 	private_key *sk;
 	anchor_list anchors = VEC_INIT;
+	VECTOR(const char *) alpn_names = VEC_INIT;
 	br_x509_minimal_context xc;
 	const br_hash_class *dnhash;
 	size_t u;
@@ -781,6 +794,16 @@ do_server(int argc, char *argv[])
 			flags |= BR_OPT_ENFORCE_SERVER_PREFERENCES;
 		} else if (eqstr(arg, "-noreneg")) {
 			flags |= BR_OPT_NO_RENEGOTIATION;
+		} else if (eqstr(arg, "-alpn")) {
+			if (++ i >= argc) {
+				fprintf(stderr,
+					"ERROR: no argument for '-alpn'\n");
+				usage_server();
+				goto server_exit_error;
+			}
+			VEC_ADD(alpn_names, xstrdup(argv[i]));
+		} else if (eqstr(arg, "-strictalpn")) {
+			flags |= BR_OPT_FAIL_ON_ALPN_MISMATCH;
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_server();
@@ -999,6 +1022,11 @@ do_server(int argc, char *argv[])
 	br_ssl_session_cache_lru_init(&lru, cache, cache_len);
 	br_ssl_server_set_cache(&cc, &lru.vtable);
 
+	if (VEC_LEN(alpn_names) != 0) {
+		br_ssl_engine_set_protocol_names(&cc.eng,
+			&VEC_ELT(alpn_names, 0), VEC_LEN(alpn_names));
+	}
+
 	/*
 	 * Set the policy handler (that chooses the actual cipher suite,
 	 * selects the certificate chain, and runs the private key
@@ -1091,6 +1119,7 @@ server_exit:
 	free_certificates(chain, chain_len);
 	free_private_key(sk);
 	VEC_CLEAREXT(anchors, &free_ta_contents);
+	VEC_CLEAREXT(alpn_names, &free_alpn);
 	xfree(iobuf);
 	xfree(cache);
 	if (fd >= 0) {

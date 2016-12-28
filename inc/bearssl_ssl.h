@@ -946,6 +946,27 @@ typedef struct {
 	size_t cert_len;
 
 	/*
+	 * List of supported protocol names (ALPN extension). If unset,
+	 * (number of names is 0), then:
+	 *  - the client sends no ALPN extension;
+	 *  - the server ignores any incoming ALPN extension.
+	 *
+	 * Otherwise:
+	 *  - the client sends an ALPN extension with all the names;
+	 *  - the server selects the first protocol in its list that
+	 *    the client also supports, or fails (fatal alert 120)
+	 *    if the client sends an ALPN extension and there is no
+	 *    match.
+	 *
+	 * The 'selected_protocol' field contains 1+n if the matching
+	 * name has index n in the list (the value is 0 if no match was
+	 * performed, e.g. the peer did not send an ALPN extension).
+	 */
+	const char **protocol_names;
+	uint16_t protocol_names_num;
+	uint16_t selected_protocol;
+
+	/*
 	 * Pointers to implementations; left to NULL for unsupported
 	 * functions. For the raw hash functions, implementations are
 	 * referenced from the multihasher (mhash field).
@@ -1065,6 +1086,32 @@ br_ssl_engine_remove_flags(br_ssl_engine_context *cc, uint32_t flags)
 #define BR_OPT_TOLERATE_NO_CLIENT_AUTH         ((uint32_t)1 << 2)
 
 /**
+ * \brief Behavioural flag: fail on application protocol mismatch.
+ *
+ * The ALPN extension ([RFC 7301](https://tools.ietf.org/html/rfc7301))
+ * allows the client to send a list of application protocol names, and
+ * the server to select one. A mismatch is one of the following occurrences:
+ *
+ *   - On the client: the client sends a list of names, the server
+ *     responds with a protocol name which is _not_ part of the list of
+ *     names sent by the client.
+ *
+ *   - On the server: the client sends a list of names, and the server
+ *     is also configured with a list of names, but there is no common
+ *     protocol name between the two lists.
+ *
+ * Normal behaviour in case of mismatch is to report no matching name
+ * (`br_ssl_engine_get_selected_protocol()` returns `NULL`) and carry on.
+ * If the flag is set, then a mismatch implies a protocol failure (if
+ * the mismatch is detected by the server, it will send a fatal alert).
+ *
+ * Note: even with this flag, `br_ssl_engine_get_selected_protocol()`
+ * may still return `NULL` if the client or the server does not send an
+ * ALPN extension at all.
+ */
+#define BR_OPT_FAIL_ON_ALPN_MISMATCH           ((uint32_t)1 << 3)
+
+/**
  * \brief Set the minimum and maximum supported protocol versions.
  *
  * The two provided versions MUST be supported by the implementation
@@ -1117,6 +1164,65 @@ static inline void
 br_ssl_engine_set_x509(br_ssl_engine_context *cc, const br_x509_class **x509ctx)
 {
 	cc->x509ctx = x509ctx;
+}
+
+/**
+ * \brief Set the supported protocol names.
+ *
+ * Protocol names are part of the ALPN extension ([RFC
+ * 7301](https://tools.ietf.org/html/rfc7301)). Each protocol name is a
+ * character string, containing no more than 255 characters (256 with the
+ * terminating zero). When names are set, then:
+ *
+ *   - The client will send an ALPN extension, containing the names. If
+ *     the server responds with an ALPN extension, the client will verify
+ *     that the response contains one of its name, and report that name
+ *     through `br_ssl_engine_get_selected_protocol()`.
+ *
+ *   - The server will parse incoming ALPN extension (from clients), and
+ *     try to find a common protocol; if none is found, the connection
+ *     is aborted with a fatal alert. On match, a response ALPN extension
+ *     is sent, and name is reported through
+ *     `br_ssl_engine_get_selected_protocol()`.
+ *
+ * The provided array is linked in, and must remain valid while the
+ * connection is live.
+ *
+ * Names MUST NOT be empty. Names MUST NOT be longer than 255 characters
+ * (excluding the terminating 0).
+ *
+ * \param ctx     SSL engine context.
+ * \param names   list of protocol names (zero-terminated).
+ * \param num     number of protocol names (MUST be 1 or more).
+ */
+static inline void
+br_ssl_engine_set_protocol_names(br_ssl_engine_context *ctx,
+	const char **names, size_t num)
+{
+	ctx->protocol_names = names;
+	ctx->protocol_names_num = num;
+}
+
+/**
+ * \brief Get the selected protocol.
+ *
+ * If this context was initialised with a non-empty list of protocol
+ * names, and both client and server sent ALPN extensions during the
+ * handshake, and a common name was found, then that name is returned.
+ * Otherwise, `NULL` is returned.
+ *
+ * The returned pointer is one of the pointers provided to the context
+ * with `br_ssl_engine_set_protocol_names()`.
+ *
+ * \return  the selected protocol, or `NULL`.
+ */
+static inline const char *
+br_ssl_engine_get_selected_protocol(br_ssl_engine_context *ctx)
+{
+	unsigned k;
+
+	k = ctx->selected_protocol;
+	return (k == 0 || k == 0xFFFF) ? NULL : ctx->protocol_names[k - 1];
 }
 
 /**
@@ -3727,5 +3833,6 @@ int br_sslio_close(br_sslio_context *cc);
 #define BR_ALERT_USER_CANCELED              90
 #define BR_ALERT_NO_RENEGOTIATION          100
 #define BR_ALERT_UNSUPPORTED_EXTENSION     110
+#define BR_ALERT_NO_APPLICATION_PROTOCOL   120
 
 #endif

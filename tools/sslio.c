@@ -213,6 +213,7 @@ run_ssl_engine(br_ssl_engine_context *cc, int fd, unsigned flags)
 		recvapp = ((st & BR_SSL_RECVAPP) != 0);
 		if (verbose && sendapp && !hsdetails) {
 			char csn[80];
+			const char *pname;
 
 			fprintf(stderr, "Handshake completed\n");
 			fprintf(stderr, "   version:               ");
@@ -240,6 +241,12 @@ run_ssl_engine(br_ssl_engine_context *cc, int fd, unsigned flags)
 			fprintf(stderr, "   cipher suite:          %s\n", csn);
 			fprintf(stderr, "   secure renegotiation:  %s\n",
 				cc->reneg == 1 ? "no" : "yes");
+			pname = br_ssl_engine_get_selected_protocol(cc);
+			if (pname != NULL) {
+				fprintf(stderr,
+					"   protocol name (ALPN):  %s\n",
+					pname);
+			}
 			hsdetails = 1;
 		}
 

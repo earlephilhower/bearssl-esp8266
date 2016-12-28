@@ -157,6 +157,8 @@ addr-eng: pad
 addr-eng: action
 addr-eng: alert
 addr-eng: close_received
+addr-eng: protocol_names_num
+addr-eng: selected_protocol
 
 \ Similar to 'addr-eng:', for fields in the 'session' substructure.
 : addr-session-field:
@@ -1235,3 +1237,33 @@ cc: get-key-type-usages ( -- key-type-usages ) {
 
 	\ Return key type and usages.
 	get-key-type-usages ;
+
+\ =======================================================================
+
+\ Copy a specific protocol name from the list to the pad. The byte
+\ length is returned.
+cc: copy-protocol-name ( idx -- len ) {
+	size_t idx = T0_POP();
+	size_t len = strlen(ENG->protocol_names[idx]);
+	memcpy(ENG->pad, ENG->protocol_names[idx], len);
+	T0_PUSH(len);
+}
+
+\ Compare name in pad with the configured list of protocol names.
+\ If a match is found, then the index is returned; otherwise, -1
+\ is returned.
+cc: test-protocol-name ( len -- n ) {
+	size_t len = T0_POP();
+	size_t u;
+
+	for (u = 0; u < ENG->protocol_names_num; u ++) {
+		const char *name;
+
+		name = ENG->protocol_names[u];
+		if (len == strlen(name) && memcmp(ENG->pad, name, len) == 0) {
+			T0_PUSH(u);
+			T0_RET();
+		}
+	}
+	T0_PUSHi(-1);
+}

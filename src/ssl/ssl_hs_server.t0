@@ -528,6 +528,41 @@ cc: set-max-frag-len ( len -- ) {
 	close-elt
 	close-elt ;
 
+\ Read the ALPN extension from client.
+: read-ALPN-from-client ( lim -- lim )
+	\ If we do not have configured names, then we just ignore the
+	\ extension.
+	addr-protocol_names_num get16 ifnot read-ignore-16 ret then
+
+	\ Open extension value.
+	read16 open-elt
+
+	\ Open list of protocol names.
+	read16 open-elt
+
+	\ Get all names and test for their support. We keep the one with
+	\ the lowest index (because we apply server's preferences, as
+	\ recommended by RFC 7301, section 3.2. We set the 'found' variable
+	\ to -2 and use an unsigned comparison, making -2 a huge value.
+	-2 { found }
+	begin dup while
+		read8 dup { len } addr-pad swap read-blob
+		len test-protocol-name dup found u< if
+			>found
+		else
+			drop
+		then
+	repeat
+
+	\ End of extension.
+	close-elt
+	close-elt
+
+	\ Write back found name index (or not). If no match was found,
+	\ then we write -1 (0xFFFF) in the index value, not 0, so that
+	\ the caller knows that we tried to match, and failed.
+	found 1+ addr-selected_protocol set16 ;
+
 \ Call policy handler to get cipher suite, hash function identifier and
 \ certificate chain. Returned value is 0 (false) on failure.
 cc: call-policy-handler ( -- bool ) {
@@ -709,6 +744,11 @@ cc: save-session ( -- ) {
 				\ 	read-ignore-16
 				\ endof
 
+				\ ALPN
+				0x0010 of
+					read-ALPN-from-client
+				endof
+
 				\ Other extensions are ignored.
 				drop read-ignore-16 0
 			endcase
@@ -832,6 +872,12 @@ cc: save-session ( -- ) {
 	then
 	addr-client_suites_num set8
 
+	\ Check ALPN.
+	addr-selected_protocol get16 0xFFFF = if
+		3 flag? if 120 fail-alert then
+		0 addr-selected_protocol set16
+	then
+
 	\ Call policy handler to obtain the cipher suite and other
 	\ parameters.
 	call-policy-handler ifnot 40 fail-alert then
@@ -842,20 +888,28 @@ cc: save-session ( -- ) {
 \ Write ServerHello.
 : write-ServerHello ( initial -- )
 	{ initial }
-	\ Compute ServerHello length. Right now we only send the
-	\ "secure renegotiation" extension.
+	\ Compute ServerHello length.
 	2 write8 70
 
+	\ Compute length of Secure Renegotiation extension.
 	addr-reneg get8 2 = if
 		initial if 5 else 29 then
 	else
 		0
 	then
 	{ ext-reneg-len }
+
+	\ Compute length of Max Fragment Length extension.
 	addr-peer_log_max_frag_len get8 if 5 else 0 then
 	{ ext-max-frag-len }
 
-	ext-reneg-len ext-max-frag-len + dup if 2 + then +
+	\ Compute length of ALPN extension. This also copy the
+	\ selected protocol name into the pad.
+	addr-selected_protocol get16 dup if 1- copy-protocol-name 7 + then
+	{ ext-ALPN-len }
+
+	\ Adjust ServerHello length to account for the extensions.
+	ext-reneg-len ext-max-frag-len + ext-ALPN-len + dup if 2 + then +
 	write24
 
 	\ Protocol version
@@ -880,7 +934,7 @@ cc: save-session ( -- ) {
 	0 write8
 
 	\ Extensions
-	ext-reneg-len ext-max-frag-len + dup if
+	ext-reneg-len ext-max-frag-len + ext-ALPN-len + dup if
 		write16
 		ext-reneg-len dup if
 			0xFF01 write16
@@ -892,6 +946,16 @@ cc: save-session ( -- ) {
 		ext-max-frag-len if
 			0x0001 write16
 			1 write16 addr-peer_log_max_frag_len get8 8 - write8
+		then
+		ext-ALPN-len dup if
+			\ Note: the selected protocol name was previously
+			\ copied into the pad.
+			0x0010 write16
+			4 - dup write16
+			2- dup write16
+			1- addr-pad swap write-blob-head8
+		else
+			drop
 		then
 	else
 		drop
@@ -1289,6 +1353,7 @@ cc: verify-CV-sig ( sig-len -- err ) {
 : do-handshake ( initial -- )
 	0 addr-application_data set8
 	22 addr-record_type_out set8
+	0 addr-selected_protocol set16
 	multihash-init
 	read-ClientHello
 	more-incoming-bytes? if ERR_UNEXPECTED fail then

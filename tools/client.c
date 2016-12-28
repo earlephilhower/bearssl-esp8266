@@ -420,6 +420,12 @@ static const br_ssl_client_certificate_class ccert_vtable = {
 };
 
 static void
+free_alpn(void *alpn)
+{
+	xfree(*(char **)alpn);
+}
+
+static void
 usage_client(void)
 {
 	fprintf(stderr,
@@ -462,6 +468,10 @@ usage_client(void)
 "   -fallback       send the TLS_FALLBACK_SCSV (i.e. claim a downgrade)\n");
 	fprintf(stderr,
 "   -noreneg        prohibit renegotiations\n");
+	fprintf(stderr,
+"   -alpn name      add protocol name to list of protocols (ALPN extension)\n");
+	fprintf(stderr,
+"   -strictalpn     fail on ALPN mismatch\n");
 }
 
 /* see brssl.h */
@@ -478,6 +488,7 @@ do_client(int argc, char *argv[])
 	const char *sni;
 	anchor_list anchors = VEC_INIT;
 	unsigned vmin, vmax;
+	VECTOR(const char *) alpn_names = VEC_INIT;
 	cipher_suite *suites;
 	size_t num_suites;
 	uint16_t *suite_ids;
@@ -744,6 +755,16 @@ do_client(int argc, char *argv[])
 			fallback = 1;
 		} else if (eqstr(arg, "-noreneg")) {
 			flags |= BR_OPT_NO_RENEGOTIATION;
+		} else if (eqstr(arg, "-alpn")) {
+			if (++ i >= argc) {
+				fprintf(stderr,
+					"ERROR: no argument for '-alpn'\n");
+				usage_client();
+				goto client_exit_error;
+			}
+			VEC_ADD(alpn_names, xstrdup(argv[i]));
+		} else if (eqstr(arg, "-strictalpn")) {
+			flags |= BR_OPT_FAIL_ON_ALPN_MISMATCH;
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_client();
@@ -1002,6 +1023,10 @@ do_client(int argc, char *argv[])
 		br_ssl_client_set_min_clienthello_len(&cc, minhello_len);
 	}
 	br_ssl_engine_set_all_flags(&cc.eng, flags);
+	if (VEC_LEN(alpn_names) != 0) {
+		br_ssl_engine_set_protocol_names(&cc.eng,
+			&VEC_ELT(alpn_names, 0), VEC_LEN(alpn_names));
+	}
 
 	if (chain != NULL) {
 		zc.vtable = &ccert_vtable;
@@ -1057,6 +1082,7 @@ client_exit:
 	xfree(suites);
 	xfree(suite_ids);
 	VEC_CLEAREXT(anchors, &free_ta_contents);
+	VEC_CLEAREXT(alpn_names, &free_alpn);
 	free_certificates(chain, chain_len);
 	free_private_key(sk);
 	xfree(iobuf);
