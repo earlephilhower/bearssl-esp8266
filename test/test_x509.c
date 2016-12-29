@@ -29,8 +29,14 @@
 
 #include "bearssl.h"
 
+#define STR(x)    STR_(x)
+#define STR_(x)   #x
+#ifdef SRCDIRNAME
+#define DIRNAME        STR(SRCDIRNAME) "/test/x509"
+#else
 #define DIRNAME        "test/x509"
-#define CONFFILE       (DIRNAME "/alltests.txt")
+#endif
+#define CONFFILE       DIRNAME "/alltests.txt"
 #define DEFAULT_TIME   "2016-08-30T18:00:00Z"
 
 static void *

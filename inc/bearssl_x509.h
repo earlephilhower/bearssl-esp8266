@@ -823,6 +823,20 @@ br_x509_minimal_set_ecdsa(br_x509_minimal_context *ctx,
 }
 
 /**
+ * \brief Initialise a "minimal" X.509 engine with default algorithms.
+ *
+ * This function performs the same job as `br_x509_minimal_init()`, but
+ * also sets implementations for RSA, ECDSA, and the standard hash
+ * functions.
+ *
+ * \param ctx                 context to initialise.
+ * \param trust_anchors       trust anchors.
+ * \param trust_anchors_num   number of trust anchors.
+ */
+void br_x509_minimal_init_full(br_x509_minimal_context *ctx,
+	const br_x509_trust_anchor *trust_anchors, size_t trust_anchors_num);
+
+/**
  * \brief Set the validation time for the X.509 "minimal" engine.
  *
  * The validation time is set as two 32-bit integers, for days and
