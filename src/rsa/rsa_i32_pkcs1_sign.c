@@ -63,6 +63,8 @@ br_rsa_i32_pkcs1_sign(const unsigned char *hash_oid,
 		if (xlen < hash_len + 11) {
 			return 0;
 		}
+		x[0] = 0x00;
+		x[1] = 0x01;
 		u = xlen - hash_len;
 		memset(x + 2, 0xFF, u - 3);
 		x[u - 1] = 0x00;
@@ -93,7 +95,7 @@ br_rsa_i32_pkcs1_sign(const unsigned char *hash_oid,
 		x[u ++] = 0x04;
 		x[u ++] = hash_len;
 	}
-	memcpy(x + u + 4, hash, hash_len);
+	memcpy(x + u, hash, hash_len);
 
 	/*
 	 * Do the actual computation.

@@ -65,7 +65,7 @@ hextobin(unsigned char *dst, const char *src)
 }
 
 static void
-check_equals(char *banner, const void *v1, const void *v2, size_t len)
+check_equals(const char *banner, const void *v1, const void *v2, size_t len)
 {
 	size_t u;
 	const unsigned char *b;
@@ -4272,7 +4272,7 @@ static const br_rsa_private_key RSA_SK = {
 };
 
 static void
-test_RSA_core(char *name, br_rsa_public fpub, br_rsa_private fpriv)
+test_RSA_core(const char *name, br_rsa_public fpub, br_rsa_private fpriv)
 {
 	unsigned char t1[128], t2[128], t3[128];
 
@@ -4300,24 +4300,87 @@ test_RSA_core(char *name, br_rsa_public fpub, br_rsa_private fpriv)
 	fflush(stdout);
 }
 
+static const unsigned char SHA1_OID[] = {
+	0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A
+};
+
+static void
+test_RSA_sign(const char *name, br_rsa_private fpriv,
+	br_rsa_pkcs1_sign fsign, br_rsa_pkcs1_vrfy fvrfy)
+{
+	unsigned char t1[128], t2[128];
+	unsigned char hv[20], tmp[20];
+	br_sha1_context hc;
+	size_t u;
+
+	printf("Test %s: ", name);
+	fflush(stdout);
+
+	/*
+	 * Verify the KAT test (computed with OpenSSL).
+	 */
+	hextobin(t1, "45A3DC6A106BCD3BD0E48FB579643AA3FF801E5903E80AA9B43A695A8E7F454E93FA208B69995FF7A6D5617C2FEB8E546375A664977A48931842AAE796B5A0D64393DCA35F3490FC157F5BD83B9D58C2F7926E6AE648A2BD96CAB8FCCD3D35BB11424AD47D973FF6D69CA774841AEC45DFAE99CCF79893E7047FDE6CB00AA76D");
+	br_sha1_init(&hc);
+	br_sha1_update(&hc, "test", 4);
+	br_sha1_out(&hc, hv);
+	if (!fvrfy(t1, sizeof t1, SHA1_OID, sizeof tmp, &RSA_PK, tmp)) {
+		fprintf(stderr, "Signature verification failed\n");
+		exit(EXIT_FAILURE);
+	}
+	check_equals("Extracted hash value", hv, tmp, sizeof tmp);
+
+	/*
+	 * Regenerate the signature. This should yield the same value as
+	 * the KAT test, since PKCS#1 v1.5 signatures are deterministic
+	 * (except the usual detail about hash function parameter
+	 * encoding, but OpenSSL uses the same convention as BearSSL).
+	 */
+	if (!fsign(SHA1_OID, hv, 20, &RSA_SK, t2)) {
+		fprintf(stderr, "Signature generation failed\n");
+		exit(EXIT_FAILURE);
+	}
+	check_equals("Regenerated signature", t1, t2, sizeof t1);
+
+	/*
+	 * Use the raw private core to generate fake signatures, where
+	 * one byte of the padded hash value is altered. They should all be
+	 * rejected.
+	 */
+	hextobin(t2, "0001FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003021300906052B0E03021A05000414A94A8FE5CCB19BA61C4C0873D391E987982FBBD3");
+	for (u = 0; u < (sizeof t2) - 20; u ++) {
+		memcpy(t1, t2, sizeof t2);
+		t1[u] ^= 0x01;
+		if (!fpriv(t1, &RSA_SK)) {
+			fprintf(stderr, "RSA private key operation failed\n");
+			exit(EXIT_FAILURE);
+		}
+		if (fvrfy(t1, sizeof t1, SHA1_OID, sizeof tmp, &RSA_PK, tmp)) {
+			fprintf(stderr,
+				"Signature verification should have failed\n");
+			exit(EXIT_FAILURE);
+		}
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
 static void
 test_RSA_i31(void)
 {
 	test_RSA_core("RSA i31 core", &br_rsa_i31_public, &br_rsa_i31_private);
-	/* FIXME
-	test_RSA_sign("RSA i31 sign",
-		&br_rsa_i31_pkcs1_vrfy, &br_rsa_i31_pkcs1_sign);
-	*/
+	test_RSA_sign("RSA i31 sign", &br_rsa_i31_private,
+		&br_rsa_i31_pkcs1_sign, &br_rsa_i31_pkcs1_vrfy);
 }
 
 static void
 test_RSA_i32(void)
 {
 	test_RSA_core("RSA i32 core", &br_rsa_i32_public, &br_rsa_i32_private);
-	/* FIXME
-	test_RSA_sign("RSA i32 sign",
-		&br_rsa_i32_pkcs1_vrfy, &br_rsa_i32_pkcs1_sign);
-	*/
+	test_RSA_sign("RSA i32 sign", &br_rsa_i32_private,
+		&br_rsa_i32_pkcs1_sign, &br_rsa_i32_pkcs1_vrfy);
 }
 
 #if 0
@@ -4489,7 +4552,7 @@ static const char *const KAT_GHASH[] = {
 };
 
 static void
-test_GHASH(char *name, br_ghash gh)
+test_GHASH(const char *name, br_ghash gh)
 {
 	size_t u;
 
@@ -5252,7 +5315,7 @@ eq_name(const char *s1, const char *s2)
 
 static const struct {
 	void (*fn)(void);
-	char *name;
+	const char *name;
 } tfns[] = {
 	STU(MD5),
 	STU(SHA1),

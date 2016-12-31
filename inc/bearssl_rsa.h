@@ -310,7 +310,7 @@ typedef uint32_t (*br_rsa_private)(unsigned char *x,
  * \param hash       hash value.
  * \param hash_len   hash value length (in bytes).
  * \param sk         RSA private key.
- * \param x          output buffer for the hash value.
+ * \param x          output buffer for the signature value.
  * \return  1 on success, 0 on error.
  */
 typedef uint32_t (*br_rsa_pkcs1_sign)(const unsigned char *hash_oid,
