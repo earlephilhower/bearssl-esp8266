@@ -614,6 +614,12 @@ test_speed_ec_inner(const char *name,
 }
 
 static void
+test_speed_ec_p256_i15(void)
+{
+	test_speed_ec_inner("EC i15 P-256", &br_ec_p256_i15, &br_secp256r1);
+}
+
+static void
 test_speed_ec_prime_i31(void)
 {
 	test_speed_ec_inner("EC i31 P-256", &br_ec_prime_i31, &br_secp256r1);
@@ -1130,6 +1136,7 @@ static const struct {
 
 	STU(rsa_i31),
 	STU(rsa_i32),
+	STU(ec_p256_i15),
 	STU(ec_prime_i31),
 	STU(ecdsa_i31),
 

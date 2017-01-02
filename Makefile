@@ -47,7 +47,7 @@ TESTX509 = testx509
 TESTMATH = testmath
 
 OBJCODEC = $(BUILD)/ccopy.o $(BUILD)/dec16be.o $(BUILD)/dec16le.o $(BUILD)/dec32be.o $(BUILD)/dec32le.o $(BUILD)/dec64be.o $(BUILD)/dec64le.o $(BUILD)/enc16be.o $(BUILD)/enc16le.o $(BUILD)/enc32be.o $(BUILD)/enc32le.o $(BUILD)/enc64be.o $(BUILD)/enc64le.o $(BUILD)/pemdec.o
-OBJEC = $(BUILD)/ec_prime_i31.o $(BUILD)/ec_prime_i31_secp256r1.o $(BUILD)/ec_prime_i31_secp384r1.o $(BUILD)/ec_prime_i31_secp521r1.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
+OBJEC = $(BUILD)/ec_p256_i15.o $(BUILD)/ec_prime_i31.o $(BUILD)/ec_prime_i31_secp256r1.o $(BUILD)/ec_prime_i31_secp384r1.o $(BUILD)/ec_prime_i31_secp521r1.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
 OBJHASH = $(BUILD)/dig_oid.o $(BUILD)/dig_size.o $(BUILD)/ghash_ctmul.o $(BUILD)/ghash_ctmul32.o $(BUILD)/ghash_ctmul64.o $(BUILD)/md5.o $(BUILD)/md5sha1.o $(BUILD)/multihash.o $(BUILD)/sha1.o $(BUILD)/sha2big.o $(BUILD)/sha2small.o
 OBJINT31 = $(BUILD)/i31_add.o $(BUILD)/i31_bitlen.o $(BUILD)/i31_decmod.o $(BUILD)/i31_decode.o $(BUILD)/i31_decred.o $(BUILD)/i31_encode.o $(BUILD)/i31_fmont.o $(BUILD)/i31_iszero.o $(BUILD)/i31_modpow.o $(BUILD)/i31_montmul.o $(BUILD)/i31_mulacc.o $(BUILD)/i31_muladd.o $(BUILD)/i31_ninv31.o $(BUILD)/i31_reduce.o $(BUILD)/i31_rshift.o $(BUILD)/i31_sub.o $(BUILD)/i31_tmont.o
 OBJINT32 = $(BUILD)/i32_add.o $(BUILD)/i32_bitlen.o $(BUILD)/i32_decmod.o $(BUILD)/i32_decode.o $(BUILD)/i32_decred.o $(BUILD)/i32_div32.o $(BUILD)/i32_encode.o $(BUILD)/i32_fmont.o $(BUILD)/i32_iszero.o $(BUILD)/i32_modpow.o $(BUILD)/i32_montmul.o $(BUILD)/i32_mulacc.o $(BUILD)/i32_muladd.o $(BUILD)/i32_ninv32.o $(BUILD)/i32_reduce.o $(BUILD)/i32_sub.o $(BUILD)/i32_tmont.o
@@ -160,6 +160,8 @@ $(BUILD)/ec_g_secp384r1.o: src/ec/ec_g_secp384r1.c $(HEADERS)
 $(BUILD)/ec_g_secp521r1.o: src/ec/ec_g_secp521r1.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_g_secp521r1.o src/ec/ec_g_secp521r1.c
 
+$(BUILD)/ec_p256_i15.o: src/ec/ec_p256_i15.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_p256_i15.o src/ec/ec_p256_i15.c
 
 $(BUILD)/ec_prime_i31.o: src/ec/ec_prime_i31.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_prime_i31.o src/ec/ec_prime_i31.c

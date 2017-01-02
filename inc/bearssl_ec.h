@@ -370,6 +370,16 @@ typedef struct {
 extern const br_ec_impl br_ec_prime_i31;
 
 /**
+ * \brief EC implementation "i15" for P-256.
+ *
+ * This implementation uses specialised code for curve secp256r1 (also
+ * known as NIST P-256), with Karatsuba decomposition, and fast modular
+ * reduction thanks to the field modulus special format. Only 32-bit
+ * multiplications are used (with 32-bit results, not 64-bit).
+ */
+extern const br_ec_impl br_ec_p256_i15;
+
+/**
  * \brief Convert a signature from "raw" to "asn1".
  *
  * Conversion is done "in place" and the new length is returned.

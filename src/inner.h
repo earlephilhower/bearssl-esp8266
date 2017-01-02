@@ -550,6 +550,43 @@ MAX(uint32_t x, uint32_t y)
 #endif
 
 /*
+ * Multiply two words together; each word may contain up to 15 bits of
+ * data. If BR_CT_MUL15 is non-zero, then the macro will contain some
+ * extra operations that help in making the operation constant-time on
+ * some platforms, where the basic 32-bit multiplication is not
+ * constant-time.
+ */
+#if BR_CT_MUL15
+#define MUL15(x, y)   (((uint32_t)(x) | (uint32_t)0x80000000) \
+                       * ((uint32_t)(x) | (uint32_t)0x80000000) \
+		       & (uint32_t)0x3FFFFFFF)
+#else
+#define MUL15(x, y)   ((uint32_t)(x) * (uint32_t)(y))
+#endif
+
+/*
+ * Arithmetic right shift (sign bit is copied). What happens when
+ * right-shifting a negative value is _implementation-defined_, so it
+ * does not trigger undefined behaviour, but it is still up to each
+ * compiler to define (and document) what it does. Most/all compilers
+ * will do an arithmetic shift, the sign bit being used to fill the
+ * holes; this is a native operation on the underlying CPU, and it would
+ * make little sense for the compiler to do otherwise. GCC explicitly
+ * documents that it follows that convention.
+ *
+ * Still, if BR_NO_ARITH_SHIFT is defined (and non-zero), then an
+ * alternate version will be used, that does not rely on such
+ * implementation-defined behaviour. Unfortunately, it is also slower
+ * and yields bigger code, which is why it is deactivated by default.
+ */
+#if BR_NO_ARITH_SHIFT
+#define ARSH(x, n)   (((uint32_t)(x) >> (n)) \
+                      | ((-((uint32_t)(x) >> 31)) << (32 - (n))))
+#else
+#define ARSH(x, n)   ((*(int32_t *)&(x)) >> (n))
+#endif
+
+/*
  * Constant-time division. The dividend hi:lo is divided by the
  * divisor d; the quotient is returned and the remainder is written
  * in *r. If hi == d, then the quotient does not fit on 32 bits;

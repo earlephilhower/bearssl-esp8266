@@ -47,9 +47,9 @@ hextobin(unsigned char *dst, const char *src)
 		if (c >= '0' && c <= '9') {
 			c -= '0';
 		} else if (c >= 'A' && c <= 'F') {
-			c -= ('A' - 10); \
+			c -= ('A' - 10);
 		} else if (c >= 'a' && c <= 'f') {
-			c -= ('a' - 10); \
+			c -= ('a' - 10);
 		} else {
 			continue;
 		}
@@ -4822,6 +4822,13 @@ test_EC_prime_i31(void)
 		| (uint32_t)1 << BR_EC_secp521r1);
 }
 
+static void
+test_EC_p256_i15(void)
+{
+	test_EC_KAT("EC_p256_i15", &br_ec_p256_i15,
+		(uint32_t)1 << BR_EC_secp256r1);
+}
+
 static const unsigned char EC_P256_PUB_POINT[] = {
 	0x04, 0x60, 0xFE, 0xD4, 0xBA, 0x25, 0x5A, 0x9D,
 	0x31, 0xC9, 0x61, 0xEB, 0x74, 0xC6, 0x35, 0x6D,
@@ -5342,6 +5349,7 @@ static const struct {
 	STU(GHASH_ctmul32),
 	STU(GHASH_ctmul64),
 	STU(EC_prime_i31),
+	STU(EC_p256_i15),
 	/* STU(EC_prime_i32), */
 	STU(ECDSA_i31),
 	{ 0, 0 }
