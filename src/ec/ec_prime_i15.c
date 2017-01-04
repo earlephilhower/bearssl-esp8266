@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+ * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the
@@ -25,103 +25,105 @@
 #include "inner.h"
 
 /*
- * Parameters for supported curves (field modulus, and 'b' equation
- * parameter; both values use the 'i31' format, and 'b' is in Montgomery
- * representation).
+ * Parameters for supported curves:
+ *   - field modulus p
+ *   - R^2 mod p (R = 2^(15k) for the smallest k such that R >= p)
+ *   - b*R mod p (b is the second curve equation parameter)
  */
 
-static const uint32_t P256_P[] = {
-	0x00000108,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x00000007,
-	0x00000000, 0x00000000, 0x00000040, 0x7FFFFF80,
-	0x000000FF
+static const uint16_t P256_P[] = {
+	0x0111,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x003F, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x1000, 0x0000, 0x4000, 0x7FFF,
+	0x7FFF, 0x0001
 };
 
-static const uint32_t P256_R2[] = {
-	0x00000108,
-	0x00014000, 0x00018000, 0x00000000, 0x7FF40000,
-	0x7FEFFFFF, 0x7FF7FFFF, 0x7FAFFFFF, 0x005FFFFF,
-	0x00000000
+static const uint16_t P256_R2[] = {
+	0x0111,
+	0x0000, 0x6000, 0x0000, 0x0000, 0x0000, 0x0000, 0x7FFC, 0x7FFF,
+	0x7FBF, 0x7FFF, 0x7FBF, 0x7FFF, 0x7FFF, 0x7FFF, 0x77FF, 0x7FFF,
+	0x4FFF, 0x0000
 };
 
-static const uint32_t P256_B[] = {
-	0x00000108,
-	0x6FEE1803, 0x6229C4BD, 0x21B139BE, 0x327150AA,
-	0x3567802E, 0x3F7212ED, 0x012E4355, 0x782DD38D,
-	0x0000000E
+static const uint16_t P256_B[] = {
+	0x0111,
+	0x770C, 0x5EEF, 0x29C4, 0x3EC4, 0x6273, 0x0486, 0x4543, 0x3993,
+	0x3C01, 0x6B56, 0x212E, 0x57EE, 0x4882, 0x204B, 0x7483, 0x3C16,
+	0x0187, 0x0000
 };
 
-static const uint32_t P384_P[] = {
-	0x0000018C,
-	0x7FFFFFFF, 0x00000001, 0x00000000, 0x7FFFFFF8,
-	0x7FFFFFEF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x00000FFF
+static const uint16_t P384_P[] = {
+	0x0199,
+	0x7FFF, 0x7FFF, 0x0003, 0x0000, 0x0000, 0x0000, 0x7FC0, 0x7FFF,
+	0x7EFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+	0x7FFF, 0x01FF
 };
 
-static const uint32_t P384_R2[] = {
-	0x0000018C,
-	0x00000000, 0x00000080, 0x7FFFFE00, 0x000001FF,
-	0x00000800, 0x00000000, 0x7FFFE000, 0x00001FFF,
-	0x00008000, 0x00008000, 0x00000000, 0x00000000,
-	0x00000000
+static const uint16_t P384_R2[] = {
+	0x0199,
+	0x1000, 0x0000, 0x0000, 0x7FFF, 0x7FFF, 0x0001, 0x0000, 0x0010,
+	0x0000, 0x0000, 0x0000, 0x7F00, 0x7FFF, 0x01FF, 0x0000, 0x1000,
+	0x0000, 0x2000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000
 };
 
-static const uint32_t P384_B[] = {
-	0x0000018C,
-	0x6E666840, 0x070D0392, 0x5D810231, 0x7651D50C,
-	0x17E218D6, 0x1B192002, 0x44EFE441, 0x3A524E2B,
-	0x2719BA5F, 0x41F02209, 0x36C5643E, 0x5813EFFE,
-	0x000008A5
+static const uint16_t P384_B[] = {
+	0x0199,
+	0x7333, 0x2096, 0x70D1, 0x2310, 0x3020, 0x6197, 0x1464, 0x35BB,
+	0x70CA, 0x0117, 0x1920, 0x4136, 0x5FC8, 0x5713, 0x4938, 0x7DD2,
+	0x4DD2, 0x4A71, 0x0220, 0x683E, 0x2C87, 0x4DB1, 0x7BFF, 0x6C09,
+	0x0452, 0x0084
 };
 
-static const uint32_t P521_P[] = {
-	0x00000219,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x01FFFFFF
+static const uint16_t P521_P[] = {
+	0x022B,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+	0x7FFF, 0x7FFF, 0x07FF
 };
 
-static const uint32_t P521_R2[] = {
-	0x00000219,
-	0x00001000, 0x00000000, 0x00000000, 0x00000000,
-	0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x00000000
+static const uint16_t P521_R2[] = {
+	0x022B,
+	0x0100, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000
 };
 
-static const uint32_t P521_B[] = {
-	0x00000219,
-	0x540FC00A, 0x228FEA35, 0x2C34F1EF, 0x67BF107A,
-	0x46FC1CD5, 0x1605E9DD, 0x6937B165, 0x272A3D8F,
-	0x42785586, 0x44C8C778, 0x15F3B8B4, 0x64B73366,
-	0x03BA8B69, 0x0D05B42A, 0x21F929A2, 0x2C31C393,
-	0x00654FAE
+static const uint16_t P521_B[] = {
+	0x022B,
+	0x7002, 0x6A07, 0x751A, 0x228F, 0x71EF, 0x5869, 0x20F4, 0x1EFC,
+	0x7357, 0x37E0, 0x4EEC, 0x605E, 0x1652, 0x26F6, 0x31FA, 0x4A8F,
+	0x6193, 0x3C2A, 0x3C42, 0x48C7, 0x3489, 0x6771, 0x4C57, 0x5CCD,
+	0x2725, 0x545B, 0x503B, 0x5B42, 0x21A0, 0x2534, 0x687E, 0x70E4,
+	0x1618, 0x27D7, 0x0465
 };
 
 typedef struct {
-	const uint32_t *p;
-	const uint32_t *b;
-	const uint32_t *R2;
-	uint32_t p0i;
+	const uint16_t *p;
+	const uint16_t *b;
+	const uint16_t *R2;
+	uint16_t p0i;
+	size_t point_len;
 } curve_params;
 
 static inline const curve_params *
 id_to_curve(int curve)
 {
 	static const curve_params pp[] = {
-		{ P256_P, P256_B, P256_R2, 0x00000001 },
-		{ P384_P, P384_B, P384_R2, 0x00000001 },
-		{ P521_P, P521_B, P521_R2, 0x00000001 }
+		{ P256_P, P256_B, P256_R2, 0x0001,  65 },
+		{ P384_P, P384_B, P384_R2, 0x0001,  97 },
+		{ P521_P, P521_B, P521_R2, 0x0001, 133 }
 	};
 
 	return &pp[curve - BR_EC_secp256r1];
 }
 
-#define I31_LEN   ((BR_MAX_EC_SIZE + 61) / 31)
+#define I15_LEN   ((BR_MAX_EC_SIZE + 29) / 15)
 
 /*
  * Type for a point in Jacobian coordinates:
@@ -130,7 +132,7 @@ id_to_curve(int curve)
  * -- for the point at infinity, z = 0
  */
 typedef struct {
-	uint32_t c[3][I31_LEN];
+	uint16_t c[3][I15_LEN];
 } jacobian;
 
 /*
@@ -452,7 +454,7 @@ run_code(jacobian *P1, const jacobian *P2,
 	const curve_params *cc, const uint16_t *code)
 {
 	uint32_t r;
-	uint32_t t[13][I31_LEN];
+	uint16_t t[13][I15_LEN];
 	size_t u;
 
 	r = 1;
@@ -460,8 +462,8 @@ run_code(jacobian *P1, const jacobian *P2,
 	/*
 	 * Copy the two operands in the dedicated registers.
 	 */
-	memcpy(t[P1x], P1->c, 3 * I31_LEN * sizeof(uint32_t));
-	memcpy(t[P2x], P2->c, 3 * I31_LEN * sizeof(uint32_t));
+	memcpy(t[P1x], P1->c, 3 * I15_LEN * sizeof(uint16_t));
+	memcpy(t[P2x], P2->c, 3 * I15_LEN * sizeof(uint16_t));
 
 	/*
 	 * Run formulas.
@@ -483,28 +485,28 @@ run_code(jacobian *P1, const jacobian *P2,
 			unsigned char tp[(BR_MAX_EC_SIZE + 7) >> 3];
 
 		case 0:
-			memcpy(t[d], t[a], I31_LEN * sizeof(uint32_t));
+			memcpy(t[d], t[a], I15_LEN * sizeof(uint16_t));
 			break;
 		case 1:
-			ctl = br_i31_add(t[d], t[a], 1);
-			ctl |= NOT(br_i31_sub(t[d], cc->p, 0));
-			br_i31_sub(t[d], cc->p, ctl);
+			ctl = br_i15_add(t[d], t[a], 1);
+			ctl |= NOT(br_i15_sub(t[d], cc->p, 0));
+			br_i15_sub(t[d], cc->p, ctl);
 			break;
 		case 2:
-			br_i31_add(t[d], cc->p, br_i31_sub(t[d], t[a], 1));
+			br_i15_add(t[d], cc->p, br_i15_sub(t[d], t[a], 1));
 			break;
 		case 3:
-			br_i31_montymul(t[d], t[a], t[b], cc->p, cc->p0i);
+			br_i15_montymul(t[d], t[a], t[b], cc->p, cc->p0i);
 			break;
 		case 4:
-			plen = (cc->p[0] - (cc->p[0] >> 5) + 7) >> 3;
-			br_i31_encode(tp, plen, cc->p);
+			plen = (cc->p[0] - (cc->p[0] >> 4) + 7) >> 3;
+			br_i15_encode(tp, plen, cc->p);
 			tp[plen - 1] -= 2;
-			br_i31_modpow(t[d], tp, plen,
+			br_i15_modpow(t[d], tp, plen,
 				cc->p, cc->p0i, t[a], t[b]);
 			break;
 		default:
-			r &= ~br_i31_iszero(t[d]);
+			r &= ~br_i15_iszero(t[d]);
 			break;
 		}
 	}
@@ -512,19 +514,19 @@ run_code(jacobian *P1, const jacobian *P2,
 	/*
 	 * Copy back result.
 	 */
-	memcpy(P1->c, t[P1x], 3 * I31_LEN * sizeof(uint32_t));
+	memcpy(P1->c, t[P1x], 3 * I15_LEN * sizeof(uint16_t));
 	return r;
 }
 
 static void
-set_one(uint32_t *x, const uint32_t *p)
+set_one(uint16_t *x, const uint16_t *p)
 {
 	size_t plen;
 
-	plen = (p[0] + 63) >> 5;
+	plen = (p[0] + 31) >> 4;
 	memset(x, 0, plen * sizeof *x);
 	x[0] = p[0];
-	x[1] = 0x00000001;
+	x[1] = 0x0001;
 }
 
 static void
@@ -631,12 +633,12 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 
 	buf = src;
 	point_zero(P, cc);
-	plen = (cc->p[0] - (cc->p[0] >> 5) + 7) >> 3;
+	plen = (cc->p[0] - (cc->p[0] >> 4) + 7) >> 3;
 	if (len != 1 + (plen << 1)) {
 		return 0;
 	}
-	r = br_i31_decode_mod(P->c[0], buf + 1, plen, cc->p);
-	r &= br_i31_decode_mod(P->c[1], buf + 1 + plen, plen, cc->p);
+	r = br_i15_decode_mod(P->c[0], buf + 1, plen, cc->p);
+	r &= br_i15_decode_mod(P->c[1], buf + 1 + plen, plen, cc->p);
 
 	/*
 	 * Check first byte.
@@ -650,7 +652,7 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 	/*
 	 * Convert coordinates and check that the point is valid.
 	 */
-	zlen = ((cc->p[0] + 63) >> 5) * sizeof(uint32_t);
+	zlen = ((cc->p[0] + 31) >> 4) * sizeof(uint16_t);
 	memcpy(Q.c[0], cc->R2, zlen);
 	memcpy(Q.c[1], cc->b, zlen);
 	set_one(Q.c[2], cc->p);
@@ -667,20 +669,17 @@ static void
 point_encode(void *dst, const jacobian *P, const curve_params *cc)
 {
 	unsigned char *buf;
-	uint32_t xbl;
 	size_t plen;
 	jacobian Q, T;
 
 	buf = dst;
-	xbl = cc->p[0];
-	xbl -= (xbl >> 5);
-	plen = (xbl + 7) >> 3;
+	plen = (cc->p[0] - (cc->p[0] >> 4) + 7) >> 3;
 	buf[0] = 0x04;
 	memcpy(&Q, P, sizeof *P);
 	set_one(T.c[2], cc->p);
 	run_code(&Q, &T, cc, code_affine);
-	br_i31_encode(buf + 1, plen, Q.c[0]);
-	br_i31_encode(buf + 1 + plen, plen, Q.c[1]);
+	br_i15_encode(buf + 1, plen, Q.c[0]);
+	br_i15_encode(buf + 1 + plen, plen, Q.c[1]);
 }
 
 static const br_ec_curve_def *
@@ -728,7 +727,9 @@ api_mul(unsigned char *G, size_t Glen,
 	cc = id_to_curve(curve);
 	r = point_decode(&P, G, Glen, cc);
 	point_mul(&P, x, xlen, cc);
-	point_encode(G, &P, cc);
+	if (Glen == cc->point_len) {
+		point_encode(G, &P, cc);
+	}
 	return r;
 }
 
@@ -763,7 +764,7 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	 */
 	t = point_add(&P, &Q, cc);
 	point_double(&Q, cc);
-	z = br_i31_iszero(P.c[2]);
+	z = br_i15_iszero(P.c[2]);
 
 	/*
 	 * If z is 1 then either P+Q = 0 (t = 1) or P = Q (t = 0). So we
@@ -782,7 +783,7 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 }
 
 /* see bearssl_ec.h */
-const br_ec_impl br_ec_prime_i31 = {
+const br_ec_impl br_ec_prime_i15 = {
 	(uint32_t)0x03800000,
 	&api_generator,
 	&api_order,

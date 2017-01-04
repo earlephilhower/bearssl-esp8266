@@ -41,7 +41,7 @@ br_i31_montymul(uint32_t *d, const uint32_t *x, const uint32_t *y,
 		uint64_t r, zh;
 
 		xu = x[u + 1];
-		f = ((d[1] + x[u + 1] * y[1]) * m0i) & 0x7FFFFFFF;
+		f = MUL31_lo((d[1] + MUL31_lo(x[u + 1], y[1])), m0i);
 
 		r = 0;
 		for (v = 0; v < len4; v += 4) {

@@ -35,7 +35,7 @@ br_i31_from_monty(uint32_t *x, const uint32_t *m, uint32_t m0i)
 		uint32_t f;
 		uint64_t cc;
 
-		f = (x[1] * m0i) & 0x7FFFFFFF;
+		f = MUL31_lo(x[1], m0i);
 		cc = 0;
 		for (v = 0; v < len; v ++) {
 			uint64_t z;

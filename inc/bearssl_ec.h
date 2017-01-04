@@ -370,6 +370,15 @@ typedef struct {
 extern const br_ec_impl br_ec_prime_i31;
 
 /**
+ * \brief EC implementation "i15".
+ *
+ * This implementation internally uses generic code for modular integers,
+ * with a representation as sequences of 15-bit words. It supports secp256r1,
+ * secp384r1 and secp521r1 (aka NIST curves P-256, P-384 and P-521).
+ */
+extern const br_ec_impl br_ec_prime_i15;
+
+/**
  * \brief EC implementation "i15" for P-256.
  *
  * This implementation uses specialised code for curve secp256r1 (also
@@ -530,6 +539,72 @@ uint32_t br_ecdsa_i31_vrfy_asn1(const br_ec_impl *impl,
  * \return  1 on success, 0 on error.
  */
 uint32_t br_ecdsa_i31_vrfy_raw(const br_ec_impl *impl,
+	const void *hash, size_t hash_len,
+	const br_ec_public_key *pk, const void *sig, size_t sig_len);
+
+/**
+ * \brief ECDSA signature generator, "i15" implementation, "asn1" format.
+ *
+ * \see br_ecdsa_sign()
+ *
+ * \param impl         EC implementation to use.
+ * \param hf           hash function used to process the data.
+ * \param hash_value   signed data (hashed).
+ * \param sk           EC private key.
+ * \param sig          destination buffer.
+ * \return  the signature length (in bytes), or 0 on error.
+ */
+size_t br_ecdsa_i15_sign_asn1(const br_ec_impl *impl,
+	const br_hash_class *hf, const void *hash_value,
+	const br_ec_private_key *sk, void *sig);
+
+/**
+ * \brief ECDSA signature generator, "i15" implementation, "raw" format.
+ *
+ * \see br_ecdsa_sign()
+ *
+ * \param impl         EC implementation to use.
+ * \param hf           hash function used to process the data.
+ * \param hash_value   signed data (hashed).
+ * \param sk           EC private key.
+ * \param sig          destination buffer.
+ * \return  the signature length (in bytes), or 0 on error.
+ */
+size_t br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
+	const br_hash_class *hf, const void *hash_value,
+	const br_ec_private_key *sk, void *sig);
+
+/**
+ * \brief ECDSA signature verifier, "i15" implementation, "asn1" format.
+ *
+ * \see br_ecdsa_vrfy()
+ *
+ * \param impl       EC implementation to use.
+ * \param hash       signed data (hashed).
+ * \param hash_len   hash value length (in bytes).
+ * \param pk         EC public key.
+ * \param sig        signature.
+ * \param sig_len    signature length (in bytes).
+ * \return  1 on success, 0 on error.
+ */
+uint32_t br_ecdsa_i15_vrfy_asn1(const br_ec_impl *impl,
+	const void *hash, size_t hash_len,
+	const br_ec_public_key *pk, const void *sig, size_t sig_len);
+
+/**
+ * \brief ECDSA signature verifier, "i15" implementation, "raw" format.
+ *
+ * \see br_ecdsa_vrfy()
+ *
+ * \param impl       EC implementation to use.
+ * \param hash       signed data (hashed).
+ * \param hash_len   hash value length (in bytes).
+ * \param pk         EC public key.
+ * \param sig        signature.
+ * \param sig_len    signature length (in bytes).
+ * \return  1 on success, 0 on error.
+ */
+uint32_t br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	const void *hash, size_t hash_len,
 	const br_ec_public_key *pk, const void *sig, size_t sig_len);
 

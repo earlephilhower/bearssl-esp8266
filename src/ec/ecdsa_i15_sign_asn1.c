@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+ * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the
@@ -24,14 +24,22 @@
 
 #include "inner.h"
 
-/* see bearssl_rsa.h */
-uint32_t
-br_rsa_i32_pkcs1_sign(const unsigned char *hash_oid,
-	const unsigned char *hash, size_t hash_len,
-	const br_rsa_private_key *sk, unsigned char *x)
+#define ORDER_LEN   ((BR_MAX_EC_SIZE + 7) >> 3)
+
+/* see bearssl_ec.h */
+size_t
+br_ecdsa_i15_sign_asn1(const br_ec_impl *impl,
+	const br_hash_class *hf, const void *hash_value,
+	const br_ec_private_key *sk, void *sig)
 {
-	if (!br_rsa_pkcs1_sig_pad(hash_oid, hash, hash_len, sk->n_bitlen, x)) {
+	unsigned char rsig[(ORDER_LEN << 1) + 12];
+	size_t sig_len;
+
+	sig_len = br_ecdsa_i15_sign_raw(impl, hf, hash_value, sk, rsig);
+	if (sig_len == 0) {
 		return 0;
 	}
-	return br_rsa_i32_private(x, sk);
+	sig_len = br_ecdsa_raw_to_asn1(rsig, sig_len);
+	memcpy(sig, rsig, sig_len);
+	return sig_len;
 }

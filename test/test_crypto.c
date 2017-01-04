@@ -4368,6 +4368,14 @@ test_RSA_sign(const char *name, br_rsa_private fpriv,
 }
 
 static void
+test_RSA_i15(void)
+{
+	test_RSA_core("RSA i15 core", &br_rsa_i15_public, &br_rsa_i15_private);
+	test_RSA_sign("RSA i15 sign", &br_rsa_i15_private,
+		&br_rsa_i15_pkcs1_sign, &br_rsa_i15_pkcs1_vrfy);
+}
+
+static void
 test_RSA_i31(void)
 {
 	test_RSA_core("RSA i31 core", &br_rsa_i31_public, &br_rsa_i31_private);
@@ -4814,6 +4822,15 @@ test_EC_KAT(const char *name, const br_ec_impl *impl, uint32_t curve_mask)
 }
 
 static void
+test_EC_prime_i15(void)
+{
+	test_EC_KAT("EC_prime_i15", &br_ec_prime_i15,
+		(uint32_t)1 << BR_EC_secp256r1
+		| (uint32_t)1 << BR_EC_secp384r1
+		| (uint32_t)1 << BR_EC_secp521r1);
+}
+
+static void
 test_EC_prime_i31(void)
 {
 	test_EC_KAT("EC_prime_i31", &br_ec_prime_i31,
@@ -5201,7 +5218,8 @@ const ecdsa_kat_vector ECDSA_KAT[] = {
 };
 
 static void
-test_ECDSA_KAT(br_ecdsa_sign sign, br_ecdsa_vrfy vrfy, int asn1)
+test_ECDSA_KAT(const br_ec_impl *iec,
+	br_ecdsa_sign sign, br_ecdsa_vrfy vrfy, int asn1)
 {
 	size_t u;
 
@@ -5228,28 +5246,28 @@ test_ECDSA_KAT(br_ecdsa_sign sign, br_ecdsa_vrfy vrfy, int asn1)
 			sig_len = hextobin(sig, kv->sraw);
 		}
 
-		if (vrfy(&br_ec_prime_i31, hash, hash_len,
+		if (vrfy(iec, hash, hash_len,
 			kv->pub, sig, sig_len) != 1)
 		{
 			fprintf(stderr, "ECDSA KAT verify failed (1)\n");
 			exit(EXIT_FAILURE);
 		}
 		hash[0] ^= 0x80;
-		if (vrfy(&br_ec_prime_i31, hash, hash_len,
+		if (vrfy(iec, hash, hash_len,
 			kv->pub, sig, sig_len) != 0)
 		{
 			fprintf(stderr, "ECDSA KAT verify shoud have failed\n");
 			exit(EXIT_FAILURE);
 		}
 		hash[0] ^= 0x80;
-		if (vrfy(&br_ec_prime_i31, hash, hash_len,
+		if (vrfy(iec, hash, hash_len,
 			kv->pub, sig, sig_len) != 1)
 		{
 			fprintf(stderr, "ECDSA KAT verify failed (2)\n");
 			exit(EXIT_FAILURE);
 		}
 
-		sig2_len = sign(&br_ec_prime_i31, kv->hf, hash, kv->priv, sig2);
+		sig2_len = sign(iec, kv->hf, hash, kv->priv, sig2);
 		if (sig2_len == 0) {
 			fprintf(stderr, "ECDSA KAT sign failed\n");
 			exit(EXIT_FAILURE);
@@ -5271,10 +5289,29 @@ test_ECDSA_i31(void)
 	fflush(stdout);
 	printf("[raw]");
 	fflush(stdout);
-	test_ECDSA_KAT(&br_ecdsa_i31_sign_raw, &br_ecdsa_i31_vrfy_raw, 0);
+	test_ECDSA_KAT(&br_ec_prime_i31,
+		&br_ecdsa_i31_sign_raw, &br_ecdsa_i31_vrfy_raw, 0);
 	printf(" [asn1]");
 	fflush(stdout);
-	test_ECDSA_KAT(&br_ecdsa_i31_sign_asn1, &br_ecdsa_i31_vrfy_asn1, 1);
+	test_ECDSA_KAT(&br_ec_prime_i31,
+		&br_ecdsa_i31_sign_asn1, &br_ecdsa_i31_vrfy_asn1, 1);
+	printf(" done.\n");
+	fflush(stdout);
+}
+
+static void
+test_ECDSA_i15(void)
+{
+	printf("Test ECDSA/i15: ");
+	fflush(stdout);
+	printf("[raw]");
+	fflush(stdout);
+	test_ECDSA_KAT(&br_ec_prime_i15,
+		&br_ecdsa_i15_sign_raw, &br_ecdsa_i15_vrfy_raw, 0);
+	printf(" [asn1]");
+	fflush(stdout);
+	test_ECDSA_KAT(&br_ec_prime_i31,
+		&br_ecdsa_i15_sign_asn1, &br_ecdsa_i15_vrfy_asn1, 1);
 	printf(" done.\n");
 	fflush(stdout);
 }
@@ -5343,14 +5380,17 @@ static const struct {
 	STU(DES_ct),
 	STU(ChaCha20_ct),
 	STU(Poly1305_ctmul),
+	STU(RSA_i15),
 	STU(RSA_i31),
 	STU(RSA_i32),
 	STU(GHASH_ctmul),
 	STU(GHASH_ctmul32),
 	STU(GHASH_ctmul64),
+	STU(EC_prime_i15),
 	STU(EC_prime_i31),
 	STU(EC_p256_i15),
 	/* STU(EC_prime_i32), */
+	STU(ECDSA_i15),
 	STU(ECDSA_i31),
 	{ 0, 0 }
 };

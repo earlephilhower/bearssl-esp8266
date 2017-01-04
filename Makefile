@@ -47,17 +47,19 @@ TESTX509 = testx509
 TESTMATH = testmath
 
 OBJCODEC = $(BUILD)/ccopy.o $(BUILD)/dec16be.o $(BUILD)/dec16le.o $(BUILD)/dec32be.o $(BUILD)/dec32le.o $(BUILD)/dec64be.o $(BUILD)/dec64le.o $(BUILD)/enc16be.o $(BUILD)/enc16le.o $(BUILD)/enc32be.o $(BUILD)/enc32le.o $(BUILD)/enc64be.o $(BUILD)/enc64le.o $(BUILD)/pemdec.o
-OBJEC = $(BUILD)/ec_p256_i15.o $(BUILD)/ec_prime_i31.o $(BUILD)/ec_prime_i31_secp256r1.o $(BUILD)/ec_prime_i31_secp384r1.o $(BUILD)/ec_prime_i31_secp521r1.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
+OBJEC = $(BUILD)/ec_p256_i15.o $(BUILD)/ec_prime_i15.o $(BUILD)/ec_prime_i31.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i15_bits.o $(BUILD)/ecdsa_i15_sign_asn1.o $(BUILD)/ecdsa_i15_sign_raw.o $(BUILD)/ecdsa_i15_vrfy_asn1.o $(BUILD)/ecdsa_i15_vrfy_raw.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
+# $(BUILD)/ec_prime_i31_secp256r1.o $(BUILD)/ec_prime_i31_secp384r1.o $(BUILD)/ec_prime_i31_secp521r1.o
 OBJHASH = $(BUILD)/dig_oid.o $(BUILD)/dig_size.o $(BUILD)/ghash_ctmul.o $(BUILD)/ghash_ctmul32.o $(BUILD)/ghash_ctmul64.o $(BUILD)/md5.o $(BUILD)/md5sha1.o $(BUILD)/multihash.o $(BUILD)/sha1.o $(BUILD)/sha2big.o $(BUILD)/sha2small.o
+OBJINT15 = $(BUILD)/i15_core.o $(BUILD)/i15_ext1.o $(BUILD)/i15_ext2.o
 OBJINT31 = $(BUILD)/i31_add.o $(BUILD)/i31_bitlen.o $(BUILD)/i31_decmod.o $(BUILD)/i31_decode.o $(BUILD)/i31_decred.o $(BUILD)/i31_encode.o $(BUILD)/i31_fmont.o $(BUILD)/i31_iszero.o $(BUILD)/i31_modpow.o $(BUILD)/i31_montmul.o $(BUILD)/i31_mulacc.o $(BUILD)/i31_muladd.o $(BUILD)/i31_ninv31.o $(BUILD)/i31_reduce.o $(BUILD)/i31_rshift.o $(BUILD)/i31_sub.o $(BUILD)/i31_tmont.o
 OBJINT32 = $(BUILD)/i32_add.o $(BUILD)/i32_bitlen.o $(BUILD)/i32_decmod.o $(BUILD)/i32_decode.o $(BUILD)/i32_decred.o $(BUILD)/i32_div32.o $(BUILD)/i32_encode.o $(BUILD)/i32_fmont.o $(BUILD)/i32_iszero.o $(BUILD)/i32_modpow.o $(BUILD)/i32_montmul.o $(BUILD)/i32_mulacc.o $(BUILD)/i32_muladd.o $(BUILD)/i32_ninv32.o $(BUILD)/i32_reduce.o $(BUILD)/i32_sub.o $(BUILD)/i32_tmont.o
 OBJMAC = $(BUILD)/hmac.o $(BUILD)/hmac_ct.o
 OBJRAND = $(BUILD)/hmac_drbg.o
-OBJRSA = $(BUILD)/rsa_i31_pkcs1_sign.o $(BUILD)/rsa_i31_pkcs1_vrfy.o $(BUILD)/rsa_i31_priv.o $(BUILD)/rsa_i31_pub.o $(BUILD)/rsa_i32_pkcs1_sign.o $(BUILD)/rsa_i32_pkcs1_vrfy.o $(BUILD)/rsa_i32_priv.o $(BUILD)/rsa_i32_pub.o $(BUILD)/rsa_ssl_decrypt.o
+OBJRSA = $(BUILD)/rsa_i15_pkcs1_sign.o $(BUILD)/rsa_i15_pkcs1_vrfy.o $(BUILD)/rsa_i15_priv.o $(BUILD)/rsa_i15_pub.o $(BUILD)/rsa_i31_pkcs1_sign.o $(BUILD)/rsa_i31_pkcs1_vrfy.o $(BUILD)/rsa_i31_priv.o $(BUILD)/rsa_i31_pub.o $(BUILD)/rsa_i32_pkcs1_sign.o $(BUILD)/rsa_i32_pkcs1_vrfy.o $(BUILD)/rsa_i32_priv.o $(BUILD)/rsa_i32_pub.o $(BUILD)/rsa_pkcs1_sig_pad.o $(BUILD)/rsa_pkcs1_sig_unpad.o $(BUILD)/rsa_ssl_decrypt.o
 OBJSSL = $(BUILD)/prf.o $(BUILD)/prf_md5sha1.o $(BUILD)/prf_sha256.o $(BUILD)/prf_sha384.o $(BUILD)/ssl_ccert_single_ec.o $(BUILD)/ssl_ccert_single_rsa.o $(BUILD)/ssl_client.o $(BUILD)/ssl_client_full.o $(BUILD)/ssl_engine.o $(BUILD)/ssl_hashes.o $(BUILD)/ssl_hs_client.o $(BUILD)/ssl_hs_server.o $(BUILD)/ssl_io.o $(BUILD)/ssl_lru.o $(BUILD)/ssl_rec_cbc.o $(BUILD)/ssl_rec_chapol.o $(BUILD)/ssl_rec_gcm.o $(BUILD)/ssl_server.o $(BUILD)/ssl_server_mine2c.o $(BUILD)/ssl_server_mine2g.o $(BUILD)/ssl_server_minf2c.o $(BUILD)/ssl_server_minf2g.o $(BUILD)/ssl_server_minr2g.o $(BUILD)/ssl_server_minu2g.o $(BUILD)/ssl_server_minv2g.o $(BUILD)/ssl_server_full_ec.o $(BUILD)/ssl_server_full_rsa.o $(BUILD)/ssl_scert_single_ec.o $(BUILD)/ssl_scert_single_rsa.o
 OBJSYMCIPHER = $(BUILD)/aes_big_cbcdec.o $(BUILD)/aes_big_cbcenc.o $(BUILD)/aes_big_ctr.o $(BUILD)/aes_big_dec.o $(BUILD)/aes_big_enc.o $(BUILD)/aes_common.o $(BUILD)/aes_ct.o $(BUILD)/aes_ct64.o $(BUILD)/aes_ct64_cbcdec.o $(BUILD)/aes_ct64_cbcenc.o $(BUILD)/aes_ct64_ctr.o $(BUILD)/aes_ct64_dec.o $(BUILD)/aes_ct64_enc.o $(BUILD)/aes_ct_cbcdec.o $(BUILD)/aes_ct_cbcenc.o $(BUILD)/aes_ct_ctr.o $(BUILD)/aes_ct_dec.o $(BUILD)/aes_ct_enc.o $(BUILD)/aes_small_cbcdec.o $(BUILD)/aes_small_cbcenc.o $(BUILD)/aes_small_ctr.o $(BUILD)/aes_small_dec.o $(BUILD)/aes_small_enc.o $(BUILD)/chacha20_ct.o $(BUILD)/des_ct.o $(BUILD)/des_ct_cbcdec.o $(BUILD)/des_ct_cbcenc.o $(BUILD)/des_support.o $(BUILD)/des_tab.o $(BUILD)/des_tab_cbcdec.o $(BUILD)/des_tab_cbcenc.o $(BUILD)/poly1305_ctmul.o
 OBJX509 = $(BUILD)/skey_decoder.o $(BUILD)/x509_decoder.o $(BUILD)/x509_knownkey.o $(BUILD)/x509_minimal.o $(BUILD)/x509_minimal_full.o
-OBJ = $(OBJCODEC) $(OBJEC) $(OBJHASH) $(OBJINT31) $(OBJINT32) $(OBJMAC) $(OBJRAND) $(OBJRSA) $(OBJSSL) $(OBJSYMCIPHER) $(OBJX509)
+OBJ = $(OBJCODEC) $(OBJEC) $(OBJHASH) $(OBJINT15) $(OBJINT31) $(OBJINT32) $(OBJMAC) $(OBJRAND) $(OBJRSA) $(OBJSSL) $(OBJSYMCIPHER) $(OBJX509)
 OBJBRSSL = $(BUILD)/brssl.o $(BUILD)/certs.o $(BUILD)/chain.o $(BUILD)/client.o $(BUILD)/errors.o $(BUILD)/files.o $(BUILD)/keys.o $(BUILD)/names.o $(BUILD)/server.o $(BUILD)/skey.o $(BUILD)/sslio.o $(BUILD)/ta.o $(BUILD)/vector.o $(BUILD)/verify.o $(BUILD)/xmem.o
 OBJTESTCRYPTO = $(BUILD)/test_crypto.o
 OBJTESTSPEED = $(BUILD)/test_speed.o
@@ -163,6 +165,9 @@ $(BUILD)/ec_g_secp521r1.o: src/ec/ec_g_secp521r1.c $(HEADERS)
 $(BUILD)/ec_p256_i15.o: src/ec/ec_p256_i15.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_p256_i15.o src/ec/ec_p256_i15.c
 
+$(BUILD)/ec_prime_i15.o: src/ec/ec_prime_i15.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_prime_i15.o src/ec/ec_prime_i15.c
+
 $(BUILD)/ec_prime_i31.o: src/ec/ec_prime_i31.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_prime_i31.o src/ec/ec_prime_i31.c
 
@@ -186,6 +191,21 @@ $(BUILD)/ec_secp521r1.o: src/ec/ec_secp521r1.c $(HEADERS)
 
 $(BUILD)/ecdsa_atr.o: src/ec/ecdsa_atr.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_atr.o src/ec/ecdsa_atr.c
+
+$(BUILD)/ecdsa_i15_bits.o: src/ec/ecdsa_i15_bits.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_i15_bits.o src/ec/ecdsa_i15_bits.c
+
+$(BUILD)/ecdsa_i15_sign_asn1.o: src/ec/ecdsa_i15_sign_asn1.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_i15_sign_asn1.o src/ec/ecdsa_i15_sign_asn1.c
+
+$(BUILD)/ecdsa_i15_sign_raw.o: src/ec/ecdsa_i15_sign_raw.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_i15_sign_raw.o src/ec/ecdsa_i15_sign_raw.c
+
+$(BUILD)/ecdsa_i15_vrfy_asn1.o: src/ec/ecdsa_i15_vrfy_asn1.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_i15_vrfy_asn1.o src/ec/ecdsa_i15_vrfy_asn1.c
+
+$(BUILD)/ecdsa_i15_vrfy_raw.o: src/ec/ecdsa_i15_vrfy_raw.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_i15_vrfy_raw.o src/ec/ecdsa_i15_vrfy_raw.c
 
 $(BUILD)/ecdsa_i31_bits.o: src/ec/ecdsa_i31_bits.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ecdsa_i31_bits.o src/ec/ecdsa_i31_bits.c
@@ -237,6 +257,15 @@ $(BUILD)/sha2big.o: src/hash/sha2big.c $(HEADERS)
 
 $(BUILD)/sha2small.o: src/hash/sha2small.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/sha2small.o src/hash/sha2small.c
+
+$(BUILD)/i15_core.o: src/int/i15_core.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_core.o src/int/i15_core.c
+
+$(BUILD)/i15_ext1.o: src/int/i15_ext1.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_ext1.o src/int/i15_ext1.c
+
+$(BUILD)/i15_ext2.o: src/int/i15_ext2.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_ext2.o src/int/i15_ext2.c
 
 $(BUILD)/i31_add.o: src/int/i31_add.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/i31_add.o src/int/i31_add.c
@@ -349,6 +378,18 @@ $(BUILD)/hmac_ct.o: src/mac/hmac_ct.c $(HEADERS)
 $(BUILD)/hmac_drbg.o: src/rand/hmac_drbg.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/hmac_drbg.o src/rand/hmac_drbg.c
 
+$(BUILD)/rsa_i15_pkcs1_sign.o: src/rsa/rsa_i15_pkcs1_sign.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_i15_pkcs1_sign.o src/rsa/rsa_i15_pkcs1_sign.c
+
+$(BUILD)/rsa_i15_pkcs1_vrfy.o: src/rsa/rsa_i15_pkcs1_vrfy.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_i15_pkcs1_vrfy.o src/rsa/rsa_i15_pkcs1_vrfy.c
+
+$(BUILD)/rsa_i15_priv.o: src/rsa/rsa_i15_priv.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_i15_priv.o src/rsa/rsa_i15_priv.c
+
+$(BUILD)/rsa_i15_pub.o: src/rsa/rsa_i15_pub.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_i15_pub.o src/rsa/rsa_i15_pub.c
+
 $(BUILD)/rsa_i31_pkcs1_sign.o: src/rsa/rsa_i31_pkcs1_sign.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_i31_pkcs1_sign.o src/rsa/rsa_i31_pkcs1_sign.c
 
@@ -372,6 +413,12 @@ $(BUILD)/rsa_i32_priv.o: src/rsa/rsa_i32_priv.c $(HEADERS)
 
 $(BUILD)/rsa_i32_pub.o: src/rsa/rsa_i32_pub.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_i32_pub.o src/rsa/rsa_i32_pub.c
+
+$(BUILD)/rsa_pkcs1_sig_pad.o: src/rsa/rsa_pkcs1_sig_pad.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_pkcs1_sig_pad.o src/rsa/rsa_pkcs1_sig_pad.c
+
+$(BUILD)/rsa_pkcs1_sig_unpad.o: src/rsa/rsa_pkcs1_sig_unpad.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_pkcs1_sig_unpad.o src/rsa/rsa_pkcs1_sig_unpad.c
 
 $(BUILD)/rsa_ssl_decrypt.o: src/rsa/rsa_ssl_decrypt.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/rsa_ssl_decrypt.o src/rsa/rsa_ssl_decrypt.c

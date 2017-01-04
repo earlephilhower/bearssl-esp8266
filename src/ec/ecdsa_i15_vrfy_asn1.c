@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+ * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the
@@ -24,14 +24,25 @@
 
 #include "inner.h"
 
-/* see bearssl_rsa.h */
+#define FIELD_LEN   ((BR_MAX_EC_SIZE + 7) >> 3)
+
+/* see bearssl_ec.h */
 uint32_t
-br_rsa_i32_pkcs1_sign(const unsigned char *hash_oid,
-	const unsigned char *hash, size_t hash_len,
-	const br_rsa_private_key *sk, unsigned char *x)
+br_ecdsa_i15_vrfy_asn1(const br_ec_impl *impl,
+	const void *hash, size_t hash_len,
+	const br_ec_public_key *pk,
+	const void *sig, size_t sig_len)
 {
-	if (!br_rsa_pkcs1_sig_pad(hash_oid, hash, hash_len, sk->n_bitlen, x)) {
+	/*
+	 * We use a double-sized buffer because a malformed ASN.1 signature
+	 * may trigger a size expansion when converting to "raw" format.
+	 */
+	unsigned char rsig[(FIELD_LEN << 2) + 24];
+
+	if (sig_len > ((sizeof rsig) >> 1)) {
 		return 0;
 	}
-	return br_rsa_i32_private(x, sk);
+	memcpy(rsig, sig, sig_len);
+	sig_len = br_ecdsa_asn1_to_raw(rsig, sig_len);
+	return br_ecdsa_i15_vrfy_raw(impl, hash, hash_len, pk, rsig, sig_len);
 }

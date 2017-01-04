@@ -75,7 +75,7 @@ br_i31_muladd_small(uint32_t *x, uint32_t z, const uint32_t *m)
 	 *
 	 * If a = b*q + r (with 0 <= r < q), we can estimate q by
 	 * doing an Euclidean division on the top words:
-	 *   a0*w+a1 = b0*u + v  (with 0 <= v < w)
+	 *   a0*w+a1 = b0*u + v  (with 0 <= v < b0)
 	 * Then the following holds:
 	 *   0 <= u <= w
 	 *   u-2 <= q <= u

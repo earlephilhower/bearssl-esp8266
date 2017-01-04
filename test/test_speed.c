@@ -558,6 +558,13 @@ test_speed_rsa_inner(char *name,
 }
 
 static void
+test_speed_rsa_i15(void)
+{
+	test_speed_rsa_inner("RSA i15",
+		&br_rsa_i15_public, &br_rsa_i15_private);
+}
+
+static void
 test_speed_rsa_i31(void)
 {
 	test_speed_rsa_inner("RSA i31",
@@ -616,7 +623,16 @@ test_speed_ec_inner(const char *name,
 static void
 test_speed_ec_p256_i15(void)
 {
-	test_speed_ec_inner("EC i15 P-256", &br_ec_p256_i15, &br_secp256r1);
+	test_speed_ec_inner("EC i15/spec P-256",
+		&br_ec_p256_i15, &br_secp256r1);
+}
+
+static void
+test_speed_ec_prime_i15(void)
+{
+	test_speed_ec_inner("EC i15 P-256", &br_ec_prime_i15, &br_secp256r1);
+	test_speed_ec_inner("EC i15 P-384", &br_ec_prime_i15, &br_secp384r1);
+	test_speed_ec_inner("EC i15 P-521", &br_ec_prime_i15, &br_secp521r1);
 }
 
 static void
@@ -710,6 +726,23 @@ test_speed_ecdsa_inner(const char *name,
 		}
 		num <<= 1;
 	}
+}
+
+static void
+test_speed_ecdsa_i15(void)
+{
+	test_speed_ecdsa_inner("ECDSA i15 P-256",
+		&br_ec_prime_i15, &br_secp256r1,
+		&br_ecdsa_i15_sign_asn1,
+		&br_ecdsa_i15_vrfy_asn1);
+	test_speed_ecdsa_inner("ECDSA i15 P-384",
+		&br_ec_prime_i15, &br_secp384r1,
+		&br_ecdsa_i15_sign_asn1,
+		&br_ecdsa_i15_vrfy_asn1);
+	test_speed_ecdsa_inner("ECDSA i15 P-521",
+		&br_ec_prime_i15, &br_secp521r1,
+		&br_ecdsa_i15_sign_asn1,
+		&br_ecdsa_i15_vrfy_asn1);
 }
 
 static void
@@ -1134,10 +1167,13 @@ static const struct {
 
 	STU(poly1305_ctmul),
 
+	STU(rsa_i15),
 	STU(rsa_i31),
 	STU(rsa_i32),
 	STU(ec_p256_i15),
+	STU(ec_prime_i15),
 	STU(ec_prime_i31),
+	STU(ecdsa_i15),
 	STU(ecdsa_i31),
 
 	STU(i31)
