@@ -347,6 +347,19 @@ test_speed_poly1305_ctmul(void)
 	test_speed_poly1305_inner("Poly1305 (ctmul)", &br_poly1305_ctmul_run);
 }
 
+static void
+test_speed_poly1305_ctmul32(void)
+{
+	test_speed_poly1305_inner("Poly1305 (ctmul32)",
+		&br_poly1305_ctmul32_run);
+}
+
+static void
+test_speed_poly1305_i15(void)
+{
+	test_speed_poly1305_inner("Poly1305 (i15)", &br_poly1305_i15_run);
+}
+
 static const unsigned char RSA_N[] = {
 	0xE9, 0xF2, 0x4A, 0x2F, 0x96, 0xDF, 0x0A, 0x23,
 	0x01, 0x85, 0xF1, 0x2C, 0xB2, 0xA8, 0xEF, 0x23,
@@ -1166,6 +1179,8 @@ static const struct {
 	STU(ghash_ctmul64),
 
 	STU(poly1305_ctmul),
+	STU(poly1305_ctmul32),
+	STU(poly1305_i15),
 
 	STU(rsa_i15),
 	STU(rsa_i31),

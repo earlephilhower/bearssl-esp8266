@@ -4113,11 +4113,13 @@ static const struct {
 };
 
 static void
-test_Poly1305_ctmul(void)
+test_Poly1305_inner(const char *name, br_poly1305_run ipoly,
+	br_poly1305_run iref)
 {
 	size_t u;
+	br_hmac_drbg_context rng;
 
-	printf("Test Poly1305_ctmul: ");
+	printf("Test %s: ", name);
 	fflush(stdout);
 
 	for (u = 0; KAT_POLY1305[u].skey; u ++) {
@@ -4133,7 +4135,7 @@ test_Poly1305_ctmul(void)
 		hextobin(tag, KAT_POLY1305[u].stag);
 
 		memcpy(data, plain, len);
-		br_poly1305_ctmul_run(key, nonce, data, len,
+		ipoly(key, nonce, data, len,
 			aad, aad_len, tmp, br_chacha20_ct_run, 1);
 		if (memcmp(data, cipher, len) != 0) {
 			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (1)\n");
@@ -4143,7 +4145,7 @@ test_Poly1305_ctmul(void)
 			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (2)\n");
 			exit(EXIT_FAILURE);
 		}
-		br_poly1305_ctmul_run(key, nonce, data, len,
+		ipoly(key, nonce, data, len,
 			aad, aad_len, tmp, br_chacha20_ct_run, 0);
 		if (memcmp(data, plain, len) != 0) {
 			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (3)\n");
@@ -4158,8 +4160,64 @@ test_Poly1305_ctmul(void)
 		fflush(stdout);
 	}
 
+	printf(" ");
+	fflush(stdout);
+
+	/*
+	 * We compare the "ipoly" and "iref" implementations together on
+	 * a bunch of pseudo-random messages.
+	 */
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, "seed for Poly1305", 17);
+	for (u = 0; u < 100; u ++) {
+		unsigned char plain[100], aad[100], tmp[100];
+		unsigned char key[32], iv[12], tag1[16], tag2[16];
+
+		br_hmac_drbg_generate(&rng, key, sizeof key);
+		br_hmac_drbg_generate(&rng, iv, sizeof iv);
+		br_hmac_drbg_generate(&rng, plain, u);
+		br_hmac_drbg_generate(&rng, aad, u);
+		memcpy(tmp, plain, u);
+		memset(tmp + u, 0xFF, (sizeof tmp) - u);
+		ipoly(key, iv, tmp, u, aad, u, tag1,
+			&br_chacha20_ct_run, 1);
+		memset(tmp + u, 0x00, (sizeof tmp) - u);
+		iref(key, iv, tmp, u, aad, u, tag2,
+			&br_chacha20_ct_run, 0);
+		if (memcmp(tmp, plain, u) != 0) {
+			fprintf(stderr, "cross enc/dec failed\n");
+			exit(EXIT_FAILURE);
+		}
+		if (memcmp(tag1, tag2, sizeof tag1) != 0) {
+			fprintf(stderr, "cross MAC failed\n");
+			exit(EXIT_FAILURE);
+		}
+		printf(".");
+		fflush(stdout);
+	}
+
 	printf(" done.\n");
 	fflush(stdout);
+}
+
+static void
+test_Poly1305_ctmul(void)
+{
+	test_Poly1305_inner("Poly1305_ctmul", &br_poly1305_ctmul_run,
+		&br_poly1305_i15_run);
+}
+
+static void
+test_Poly1305_ctmul32(void)
+{
+	test_Poly1305_inner("Poly1305_ctmul32", &br_poly1305_ctmul32_run,
+		&br_poly1305_i15_run);
+}
+
+static void
+test_Poly1305_i15(void)
+{
+	test_Poly1305_inner("Poly1305_i15", &br_poly1305_i15_run,
+		&br_poly1305_ctmul_run);
 }
 
 /*
@@ -5380,6 +5438,8 @@ static const struct {
 	STU(DES_ct),
 	STU(ChaCha20_ct),
 	STU(Poly1305_ctmul),
+	STU(Poly1305_ctmul32),
+	STU(Poly1305_i15),
 	STU(RSA_i15),
 	STU(RSA_i31),
 	STU(RSA_i32),

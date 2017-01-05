@@ -1323,4 +1323,48 @@ void br_poly1305_ctmul_run(const void *key, const void *iv,
 	void *data, size_t len, const void *aad, size_t aad_len,
 	void *tag, br_chacha20_run ichacha, int encrypt);
 
+/**
+ * \brief ChaCha20+Poly1305 AEAD implementation (pure 32-bit multiplications).
+ *
+ * \see br_poly1305_run
+ *
+ * \param key       secret key (32 bytes).
+ * \param iv        nonce (12 bytes).
+ * \param data      data to encrypt or decrypt.
+ * \param len       data length (in bytes).
+ * \param aad       additional authenticated data.
+ * \param aad_len   length of additional authenticated data (in bytes).
+ * \param tag       output buffer for the authentication tag.
+ * \param ichacha   implementation of ChaCha20.
+ * \param encrypt   non-zero for encryption, zero for decryption.
+ */
+void br_poly1305_ctmul32_run(const void *key, const void *iv,
+	void *data, size_t len, const void *aad, size_t aad_len,
+	void *tag, br_chacha20_run ichacha, int encrypt);
+
+/**
+ * \brief ChaCha20+Poly1305 AEAD implementation (i15).
+ *
+ * This implementation relies on the generic big integer code "i15"
+ * (which uses pure 32-bit multiplications). As such, it may save a
+ * little code footprint in a context where "i15" is already included
+ * (e.g. for elliptic curves or for RSA); however, it is also
+ * substantially slower than the ctmul and ctmul32 implementations.
+ *
+ * \see br_poly1305_run
+ *
+ * \param key       secret key (32 bytes).
+ * \param iv        nonce (12 bytes).
+ * \param data      data to encrypt or decrypt.
+ * \param len       data length (in bytes).
+ * \param aad       additional authenticated data.
+ * \param aad_len   length of additional authenticated data (in bytes).
+ * \param tag       output buffer for the authentication tag.
+ * \param ichacha   implementation of ChaCha20.
+ * \param encrypt   non-zero for encryption, zero for decryption.
+ */
+void br_poly1305_i15_run(const void *key, const void *iv,
+	void *data, size_t len, const void *aad, size_t aad_len,
+	void *tag, br_chacha20_run ichacha, int encrypt);
+
 #endif

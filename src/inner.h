@@ -571,16 +571,17 @@ MUL31_lo(uint32_t x, uint32_t y)
 #endif
 
 /*
- * Multiply two words together; each word may contain up to 15 bits of
- * data. If BR_CT_MUL15 is non-zero, then the macro will contain some
- * extra operations that help in making the operation constant-time on
- * some platforms, where the basic 32-bit multiplication is not
- * constant-time.
+ * Multiply two words together; the sum of the lengths of the two
+ * operands must not exceed 31 (for instance, one operand may use 16
+ * bits if the other fits on 15). If BR_CT_MUL15 is non-zero, then the
+ * macro will contain some extra operations that help in making the
+ * operation constant-time on some platforms, where the basic 32-bit
+ * multiplication is not constant-time.
  */
 #if BR_CT_MUL15
 #define MUL15(x, y)   (((uint32_t)(x) | (uint32_t)0x80000000) \
                        * ((uint32_t)(y) | (uint32_t)0x80000000) \
-		       & (uint32_t)0x3FFFFFFF)
+		       & (uint32_t)0x7FFFFFFF)
 #else
 #define MUL15(x, y)   ((uint32_t)(x) * (uint32_t)(y))
 #endif
