@@ -284,7 +284,7 @@ cc: get32 ( addr -- val ) {
 	\ single integer.
 	{ n } 0
 	begin n 0 > while n 1- >n
-		dup 0xFFFFFF > if ERR_X509_INNER_TRUNC fail then
+		dup 0x7FFFFF > if ERR_X509_INNER_TRUNC fail then
 		8 << swap read8 rot +
 	repeat ;
 
