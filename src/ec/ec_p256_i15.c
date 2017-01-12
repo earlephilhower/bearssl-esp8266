@@ -91,60 +91,11 @@ le13_to_be8(unsigned char *dst, size_t len, const uint32_t *src)
 }
 
 /*
- * Multiply two 4-word integers. Basis is 2^13 = 8192. Individual words
- * may have value up to 32766. Result integer consists in eight words;
- * each word is in the 0..8191 range, except the last one (d[7]) which
- * gathers the excess bits.
- *
- * Max value for d[7], depending on max word value:
- *
- *   32764: 131071
- *   32765: 131080
- *   32766: 131088
- */
-static inline void
-mul4(uint32_t *d, const uint32_t *a, const uint32_t *b)
-{
-	uint32_t t0, t1, t2, t3, t4, t5, t6;
-
-	t0 = MUL15(a[0], b[0]);
-	t1 = MUL15(a[0], b[1]) + MUL15(a[1], b[0]);
-	t2 = MUL15(a[0], b[2]) + MUL15(a[1], b[1]) + MUL15(a[2], b[0]);
-	t3 = MUL15(a[0], b[3]) + MUL15(a[1], b[2])
-		+ MUL15(a[2], b[1]) + MUL15(a[3], b[0]);
-	t4 = MUL15(a[1], b[3]) + MUL15(a[2], b[2]) + MUL15(a[3], b[1]);
-	t5 = MUL15(a[2], b[3]) + MUL15(a[3], b[2]);
-	t6 = MUL15(a[3], b[3]);
-
-	/*
-	 * Maximum value is obtained when adding the carry to t3, when all
-	 * input words have maximum value. When the maximum is 32766,
-	 * the addition of t3 with the carry (t2 >> 13) yields 4294836223,
-	 * which is still below 2^32 = 4294967296.
-	 */
-
-	d[0] = t0 & 0x1FFF;
-	t1 += t0 >> 13;
-	d[1] = t1 & 0x1FFF;
-	t2 += t1 >> 13;
-	d[2] = t2 & 0x1FFF;
-	t3 += t2 >> 13;
-	d[3] = t3 & 0x1FFF;
-	t4 += t3 >> 13;
-	d[4] = t4 & 0x1FFF;
-	t5 += t4 >> 13;
-	d[5] = t5 & 0x1FFF;
-	t6 += t5 >> 13;
-	d[6] = t6 & 0x1FFF;
-	d[7] = t6 >> 13;
-}
-
-/*
  * Normalise an array of words to a strict 13 bits per word. Returned
  * value is the resulting carry. The source (w) and destination (d)
  * arrays may be identical, but shall not overlap partially.
  */
-static uint32_t
+static inline uint32_t
 norm13(uint32_t *d, const uint32_t *w, size_t len)
 {
 	size_t u;
@@ -162,148 +113,652 @@ norm13(uint32_t *d, const uint32_t *w, size_t len)
 }
 
 /*
- * Multiply two 20-word values together, result over 40 words. Each word
- * contains 13 bits of data; the top words (a[19] and b[19]) may contain
- * up to 15 bits each. Therefore this routine handles integer up to 2^262-1.
- * All words in the output have length 13 bits, except possibly the top
- * one, in case the sources had excess bits.
+ * mul20() multiplies two 260-bit integers together. Each word must fit
+ * on 13 bits; source operands use 20 words, destination operand
+ * receives 40 words. All overlaps allowed.
+ *
+ * 
  */
+
+#if BR_SLOW_MUL15
+
 static void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
 	/*
-	 * We first split the 20-word values into a 16-word value and
-	 * a 4-word value. The 16x16 product uses two levels of Karatsuba
-	 * decomposition. The preparatory additions are done word-wise
-	 * without carry propagation; since the input words have size
-	 * at most 13 bits, the sums may be up to 4*8191 = 32764, which
-	 * is in the range supported by mul4().
+	 * Two-level Karatsuba: turns a 20x20 multiplication into
+	 * nine 5x5 multiplications. We use 13-bit words but do not
+	 * propagate carries immediately, so words may expand:
+	 *
+	 *  - First Karatsuba decomposition turns the 20x20 mul on
+	 *    13-bit words into three 10x10 muls, two on 13-bit words
+	 *    and one on 14-bit words.
+	 *
+	 *  - Second Karatsuba decomposition further splits these into:
+	 *
+	 *     * four 5x5 muls on 13-bit words
+	 *     * four 5x5 muls on 14-bit words
+	 *     * one 5x5 mul on 15-bit words
+	 *
+	 * Highest word value is 8191, 16382 or 32764, for 13-bit, 14-bit
+	 * or 15-bit words, respectively.
 	 */
-	uint32_t u[72], v[72], w[144];
+	uint32_t u[45], v[45], w[90];
 	uint32_t cc;
 	int i;
 
-	/*
-	 * Karatsuba decomposition, two levels.
-	 *
-	 * off   src
-	 *       0..7 * 0..7
-	 *   0      0..3 * 0..3
-	 *   4      4..7 * 4..7
-	 *  16      0..3+4..7 * 0..3+4..7
-	 *
-	 *       8..15 * 8..15
-	 *   8      8..11 * 8..11
-	 *  12      12..15 * 12..15
-	 *  20      8..11+12..15 * 8..11+12..15
-	 *
-	 *       0..7+8..15 * 0..7+8..15
-	 *  24      0..3+8..11 * 0..3+8..11
-	 *  28      4..7+12..15 * 4..7+12..15
-	 *  32      0..3+4..7+8..11+12..15 * 0..3+4..7+8..11+12..15
-	 */
-
-#define WADD(z, x, y)    do { \
-		u[(z) + 0] = u[(x) + 0] + u[y + 0]; \
-		u[(z) + 1] = u[(x) + 1] + u[y + 1]; \
-		u[(z) + 2] = u[(x) + 2] + u[y + 2]; \
-		u[(z) + 3] = u[(x) + 3] + u[y + 3]; \
-		v[(z) + 0] = v[(x) + 0] + v[y + 0]; \
-		v[(z) + 1] = v[(x) + 1] + v[y + 1]; \
-		v[(z) + 2] = v[(x) + 2] + v[y + 2]; \
-		v[(z) + 3] = v[(x) + 3] + v[y + 3]; \
+#define ZADD(dw, d_off, s1w, s1_off, s2w, s2_off)   do { \
+		(dw)[5 * (d_off) + 0] = (s1w)[5 * (s1_off) + 0] \
+			+ (s2w)[5 * (s2_off) + 0]; \
+		(dw)[5 * (d_off) + 1] = (s1w)[5 * (s1_off) + 1] \
+			+ (s2w)[5 * (s2_off) + 1]; \
+		(dw)[5 * (d_off) + 2] = (s1w)[5 * (s1_off) + 2] \
+			+ (s2w)[5 * (s2_off) + 2]; \
+		(dw)[5 * (d_off) + 3] = (s1w)[5 * (s1_off) + 3] \
+			+ (s2w)[5 * (s2_off) + 3]; \
+		(dw)[5 * (d_off) + 4] = (s1w)[5 * (s1_off) + 4] \
+			+ (s2w)[5 * (s2_off) + 4]; \
 	} while (0)
 
-	memcpy(u, a, 16 * sizeof *a);
-	memcpy(v, b, 16 * sizeof *b);
-	WADD(16, 0, 4);
-	WADD(20, 8, 12);
-	WADD(24, 0, 8);
-	WADD(28, 4, 12);
-	WADD(32, 16, 20);
-	memcpy(u + 36, a, 16 * sizeof *a);
-	memcpy(v + 52, b, 16 * sizeof *b);
-	for (i = 0; i < 4; i ++) {
-		memcpy(u + 52 + (i << 2), a + 16, 4 * sizeof *a);
-		memcpy(v + 36 + (i << 2), b + 16, 4 * sizeof *b);
-	}
-	memcpy(u + 68, a + 16, 4 * sizeof *a);
-	memcpy(v + 68, b + 16, 4 * sizeof *b);
+#define ZADDT(dw, d_off, sw, s_off)   do { \
+		(dw)[5 * (d_off) + 0] += (sw)[5 * (s_off) + 0]; \
+		(dw)[5 * (d_off) + 1] += (sw)[5 * (s_off) + 1]; \
+		(dw)[5 * (d_off) + 2] += (sw)[5 * (s_off) + 2]; \
+		(dw)[5 * (d_off) + 3] += (sw)[5 * (s_off) + 3]; \
+		(dw)[5 * (d_off) + 4] += (sw)[5 * (s_off) + 4]; \
+	} while (0)
 
-#undef WADD
+#define ZSUB2F(dw, d_off, s1w, s1_off, s2w, s2_off)   do { \
+		(dw)[5 * (d_off) + 0] -= (s1w)[5 * (s1_off) + 0] \
+			+ (s2w)[5 * (s2_off) + 0]; \
+		(dw)[5 * (d_off) + 1] -= (s1w)[5 * (s1_off) + 1] \
+			+ (s2w)[5 * (s2_off) + 1]; \
+		(dw)[5 * (d_off) + 2] -= (s1w)[5 * (s1_off) + 2] \
+			+ (s2w)[5 * (s2_off) + 2]; \
+		(dw)[5 * (d_off) + 3] -= (s1w)[5 * (s1_off) + 3] \
+			+ (s2w)[5 * (s2_off) + 3]; \
+		(dw)[5 * (d_off) + 4] -= (s1w)[5 * (s1_off) + 4] \
+			+ (s2w)[5 * (s2_off) + 4]; \
+	} while (0)
+
+#define CPR1(w, cprcc)   do { \
+		uint32_t cprz = (w) + cprcc; \
+		(w) = cprz & 0x1FFF; \
+		cprcc = cprz >> 13; \
+	} while (0)
+
+#define CPR(dw, d_off)   do { \
+		uint32_t cprcc; \
+		cprcc = 0; \
+		CPR1((dw)[(d_off) + 0], cprcc); \
+		CPR1((dw)[(d_off) + 1], cprcc); \
+		CPR1((dw)[(d_off) + 2], cprcc); \
+		CPR1((dw)[(d_off) + 3], cprcc); \
+		CPR1((dw)[(d_off) + 4], cprcc); \
+		CPR1((dw)[(d_off) + 5], cprcc); \
+		CPR1((dw)[(d_off) + 6], cprcc); \
+		CPR1((dw)[(d_off) + 7], cprcc); \
+		CPR1((dw)[(d_off) + 8], cprcc); \
+		(dw)[(d_off) + 9] = cprcc; \
+	} while (0)
+
+	memcpy(u, a, 20 * sizeof *a);
+	ZADD(u, 4, a, 0, a, 1);
+	ZADD(u, 5, a, 2, a, 3);
+	ZADD(u, 6, a, 0, a, 2);
+	ZADD(u, 7, a, 1, a, 3);
+	ZADD(u, 8, u, 6, u, 7);
+
+	memcpy(v, b, 20 * sizeof *b);
+	ZADD(v, 4, b, 0, b, 1);
+	ZADD(v, 5, b, 2, b, 3);
+	ZADD(v, 6, b, 0, b, 2);
+	ZADD(v, 7, b, 1, b, 3);
+	ZADD(v, 8, v, 6, v, 7);
 
 	/*
-	 * Perform the elementary 4x4 multiplications:
-	 *   16x16: 9 multiplications (Karatsuba)
-	 *   16x4 (1): 4 multiplications
-	 *   16x4 (2): 4 multiplications
-	 *   4x4: 1 multiplication
+	 * Do the eight first 8x8 muls. Source words are at most 16382
+	 * each, so we can add product results together "as is" in 32-bit
+	 * words.
 	 */
-	for (i = 0; i < 18; i ++) {
-		mul4(w + (i << 3), u + (i << 2), v + (i << 2));
+	for (i = 0; i < 40; i += 5) {
+		w[(i << 1) + 0] = MUL15(u[i + 0], v[i + 0]);
+		w[(i << 1) + 1] = MUL15(u[i + 0], v[i + 1])
+			+ MUL15(u[i + 1], v[i + 0]);
+		w[(i << 1) + 2] = MUL15(u[i + 0], v[i + 2])
+			+ MUL15(u[i + 1], v[i + 1])
+			+ MUL15(u[i + 2], v[i + 0]);
+		w[(i << 1) + 3] = MUL15(u[i + 0], v[i + 3])
+			+ MUL15(u[i + 1], v[i + 2])
+			+ MUL15(u[i + 2], v[i + 1])
+			+ MUL15(u[i + 3], v[i + 0]);
+		w[(i << 1) + 4] = MUL15(u[i + 0], v[i + 4])
+			+ MUL15(u[i + 1], v[i + 3])
+			+ MUL15(u[i + 2], v[i + 2])
+			+ MUL15(u[i + 3], v[i + 1])
+			+ MUL15(u[i + 4], v[i + 0]);
+		w[(i << 1) + 5] = MUL15(u[i + 1], v[i + 4])
+			+ MUL15(u[i + 2], v[i + 3])
+			+ MUL15(u[i + 3], v[i + 2])
+			+ MUL15(u[i + 4], v[i + 1]);
+		w[(i << 1) + 6] = MUL15(u[i + 2], v[i + 4])
+			+ MUL15(u[i + 3], v[i + 3])
+			+ MUL15(u[i + 4], v[i + 2]);
+		w[(i << 1) + 7] = MUL15(u[i + 3], v[i + 4])
+			+ MUL15(u[i + 4], v[i + 3]);
+		w[(i << 1) + 8] = MUL15(u[i + 4], v[i + 4]);
+		w[(i << 1) + 9] = 0;
 	}
 
 	/*
-	 * mul4 cross-product adjustments:
-	 *   subtract 0 and 8 from 32 (8 words)
-	 *   subtract 16 and 24 from 40 (8 words)
-	 *   subtract 48 and 56 from 64 (8 words)
+	 * For the 9th multiplication, source words are up to 32764,
+	 * so we must do some carry propagation. If we add up to
+	 * 4 products and the carry is no more than 524224, then the
+	 * result fits in 32 bits, and the next carry will be no more
+	 * than 524224 (because 4*(32764^2)+524224 < 8192*524225).
+	 *
+	 * We thus just skip one of the products in the middle word,
+	 * then do a carry propagation (this reduces words to 13 bits
+	 * each, except possibly the last, which may use up to 17 bits
+	 * or so), then add the missing product.
 	 */
-	for (i = 0; i < 8; i ++) {
-		w[i + 32] -= w[i +  0] + w[i +  8];
-		w[i + 40] -= w[i + 16] + w[i + 24];
-		w[i + 64] -= w[i + 48] + w[i + 56];
-	}
+	w[80 + 0] = MUL15(u[40 + 0], v[40 + 0]);
+	w[80 + 1] = MUL15(u[40 + 0], v[40 + 1])
+		+ MUL15(u[40 + 1], v[40 + 0]);
+	w[80 + 2] = MUL15(u[40 + 0], v[40 + 2])
+		+ MUL15(u[40 + 1], v[40 + 1])
+		+ MUL15(u[40 + 2], v[40 + 0]);
+	w[80 + 3] = MUL15(u[40 + 0], v[40 + 3])
+		+ MUL15(u[40 + 1], v[40 + 2])
+		+ MUL15(u[40 + 2], v[40 + 1])
+		+ MUL15(u[40 + 3], v[40 + 0]);
+	w[80 + 4] = MUL15(u[40 + 0], v[40 + 4])
+		+ MUL15(u[40 + 1], v[40 + 3])
+		+ MUL15(u[40 + 2], v[40 + 2])
+		+ MUL15(u[40 + 3], v[40 + 1]);
+		/* + MUL15(u[40 + 4], v[40 + 0]) */
+	w[80 + 5] = MUL15(u[40 + 1], v[40 + 4])
+		+ MUL15(u[40 + 2], v[40 + 3])
+		+ MUL15(u[40 + 3], v[40 + 2])
+		+ MUL15(u[40 + 4], v[40 + 1]);
+	w[80 + 6] = MUL15(u[40 + 2], v[40 + 4])
+		+ MUL15(u[40 + 3], v[40 + 3])
+		+ MUL15(u[40 + 4], v[40 + 2]);
+	w[80 + 7] = MUL15(u[40 + 3], v[40 + 4])
+		+ MUL15(u[40 + 4], v[40 + 3]);
+	w[80 + 8] = MUL15(u[40 + 4], v[40 + 4]);
+
+	CPR(w, 80);
+
+	w[80 + 4] += MUL15(u[40 + 4], v[40 + 0]);
 
 	/*
-	 * complete the three 8x8 products:
-	 *   add 32 to 4 (8 words)
-	 *   add 40 to 20 (8 words)
-	 *   add 64 to 52 (8 words)
+	 * The products on 14-bit words in slots 6 and 7 yield values
+	 * up to 5*(16382^2) each, and we need to subtract two such
+	 * values from the higher word. We need the subtraction to fit
+	 * in a _signed_ 32-bit integer, i.e. 31 bits + a sign bit.
+	 * However, 10*(16382^2) does not fit. So we must perform a
+	 * bit of reduction here.
 	 */
-	for (i = 0; i < 8; i ++) {
-		w[i +  4] += w[i + 32];
-		w[i + 20] += w[i + 40];
-		w[i + 52] += w[i + 64];
-	}
+	CPR(w, 60);
+	CPR(w, 70);
 
 	/*
-	 * Adjust the 16x16 product:
-	 *   subtract 0 from 48 (16 words)
-	 *   subtract 16 from 48 (16 words)
-	 *   add 48 to 8 (16 words)
+	 * Recompose results.
 	 */
-	for (i = 0; i < 16; i ++) {
-		w[i + 48] -= w[i +  0];
-		w[i + 48] -= w[i + 16];
-	}
-	for (i = 0; i < 16; i ++) {
-		w[i + 8] += w[i + 48];
-	}
+
+	/* 0..1*0..1 into 0..3 */
+	ZSUB2F(w, 8, w, 0, w, 2);
+	ZSUB2F(w, 9, w, 1, w, 3);
+	ZADDT(w, 1, w, 8);
+	ZADDT(w, 2, w, 9);
+
+	/* 2..3*2..3 into 4..7 */
+	ZSUB2F(w, 10, w, 4, w, 6);
+	ZSUB2F(w, 11, w, 5, w, 7);
+	ZADDT(w, 5, w, 10);
+	ZADDT(w, 6, w, 11);
+
+	/* (0..1+2..3)*(0..1+2..3) into 12..15 */
+	ZSUB2F(w, 16, w, 12, w, 14);
+	ZSUB2F(w, 17, w, 13, w, 15);
+	ZADDT(w, 13, w, 16);
+	ZADDT(w, 14, w, 17);
+
+	/* first-level recomposition */
+	ZSUB2F(w, 12, w, 0, w, 4);
+	ZSUB2F(w, 13, w, 1, w, 5);
+	ZSUB2F(w, 14, w, 2, w, 6);
+	ZSUB2F(w, 15, w, 3, w, 7);
+	ZADDT(w, 2, w, 12);
+	ZADDT(w, 3, w, 13);
+	ZADDT(w, 4, w, 14);
+	ZADDT(w, 5, w, 15);
 
 	/*
-	 * At that point, the product of the low chunks (0..15 * 0..15)
-	 * is in words 0..31. We must add the three other partial products,
-	 * which begin at word 72 in w[]. Words 32 to 39 are first set to
-	 * the product of the high chunks (16..19 * 16..19), then the
-	 * low-high cross products are added in.
-	 */
-	memcpy(w + 32, w + 136, 8 * sizeof w[0]);
-	for (i = 0; i < 8; i ++) {
-		w[i + 16] += w[i + 72] + w[i + 104];
-		w[i + 20] += w[i + 80] + w[i + 112];
-		w[i + 24] += w[i + 88] + w[i + 120];
-		w[i + 28] += w[i + 96] + w[i + 128];
-	}
-
-	/*
-	 * We did all the additions and subtractions in a word-wise way,
-	 * which is fine since we have plenty of extra bits for carries.
-	 * We must now do the carry propagation.
+	 * Perform carry propagation to bring all words down to 13 bits.
 	 */
 	cc = norm13(d, w, 40);
 	d[39] += (cc << 13);
+
+#undef ZADD
+#undef ZADDT
+#undef ZSUB2F
+#undef CPR1
+#undef CPR
 }
+
+#else
+
+static void
+mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
+{
+	uint32_t t[39];
+
+	t[ 0] = MUL15(a[ 0], b[ 0]);
+	t[ 1] = MUL15(a[ 0], b[ 1])
+		+ MUL15(a[ 1], b[ 0]);
+	t[ 2] = MUL15(a[ 0], b[ 2])
+		+ MUL15(a[ 1], b[ 1])
+		+ MUL15(a[ 2], b[ 0]);
+	t[ 3] = MUL15(a[ 0], b[ 3])
+		+ MUL15(a[ 1], b[ 2])
+		+ MUL15(a[ 2], b[ 1])
+		+ MUL15(a[ 3], b[ 0]);
+	t[ 4] = MUL15(a[ 0], b[ 4])
+		+ MUL15(a[ 1], b[ 3])
+		+ MUL15(a[ 2], b[ 2])
+		+ MUL15(a[ 3], b[ 1])
+		+ MUL15(a[ 4], b[ 0]);
+	t[ 5] = MUL15(a[ 0], b[ 5])
+		+ MUL15(a[ 1], b[ 4])
+		+ MUL15(a[ 2], b[ 3])
+		+ MUL15(a[ 3], b[ 2])
+		+ MUL15(a[ 4], b[ 1])
+		+ MUL15(a[ 5], b[ 0]);
+	t[ 6] = MUL15(a[ 0], b[ 6])
+		+ MUL15(a[ 1], b[ 5])
+		+ MUL15(a[ 2], b[ 4])
+		+ MUL15(a[ 3], b[ 3])
+		+ MUL15(a[ 4], b[ 2])
+		+ MUL15(a[ 5], b[ 1])
+		+ MUL15(a[ 6], b[ 0]);
+	t[ 7] = MUL15(a[ 0], b[ 7])
+		+ MUL15(a[ 1], b[ 6])
+		+ MUL15(a[ 2], b[ 5])
+		+ MUL15(a[ 3], b[ 4])
+		+ MUL15(a[ 4], b[ 3])
+		+ MUL15(a[ 5], b[ 2])
+		+ MUL15(a[ 6], b[ 1])
+		+ MUL15(a[ 7], b[ 0]);
+	t[ 8] = MUL15(a[ 0], b[ 8])
+		+ MUL15(a[ 1], b[ 7])
+		+ MUL15(a[ 2], b[ 6])
+		+ MUL15(a[ 3], b[ 5])
+		+ MUL15(a[ 4], b[ 4])
+		+ MUL15(a[ 5], b[ 3])
+		+ MUL15(a[ 6], b[ 2])
+		+ MUL15(a[ 7], b[ 1])
+		+ MUL15(a[ 8], b[ 0]);
+	t[ 9] = MUL15(a[ 0], b[ 9])
+		+ MUL15(a[ 1], b[ 8])
+		+ MUL15(a[ 2], b[ 7])
+		+ MUL15(a[ 3], b[ 6])
+		+ MUL15(a[ 4], b[ 5])
+		+ MUL15(a[ 5], b[ 4])
+		+ MUL15(a[ 6], b[ 3])
+		+ MUL15(a[ 7], b[ 2])
+		+ MUL15(a[ 8], b[ 1])
+		+ MUL15(a[ 9], b[ 0]);
+	t[10] = MUL15(a[ 0], b[10])
+		+ MUL15(a[ 1], b[ 9])
+		+ MUL15(a[ 2], b[ 8])
+		+ MUL15(a[ 3], b[ 7])
+		+ MUL15(a[ 4], b[ 6])
+		+ MUL15(a[ 5], b[ 5])
+		+ MUL15(a[ 6], b[ 4])
+		+ MUL15(a[ 7], b[ 3])
+		+ MUL15(a[ 8], b[ 2])
+		+ MUL15(a[ 9], b[ 1])
+		+ MUL15(a[10], b[ 0]);
+	t[11] = MUL15(a[ 0], b[11])
+		+ MUL15(a[ 1], b[10])
+		+ MUL15(a[ 2], b[ 9])
+		+ MUL15(a[ 3], b[ 8])
+		+ MUL15(a[ 4], b[ 7])
+		+ MUL15(a[ 5], b[ 6])
+		+ MUL15(a[ 6], b[ 5])
+		+ MUL15(a[ 7], b[ 4])
+		+ MUL15(a[ 8], b[ 3])
+		+ MUL15(a[ 9], b[ 2])
+		+ MUL15(a[10], b[ 1])
+		+ MUL15(a[11], b[ 0]);
+	t[12] = MUL15(a[ 0], b[12])
+		+ MUL15(a[ 1], b[11])
+		+ MUL15(a[ 2], b[10])
+		+ MUL15(a[ 3], b[ 9])
+		+ MUL15(a[ 4], b[ 8])
+		+ MUL15(a[ 5], b[ 7])
+		+ MUL15(a[ 6], b[ 6])
+		+ MUL15(a[ 7], b[ 5])
+		+ MUL15(a[ 8], b[ 4])
+		+ MUL15(a[ 9], b[ 3])
+		+ MUL15(a[10], b[ 2])
+		+ MUL15(a[11], b[ 1])
+		+ MUL15(a[12], b[ 0]);
+	t[13] = MUL15(a[ 0], b[13])
+		+ MUL15(a[ 1], b[12])
+		+ MUL15(a[ 2], b[11])
+		+ MUL15(a[ 3], b[10])
+		+ MUL15(a[ 4], b[ 9])
+		+ MUL15(a[ 5], b[ 8])
+		+ MUL15(a[ 6], b[ 7])
+		+ MUL15(a[ 7], b[ 6])
+		+ MUL15(a[ 8], b[ 5])
+		+ MUL15(a[ 9], b[ 4])
+		+ MUL15(a[10], b[ 3])
+		+ MUL15(a[11], b[ 2])
+		+ MUL15(a[12], b[ 1])
+		+ MUL15(a[13], b[ 0]);
+	t[14] = MUL15(a[ 0], b[14])
+		+ MUL15(a[ 1], b[13])
+		+ MUL15(a[ 2], b[12])
+		+ MUL15(a[ 3], b[11])
+		+ MUL15(a[ 4], b[10])
+		+ MUL15(a[ 5], b[ 9])
+		+ MUL15(a[ 6], b[ 8])
+		+ MUL15(a[ 7], b[ 7])
+		+ MUL15(a[ 8], b[ 6])
+		+ MUL15(a[ 9], b[ 5])
+		+ MUL15(a[10], b[ 4])
+		+ MUL15(a[11], b[ 3])
+		+ MUL15(a[12], b[ 2])
+		+ MUL15(a[13], b[ 1])
+		+ MUL15(a[14], b[ 0]);
+	t[15] = MUL15(a[ 0], b[15])
+		+ MUL15(a[ 1], b[14])
+		+ MUL15(a[ 2], b[13])
+		+ MUL15(a[ 3], b[12])
+		+ MUL15(a[ 4], b[11])
+		+ MUL15(a[ 5], b[10])
+		+ MUL15(a[ 6], b[ 9])
+		+ MUL15(a[ 7], b[ 8])
+		+ MUL15(a[ 8], b[ 7])
+		+ MUL15(a[ 9], b[ 6])
+		+ MUL15(a[10], b[ 5])
+		+ MUL15(a[11], b[ 4])
+		+ MUL15(a[12], b[ 3])
+		+ MUL15(a[13], b[ 2])
+		+ MUL15(a[14], b[ 1])
+		+ MUL15(a[15], b[ 0]);
+	t[16] = MUL15(a[ 0], b[16])
+		+ MUL15(a[ 1], b[15])
+		+ MUL15(a[ 2], b[14])
+		+ MUL15(a[ 3], b[13])
+		+ MUL15(a[ 4], b[12])
+		+ MUL15(a[ 5], b[11])
+		+ MUL15(a[ 6], b[10])
+		+ MUL15(a[ 7], b[ 9])
+		+ MUL15(a[ 8], b[ 8])
+		+ MUL15(a[ 9], b[ 7])
+		+ MUL15(a[10], b[ 6])
+		+ MUL15(a[11], b[ 5])
+		+ MUL15(a[12], b[ 4])
+		+ MUL15(a[13], b[ 3])
+		+ MUL15(a[14], b[ 2])
+		+ MUL15(a[15], b[ 1])
+		+ MUL15(a[16], b[ 0]);
+	t[17] = MUL15(a[ 0], b[17])
+		+ MUL15(a[ 1], b[16])
+		+ MUL15(a[ 2], b[15])
+		+ MUL15(a[ 3], b[14])
+		+ MUL15(a[ 4], b[13])
+		+ MUL15(a[ 5], b[12])
+		+ MUL15(a[ 6], b[11])
+		+ MUL15(a[ 7], b[10])
+		+ MUL15(a[ 8], b[ 9])
+		+ MUL15(a[ 9], b[ 8])
+		+ MUL15(a[10], b[ 7])
+		+ MUL15(a[11], b[ 6])
+		+ MUL15(a[12], b[ 5])
+		+ MUL15(a[13], b[ 4])
+		+ MUL15(a[14], b[ 3])
+		+ MUL15(a[15], b[ 2])
+		+ MUL15(a[16], b[ 1])
+		+ MUL15(a[17], b[ 0]);
+	t[18] = MUL15(a[ 0], b[18])
+		+ MUL15(a[ 1], b[17])
+		+ MUL15(a[ 2], b[16])
+		+ MUL15(a[ 3], b[15])
+		+ MUL15(a[ 4], b[14])
+		+ MUL15(a[ 5], b[13])
+		+ MUL15(a[ 6], b[12])
+		+ MUL15(a[ 7], b[11])
+		+ MUL15(a[ 8], b[10])
+		+ MUL15(a[ 9], b[ 9])
+		+ MUL15(a[10], b[ 8])
+		+ MUL15(a[11], b[ 7])
+		+ MUL15(a[12], b[ 6])
+		+ MUL15(a[13], b[ 5])
+		+ MUL15(a[14], b[ 4])
+		+ MUL15(a[15], b[ 3])
+		+ MUL15(a[16], b[ 2])
+		+ MUL15(a[17], b[ 1])
+		+ MUL15(a[18], b[ 0]);
+	t[19] = MUL15(a[ 0], b[19])
+		+ MUL15(a[ 1], b[18])
+		+ MUL15(a[ 2], b[17])
+		+ MUL15(a[ 3], b[16])
+		+ MUL15(a[ 4], b[15])
+		+ MUL15(a[ 5], b[14])
+		+ MUL15(a[ 6], b[13])
+		+ MUL15(a[ 7], b[12])
+		+ MUL15(a[ 8], b[11])
+		+ MUL15(a[ 9], b[10])
+		+ MUL15(a[10], b[ 9])
+		+ MUL15(a[11], b[ 8])
+		+ MUL15(a[12], b[ 7])
+		+ MUL15(a[13], b[ 6])
+		+ MUL15(a[14], b[ 5])
+		+ MUL15(a[15], b[ 4])
+		+ MUL15(a[16], b[ 3])
+		+ MUL15(a[17], b[ 2])
+		+ MUL15(a[18], b[ 1])
+		+ MUL15(a[19], b[ 0]);
+	t[20] = MUL15(a[ 1], b[19])
+		+ MUL15(a[ 2], b[18])
+		+ MUL15(a[ 3], b[17])
+		+ MUL15(a[ 4], b[16])
+		+ MUL15(a[ 5], b[15])
+		+ MUL15(a[ 6], b[14])
+		+ MUL15(a[ 7], b[13])
+		+ MUL15(a[ 8], b[12])
+		+ MUL15(a[ 9], b[11])
+		+ MUL15(a[10], b[10])
+		+ MUL15(a[11], b[ 9])
+		+ MUL15(a[12], b[ 8])
+		+ MUL15(a[13], b[ 7])
+		+ MUL15(a[14], b[ 6])
+		+ MUL15(a[15], b[ 5])
+		+ MUL15(a[16], b[ 4])
+		+ MUL15(a[17], b[ 3])
+		+ MUL15(a[18], b[ 2])
+		+ MUL15(a[19], b[ 1]);
+	t[21] = MUL15(a[ 2], b[19])
+		+ MUL15(a[ 3], b[18])
+		+ MUL15(a[ 4], b[17])
+		+ MUL15(a[ 5], b[16])
+		+ MUL15(a[ 6], b[15])
+		+ MUL15(a[ 7], b[14])
+		+ MUL15(a[ 8], b[13])
+		+ MUL15(a[ 9], b[12])
+		+ MUL15(a[10], b[11])
+		+ MUL15(a[11], b[10])
+		+ MUL15(a[12], b[ 9])
+		+ MUL15(a[13], b[ 8])
+		+ MUL15(a[14], b[ 7])
+		+ MUL15(a[15], b[ 6])
+		+ MUL15(a[16], b[ 5])
+		+ MUL15(a[17], b[ 4])
+		+ MUL15(a[18], b[ 3])
+		+ MUL15(a[19], b[ 2]);
+	t[22] = MUL15(a[ 3], b[19])
+		+ MUL15(a[ 4], b[18])
+		+ MUL15(a[ 5], b[17])
+		+ MUL15(a[ 6], b[16])
+		+ MUL15(a[ 7], b[15])
+		+ MUL15(a[ 8], b[14])
+		+ MUL15(a[ 9], b[13])
+		+ MUL15(a[10], b[12])
+		+ MUL15(a[11], b[11])
+		+ MUL15(a[12], b[10])
+		+ MUL15(a[13], b[ 9])
+		+ MUL15(a[14], b[ 8])
+		+ MUL15(a[15], b[ 7])
+		+ MUL15(a[16], b[ 6])
+		+ MUL15(a[17], b[ 5])
+		+ MUL15(a[18], b[ 4])
+		+ MUL15(a[19], b[ 3]);
+	t[23] = MUL15(a[ 4], b[19])
+		+ MUL15(a[ 5], b[18])
+		+ MUL15(a[ 6], b[17])
+		+ MUL15(a[ 7], b[16])
+		+ MUL15(a[ 8], b[15])
+		+ MUL15(a[ 9], b[14])
+		+ MUL15(a[10], b[13])
+		+ MUL15(a[11], b[12])
+		+ MUL15(a[12], b[11])
+		+ MUL15(a[13], b[10])
+		+ MUL15(a[14], b[ 9])
+		+ MUL15(a[15], b[ 8])
+		+ MUL15(a[16], b[ 7])
+		+ MUL15(a[17], b[ 6])
+		+ MUL15(a[18], b[ 5])
+		+ MUL15(a[19], b[ 4]);
+	t[24] = MUL15(a[ 5], b[19])
+		+ MUL15(a[ 6], b[18])
+		+ MUL15(a[ 7], b[17])
+		+ MUL15(a[ 8], b[16])
+		+ MUL15(a[ 9], b[15])
+		+ MUL15(a[10], b[14])
+		+ MUL15(a[11], b[13])
+		+ MUL15(a[12], b[12])
+		+ MUL15(a[13], b[11])
+		+ MUL15(a[14], b[10])
+		+ MUL15(a[15], b[ 9])
+		+ MUL15(a[16], b[ 8])
+		+ MUL15(a[17], b[ 7])
+		+ MUL15(a[18], b[ 6])
+		+ MUL15(a[19], b[ 5]);
+	t[25] = MUL15(a[ 6], b[19])
+		+ MUL15(a[ 7], b[18])
+		+ MUL15(a[ 8], b[17])
+		+ MUL15(a[ 9], b[16])
+		+ MUL15(a[10], b[15])
+		+ MUL15(a[11], b[14])
+		+ MUL15(a[12], b[13])
+		+ MUL15(a[13], b[12])
+		+ MUL15(a[14], b[11])
+		+ MUL15(a[15], b[10])
+		+ MUL15(a[16], b[ 9])
+		+ MUL15(a[17], b[ 8])
+		+ MUL15(a[18], b[ 7])
+		+ MUL15(a[19], b[ 6]);
+	t[26] = MUL15(a[ 7], b[19])
+		+ MUL15(a[ 8], b[18])
+		+ MUL15(a[ 9], b[17])
+		+ MUL15(a[10], b[16])
+		+ MUL15(a[11], b[15])
+		+ MUL15(a[12], b[14])
+		+ MUL15(a[13], b[13])
+		+ MUL15(a[14], b[12])
+		+ MUL15(a[15], b[11])
+		+ MUL15(a[16], b[10])
+		+ MUL15(a[17], b[ 9])
+		+ MUL15(a[18], b[ 8])
+		+ MUL15(a[19], b[ 7]);
+	t[27] = MUL15(a[ 8], b[19])
+		+ MUL15(a[ 9], b[18])
+		+ MUL15(a[10], b[17])
+		+ MUL15(a[11], b[16])
+		+ MUL15(a[12], b[15])
+		+ MUL15(a[13], b[14])
+		+ MUL15(a[14], b[13])
+		+ MUL15(a[15], b[12])
+		+ MUL15(a[16], b[11])
+		+ MUL15(a[17], b[10])
+		+ MUL15(a[18], b[ 9])
+		+ MUL15(a[19], b[ 8]);
+	t[28] = MUL15(a[ 9], b[19])
+		+ MUL15(a[10], b[18])
+		+ MUL15(a[11], b[17])
+		+ MUL15(a[12], b[16])
+		+ MUL15(a[13], b[15])
+		+ MUL15(a[14], b[14])
+		+ MUL15(a[15], b[13])
+		+ MUL15(a[16], b[12])
+		+ MUL15(a[17], b[11])
+		+ MUL15(a[18], b[10])
+		+ MUL15(a[19], b[ 9]);
+	t[29] = MUL15(a[10], b[19])
+		+ MUL15(a[11], b[18])
+		+ MUL15(a[12], b[17])
+		+ MUL15(a[13], b[16])
+		+ MUL15(a[14], b[15])
+		+ MUL15(a[15], b[14])
+		+ MUL15(a[16], b[13])
+		+ MUL15(a[17], b[12])
+		+ MUL15(a[18], b[11])
+		+ MUL15(a[19], b[10]);
+	t[30] = MUL15(a[11], b[19])
+		+ MUL15(a[12], b[18])
+		+ MUL15(a[13], b[17])
+		+ MUL15(a[14], b[16])
+		+ MUL15(a[15], b[15])
+		+ MUL15(a[16], b[14])
+		+ MUL15(a[17], b[13])
+		+ MUL15(a[18], b[12])
+		+ MUL15(a[19], b[11]);
+	t[31] = MUL15(a[12], b[19])
+		+ MUL15(a[13], b[18])
+		+ MUL15(a[14], b[17])
+		+ MUL15(a[15], b[16])
+		+ MUL15(a[16], b[15])
+		+ MUL15(a[17], b[14])
+		+ MUL15(a[18], b[13])
+		+ MUL15(a[19], b[12]);
+	t[32] = MUL15(a[13], b[19])
+		+ MUL15(a[14], b[18])
+		+ MUL15(a[15], b[17])
+		+ MUL15(a[16], b[16])
+		+ MUL15(a[17], b[15])
+		+ MUL15(a[18], b[14])
+		+ MUL15(a[19], b[13]);
+	t[33] = MUL15(a[14], b[19])
+		+ MUL15(a[15], b[18])
+		+ MUL15(a[16], b[17])
+		+ MUL15(a[17], b[16])
+		+ MUL15(a[18], b[15])
+		+ MUL15(a[19], b[14]);
+	t[34] = MUL15(a[15], b[19])
+		+ MUL15(a[16], b[18])
+		+ MUL15(a[17], b[17])
+		+ MUL15(a[18], b[16])
+		+ MUL15(a[19], b[15]);
+	t[35] = MUL15(a[16], b[19])
+		+ MUL15(a[17], b[18])
+		+ MUL15(a[18], b[17])
+		+ MUL15(a[19], b[16]);
+	t[36] = MUL15(a[17], b[19])
+		+ MUL15(a[18], b[18])
+		+ MUL15(a[19], b[17]);
+	t[37] = MUL15(a[18], b[19])
+		+ MUL15(a[19], b[18]);
+	t[38] = MUL15(a[19], b[19]);
+	d[39] = norm13(d, t, 39);
+}
+
+#endif
 
 /*
  * Modulus for field F256 (field for point coordinates in curve P-256).

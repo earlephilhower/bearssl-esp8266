@@ -51,6 +51,15 @@
  */
 
 /*
+ * When BR_SLOW_MUL15 is enabled, short multplications (on 15-bit words)
+ * are assumed to be substantially slow with regards to other integer
+ * operations, thus making it worth to make more integer operations if
+ * it allows using less multiplications.
+ *
+#define BR_SLOW_MUL15   1
+ */
+
+/*
  * When BR_CT_MUL31 is enabled, multiplications of 31-bit values (used
  * in the "i31" big integer implementation) use an alternate implementation
  * which is slower and larger than the normal multiplication, but should
