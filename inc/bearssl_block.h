@@ -1248,7 +1248,7 @@ typedef union {
  *
  *   - IV is 96 bits (`iv` points to exactly 12 bytes).
  *
- *   - Block counter is oveer 32 bits and starts at value `cc`; the
+ *   - Block counter is over 32 bits and starts at value `cc`; the
  *     resulting value is returned.
  *
  * Data (pointed to by `data`, of length `len`) is encrypted/decrypted
