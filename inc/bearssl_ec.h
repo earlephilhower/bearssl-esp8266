@@ -69,6 +69,11 @@
  *
  *      Multiply a curve point with an integer.
  *
+ *   - `mulgen()`
+ *
+ *      Multiply the curve generator with an integer. This may be faster
+ *      than the generic `mul()`.
+ *
  *   - `muladd()`
  *
  *      Multiply two curve points by two integers, and return the sum of
@@ -299,10 +304,9 @@ typedef struct {
 	 *     not the case, then this function returns an error (0).
 	 *
 	 *   - The multiplier integer MUST be non-zero and less than the
-	 *     curve subgroup order. If the integer is zero, then an
-	 *     error is reported, but if the integer is not lower than
-	 *     the subgroup order, then the result is indeterminate and an
-	 *     error code is not guaranteed.
+	 *     curve subgroup order. If this property does not hold, then
+	 *     the result is indeterminate and an error code is not
+	 *     guaranteed.
 	 *
 	 * Returned value is 1 on success, 0 on error. On error, the
 	 * contents of `G` are indeterminate.
@@ -315,6 +319,22 @@ typedef struct {
 	 * \return  1 on success, 0 on error.
 	 */
 	uint32_t (*mul)(unsigned char *G, size_t Glen,
+		const unsigned char *x, size_t xlen, int curve);
+
+	/**
+	 * \brief Multiply the generator by an integer.
+	 *
+	 * The multiplier MUST be non-zero and less than the curve
+	 * subgroup order. Results are indeterminate if this property
+	 * does not hold.
+	 *
+	 * \param R       output buffer for the point.
+	 * \param x       multiplier (unsigned big-endian).
+	 * \param xlen    multiplier length (in bytes).
+	 * \param curve   curve identifier.
+	 * \return  encoded result point length (in bytes).
+	 */
+	size_t (*mulgen)(unsigned char *R,
 		const unsigned char *x, size_t xlen, int curve);
 
 	/**
@@ -333,6 +353,11 @@ typedef struct {
 	 *     infinity" either). If this is not the case, then this
 	 *     function returns an error (0).
 	 *
+	 *   - If the `B` pointer is `NULL`, then the conventional
+	 *     subgroup generator is used. With some implementations,
+	 *     this may be faster than providing a pointer to the
+	 *     generator.
+	 *
 	 *   - The multiplier integers (`x` and `y`) MUST be non-zero
 	 *     and less than the curve subgroup order. If either integer
 	 *     is zero, then an error is reported, but if one of them is
@@ -346,7 +371,7 @@ typedef struct {
 	 * contents of `A` are indeterminate.
 	 *
 	 * \param A       first point to multiply.
-	 * \param B       second point to multiply.
+	 * \param B       second point to multiply (`NULL` for the generator).
 	 * \param len     common length of the encoded points (in bytes).
 	 * \param x       multiplier for `A` (unsigned big-endian).
 	 * \param xlen    length of multiplier for `A` (in bytes).

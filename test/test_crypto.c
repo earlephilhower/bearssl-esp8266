@@ -4791,6 +4791,20 @@ test_EC_inner(const char *sk, const char *sU,
 		}
 
 		/*
+		 * Also recomputed D = z*G with mulgen(). This must
+		 * again match.
+		 */
+		memset(eD, 0, ulen);
+		if (impl->mulgen(eD, bz, nlen, cd->curve) != ulen) {
+			fprintf(stderr, "mulgen() failed: wrong length\n");
+			exit(EXIT_FAILURE);
+		}
+		if (memcmp(eC, eD, nlen) != 0) {
+			fprintf(stderr, "mulgen() / muladd() mismatch\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/*
 		 * Check with x*A = y*B. We do so by setting b = x and y = a.
 		 */
 		memcpy(b, x, sizeof x);

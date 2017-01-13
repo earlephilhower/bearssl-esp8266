@@ -132,18 +132,8 @@ br_ecdsa_i31_sign_raw(const br_ec_impl *impl,
 	 * prime order, that reduction is only a matter of computing
 	 * a subtraction.
 	 */
-	ulen = cd->generator_len;
-	memcpy(eU, cd->generator, ulen);
 	br_i31_encode(tt, nlen, k);
-	if (!impl->mul(eU, ulen, tt, nlen, sk->curve)) {
-		/*
-		 * Point multiplication may fail here only if the
-		 * EC implementation does not support the curve, or the
-		 * private key is incorrect (x is a multiple of the curve
-		 * order).
-		 */
-		return 0;
-	}
+	ulen = impl->mulgen(eU, tt, nlen, sk->curve);
 	br_i31_zero(r, n[0]);
 	br_i31_decode(r, &eU[1], ulen >> 1);
 	r[0] = n[0];

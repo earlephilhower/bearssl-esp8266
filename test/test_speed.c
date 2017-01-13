@@ -592,7 +592,7 @@ test_speed_rsa_i32(void)
 }
 
 static void
-test_speed_ec_inner(const char *name,
+test_speed_ec_inner_1(const char *name,
 	const br_ec_impl *impl, const br_ec_curve_def *cd)
 {
 	unsigned char bx[80], U[160];
@@ -631,6 +631,57 @@ test_speed_ec_inner(const char *name,
 		}
 		num <<= 1;
 	}
+}
+
+static void
+test_speed_ec_inner_2(const char *name,
+	const br_ec_impl *impl, const br_ec_curve_def *cd)
+{
+	unsigned char bx[80], U[160];
+	uint32_t x[22], n[22];
+	size_t nlen;
+	int i;
+	long num;
+
+	nlen = cd->order_len;
+	br_i31_decode(n, cd->order, nlen);
+	memset(bx, 'T', sizeof bx);
+	br_i31_decode_reduce(x, bx, sizeof bx, n);
+	br_i31_encode(bx, nlen, x);
+	for (i = 0; i < 10; i ++) {
+		impl->mulgen(U, bx, nlen, cd->curve);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			impl->mulgen(U, bx, nlen, cd->curve);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("%-30s %8.2f mul/s\n", name,
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+}
+
+static void
+test_speed_ec_inner(const char *name,
+	const br_ec_impl *impl, const br_ec_curve_def *cd)
+{
+	char tmp[50];
+
+	test_speed_ec_inner_1(name, impl, cd);
+	sprintf(tmp, "%s (FP)", name);
+	test_speed_ec_inner_2(tmp, impl, cd);
 }
 
 static void
@@ -739,6 +790,15 @@ test_speed_ecdsa_inner(const char *name,
 		}
 		num <<= 1;
 	}
+}
+
+static void
+test_speed_ecdsa_p256_i15(void)
+{
+	test_speed_ecdsa_inner("ECDSA i15 P-256 (spec)",
+		&br_ec_p256_i15, &br_secp256r1,
+		&br_ecdsa_i15_sign_asn1,
+		&br_ecdsa_i15_vrfy_asn1);
 }
 
 static void
@@ -1188,6 +1248,7 @@ static const struct {
 	STU(ec_p256_i15),
 	STU(ec_prime_i15),
 	STU(ec_prime_i31),
+	STU(ecdsa_p256_i15),
 	STU(ecdsa_i15),
 	STU(ecdsa_i31),
 

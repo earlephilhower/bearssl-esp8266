@@ -286,10 +286,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	 */
 	br_ssl_engine_compute_master(&ctx->eng, prf_id, point + 1, glen >> 1);
 
-	memcpy(point, generator, glen);
-	if (!ctx->eng.iec->mul(point, glen, key, olen, curve)) {
-		return -BR_ERR_INVALID_ALGORITHM;
-	}
+	ctx->eng.iec->mulgen(point, key, olen, curve);
 	memcpy(ctx->eng.pad, point, glen);
 	return (int)glen;
 }

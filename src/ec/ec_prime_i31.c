@@ -732,6 +732,19 @@ api_mul(unsigned char *G, size_t Glen,
 	return r;
 }
 
+static size_t
+api_mulgen(unsigned char *R,
+	const unsigned char *x, size_t xlen, int curve)
+{
+	const unsigned char *G;
+	size_t Glen;
+
+	G = api_generator(curve, &Glen);
+	memcpy(R, G, Glen);
+	api_mul(R, Glen, x, xlen, curve);
+	return Glen;
+}
+
 static uint32_t
 api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	const unsigned char *x, size_t xlen,
@@ -749,6 +762,11 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 
 	cc = id_to_curve(curve);
 	r = point_decode(&P, A, len, cc);
+	if (B == NULL) {
+		size_t Glen;
+
+		B = api_generator(curve, &Glen);
+	}
 	r &= point_decode(&Q, B, len, cc);
 	point_mul(&P, x, xlen, cc);
 	point_mul(&Q, y, ylen, cc);
@@ -787,5 +805,6 @@ const br_ec_impl br_ec_prime_i31 = {
 	&api_generator,
 	&api_order,
 	&api_mul,
+	&api_mulgen,
 	&api_muladd
 };

@@ -117,7 +117,9 @@ norm13(uint32_t *d, const uint32_t *w, size_t len)
  * on 13 bits; source operands use 20 words, destination operand
  * receives 40 words. All overlaps allowed.
  *
- * 
+ * square20() computes the square of a 260-bit integer. Each word must
+ * fit on 13 bits; source operand uses 20 words, destination operand
+ * receives 40 words. All overlaps allowed.
  */
 
 #if BR_SLOW_MUL15
@@ -346,6 +348,12 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 #undef ZSUB2F
 #undef CPR1
 #undef CPR
+}
+
+static inline void
+square20(uint32_t *d, const uint32_t *a)
+{
+	mul20(d, a, a);
 }
 
 #else
@@ -758,6 +766,224 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	d[39] = norm13(d, t, 39);
 }
 
+static void
+square20(uint32_t *d, const uint32_t *a)
+{
+	uint32_t t[39];
+
+	t[ 0] = MUL15(a[ 0], a[ 0]);
+	t[ 1] = ((MUL15(a[ 0], a[ 1])) << 1);
+	t[ 2] = MUL15(a[ 1], a[ 1])
+		+ ((MUL15(a[ 0], a[ 2])) << 1);
+	t[ 3] = ((MUL15(a[ 0], a[ 3])
+		+ MUL15(a[ 1], a[ 2])) << 1);
+	t[ 4] = MUL15(a[ 2], a[ 2])
+		+ ((MUL15(a[ 0], a[ 4])
+		+ MUL15(a[ 1], a[ 3])) << 1);
+	t[ 5] = ((MUL15(a[ 0], a[ 5])
+		+ MUL15(a[ 1], a[ 4])
+		+ MUL15(a[ 2], a[ 3])) << 1);
+	t[ 6] = MUL15(a[ 3], a[ 3])
+		+ ((MUL15(a[ 0], a[ 6])
+		+ MUL15(a[ 1], a[ 5])
+		+ MUL15(a[ 2], a[ 4])) << 1);
+	t[ 7] = ((MUL15(a[ 0], a[ 7])
+		+ MUL15(a[ 1], a[ 6])
+		+ MUL15(a[ 2], a[ 5])
+		+ MUL15(a[ 3], a[ 4])) << 1);
+	t[ 8] = MUL15(a[ 4], a[ 4])
+		+ ((MUL15(a[ 0], a[ 8])
+		+ MUL15(a[ 1], a[ 7])
+		+ MUL15(a[ 2], a[ 6])
+		+ MUL15(a[ 3], a[ 5])) << 1);
+	t[ 9] = ((MUL15(a[ 0], a[ 9])
+		+ MUL15(a[ 1], a[ 8])
+		+ MUL15(a[ 2], a[ 7])
+		+ MUL15(a[ 3], a[ 6])
+		+ MUL15(a[ 4], a[ 5])) << 1);
+	t[10] = MUL15(a[ 5], a[ 5])
+		+ ((MUL15(a[ 0], a[10])
+		+ MUL15(a[ 1], a[ 9])
+		+ MUL15(a[ 2], a[ 8])
+		+ MUL15(a[ 3], a[ 7])
+		+ MUL15(a[ 4], a[ 6])) << 1);
+	t[11] = ((MUL15(a[ 0], a[11])
+		+ MUL15(a[ 1], a[10])
+		+ MUL15(a[ 2], a[ 9])
+		+ MUL15(a[ 3], a[ 8])
+		+ MUL15(a[ 4], a[ 7])
+		+ MUL15(a[ 5], a[ 6])) << 1);
+	t[12] = MUL15(a[ 6], a[ 6])
+		+ ((MUL15(a[ 0], a[12])
+		+ MUL15(a[ 1], a[11])
+		+ MUL15(a[ 2], a[10])
+		+ MUL15(a[ 3], a[ 9])
+		+ MUL15(a[ 4], a[ 8])
+		+ MUL15(a[ 5], a[ 7])) << 1);
+	t[13] = ((MUL15(a[ 0], a[13])
+		+ MUL15(a[ 1], a[12])
+		+ MUL15(a[ 2], a[11])
+		+ MUL15(a[ 3], a[10])
+		+ MUL15(a[ 4], a[ 9])
+		+ MUL15(a[ 5], a[ 8])
+		+ MUL15(a[ 6], a[ 7])) << 1);
+	t[14] = MUL15(a[ 7], a[ 7])
+		+ ((MUL15(a[ 0], a[14])
+		+ MUL15(a[ 1], a[13])
+		+ MUL15(a[ 2], a[12])
+		+ MUL15(a[ 3], a[11])
+		+ MUL15(a[ 4], a[10])
+		+ MUL15(a[ 5], a[ 9])
+		+ MUL15(a[ 6], a[ 8])) << 1);
+	t[15] = ((MUL15(a[ 0], a[15])
+		+ MUL15(a[ 1], a[14])
+		+ MUL15(a[ 2], a[13])
+		+ MUL15(a[ 3], a[12])
+		+ MUL15(a[ 4], a[11])
+		+ MUL15(a[ 5], a[10])
+		+ MUL15(a[ 6], a[ 9])
+		+ MUL15(a[ 7], a[ 8])) << 1);
+	t[16] = MUL15(a[ 8], a[ 8])
+		+ ((MUL15(a[ 0], a[16])
+		+ MUL15(a[ 1], a[15])
+		+ MUL15(a[ 2], a[14])
+		+ MUL15(a[ 3], a[13])
+		+ MUL15(a[ 4], a[12])
+		+ MUL15(a[ 5], a[11])
+		+ MUL15(a[ 6], a[10])
+		+ MUL15(a[ 7], a[ 9])) << 1);
+	t[17] = ((MUL15(a[ 0], a[17])
+		+ MUL15(a[ 1], a[16])
+		+ MUL15(a[ 2], a[15])
+		+ MUL15(a[ 3], a[14])
+		+ MUL15(a[ 4], a[13])
+		+ MUL15(a[ 5], a[12])
+		+ MUL15(a[ 6], a[11])
+		+ MUL15(a[ 7], a[10])
+		+ MUL15(a[ 8], a[ 9])) << 1);
+	t[18] = MUL15(a[ 9], a[ 9])
+		+ ((MUL15(a[ 0], a[18])
+		+ MUL15(a[ 1], a[17])
+		+ MUL15(a[ 2], a[16])
+		+ MUL15(a[ 3], a[15])
+		+ MUL15(a[ 4], a[14])
+		+ MUL15(a[ 5], a[13])
+		+ MUL15(a[ 6], a[12])
+		+ MUL15(a[ 7], a[11])
+		+ MUL15(a[ 8], a[10])) << 1);
+	t[19] = ((MUL15(a[ 0], a[19])
+		+ MUL15(a[ 1], a[18])
+		+ MUL15(a[ 2], a[17])
+		+ MUL15(a[ 3], a[16])
+		+ MUL15(a[ 4], a[15])
+		+ MUL15(a[ 5], a[14])
+		+ MUL15(a[ 6], a[13])
+		+ MUL15(a[ 7], a[12])
+		+ MUL15(a[ 8], a[11])
+		+ MUL15(a[ 9], a[10])) << 1);
+	t[20] = MUL15(a[10], a[10])
+		+ ((MUL15(a[ 1], a[19])
+		+ MUL15(a[ 2], a[18])
+		+ MUL15(a[ 3], a[17])
+		+ MUL15(a[ 4], a[16])
+		+ MUL15(a[ 5], a[15])
+		+ MUL15(a[ 6], a[14])
+		+ MUL15(a[ 7], a[13])
+		+ MUL15(a[ 8], a[12])
+		+ MUL15(a[ 9], a[11])) << 1);
+	t[21] = ((MUL15(a[ 2], a[19])
+		+ MUL15(a[ 3], a[18])
+		+ MUL15(a[ 4], a[17])
+		+ MUL15(a[ 5], a[16])
+		+ MUL15(a[ 6], a[15])
+		+ MUL15(a[ 7], a[14])
+		+ MUL15(a[ 8], a[13])
+		+ MUL15(a[ 9], a[12])
+		+ MUL15(a[10], a[11])) << 1);
+	t[22] = MUL15(a[11], a[11])
+		+ ((MUL15(a[ 3], a[19])
+		+ MUL15(a[ 4], a[18])
+		+ MUL15(a[ 5], a[17])
+		+ MUL15(a[ 6], a[16])
+		+ MUL15(a[ 7], a[15])
+		+ MUL15(a[ 8], a[14])
+		+ MUL15(a[ 9], a[13])
+		+ MUL15(a[10], a[12])) << 1);
+	t[23] = ((MUL15(a[ 4], a[19])
+		+ MUL15(a[ 5], a[18])
+		+ MUL15(a[ 6], a[17])
+		+ MUL15(a[ 7], a[16])
+		+ MUL15(a[ 8], a[15])
+		+ MUL15(a[ 9], a[14])
+		+ MUL15(a[10], a[13])
+		+ MUL15(a[11], a[12])) << 1);
+	t[24] = MUL15(a[12], a[12])
+		+ ((MUL15(a[ 5], a[19])
+		+ MUL15(a[ 6], a[18])
+		+ MUL15(a[ 7], a[17])
+		+ MUL15(a[ 8], a[16])
+		+ MUL15(a[ 9], a[15])
+		+ MUL15(a[10], a[14])
+		+ MUL15(a[11], a[13])) << 1);
+	t[25] = ((MUL15(a[ 6], a[19])
+		+ MUL15(a[ 7], a[18])
+		+ MUL15(a[ 8], a[17])
+		+ MUL15(a[ 9], a[16])
+		+ MUL15(a[10], a[15])
+		+ MUL15(a[11], a[14])
+		+ MUL15(a[12], a[13])) << 1);
+	t[26] = MUL15(a[13], a[13])
+		+ ((MUL15(a[ 7], a[19])
+		+ MUL15(a[ 8], a[18])
+		+ MUL15(a[ 9], a[17])
+		+ MUL15(a[10], a[16])
+		+ MUL15(a[11], a[15])
+		+ MUL15(a[12], a[14])) << 1);
+	t[27] = ((MUL15(a[ 8], a[19])
+		+ MUL15(a[ 9], a[18])
+		+ MUL15(a[10], a[17])
+		+ MUL15(a[11], a[16])
+		+ MUL15(a[12], a[15])
+		+ MUL15(a[13], a[14])) << 1);
+	t[28] = MUL15(a[14], a[14])
+		+ ((MUL15(a[ 9], a[19])
+		+ MUL15(a[10], a[18])
+		+ MUL15(a[11], a[17])
+		+ MUL15(a[12], a[16])
+		+ MUL15(a[13], a[15])) << 1);
+	t[29] = ((MUL15(a[10], a[19])
+		+ MUL15(a[11], a[18])
+		+ MUL15(a[12], a[17])
+		+ MUL15(a[13], a[16])
+		+ MUL15(a[14], a[15])) << 1);
+	t[30] = MUL15(a[15], a[15])
+		+ ((MUL15(a[11], a[19])
+		+ MUL15(a[12], a[18])
+		+ MUL15(a[13], a[17])
+		+ MUL15(a[14], a[16])) << 1);
+	t[31] = ((MUL15(a[12], a[19])
+		+ MUL15(a[13], a[18])
+		+ MUL15(a[14], a[17])
+		+ MUL15(a[15], a[16])) << 1);
+	t[32] = MUL15(a[16], a[16])
+		+ ((MUL15(a[13], a[19])
+		+ MUL15(a[14], a[18])
+		+ MUL15(a[15], a[17])) << 1);
+	t[33] = ((MUL15(a[14], a[19])
+		+ MUL15(a[15], a[18])
+		+ MUL15(a[16], a[17])) << 1);
+	t[34] = MUL15(a[17], a[17])
+		+ ((MUL15(a[15], a[19])
+		+ MUL15(a[16], a[18])) << 1);
+	t[35] = ((MUL15(a[16], a[19])
+		+ MUL15(a[17], a[18])) << 1);
+	t[36] = MUL15(a[18], a[18])
+		+ ((MUL15(a[17], a[19])) << 1);
+	t[37] = ((MUL15(a[18], a[19])) << 1);
+	t[38] = MUL15(a[19], a[19]);
+	d[39] = norm13(d, t, 39);
+}
+
 #endif
 
 /*
@@ -829,7 +1055,7 @@ reduce_final_f256(uint32_t *d)
  * Perform a multiplication of two integers modulo
  * 2^256-2^224+2^192+2^96-1 (for NIST curve P-256). Operands are arrays
  * of 20 words, each containing 13 bits of data, in little-endian order.
- * On input, upper word may be up to 15 bits (hence value up to 2^262-1);
+ * On input, upper word may be up to 13 bits (hence value up to 2^260-1);
  * on output, value fits on 257 bits and is lower than twice the modulus.
  */
 static void
@@ -843,6 +1069,77 @@ mul_f256(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	 * each.
 	 */
 	mul20(t, a, b);
+
+	/*
+	 * Modular reduction: each high word in added/subtracted where
+	 * necessary.
+	 *
+	 * The modulus is:
+	 *    p = 2^256 - 2^224 + 2^192 + 2^96 - 1
+	 * Therefore:
+	 *    2^256 = 2^224 - 2^192 - 2^96 + 1 mod p
+	 *
+	 * For a word x at bit offset n (n >= 256), we have:
+	 *    x*2^n = x*2^(n-32) - x*2^(n-64)
+	 *            - x*2^(n - 160) + x*2^(n-256) mod p
+	 *
+	 * Thus, we can nullify the high word if we reinject it at some
+	 * proper emplacements.
+	 */
+	for (i = 39; i >= 20; i --) {
+		uint32_t x;
+
+		x = t[i];
+		t[i - 2] += ARSH(x, 6);
+		t[i - 3] += (x << 7) & 0x1FFF;
+		t[i - 4] -= ARSH(x, 12);
+		t[i - 5] -= (x << 1) & 0x1FFF;
+		t[i - 12] -= ARSH(x, 4);
+		t[i - 13] -= (x << 9) & 0x1FFF;
+		t[i - 19] += ARSH(x, 9);
+		t[i - 20] += (x << 4) & 0x1FFF;
+	}
+
+	/*
+	 * Propagate carries. Since the operation above really is a
+	 * truncature, followed by the addition of nonnegative values,
+	 * the result will be positive. Moreover, the carry cannot
+	 * exceed 5 bits (we performed 20 additions with values smaller
+	 * than 256 bits).
+	 */
+	cc = norm13(t, t, 20);
+
+	/*
+	 * Perform modular reduction again for the bits beyond 256 (the carry
+	 * and the bits 256..259). This time, we can simply inject full
+	 * word values.
+	 */
+	cc = (cc << 4) | (t[19] >> 9);
+	t[19] &= 0x01FF;
+	t[17] += cc << 3;
+	t[14] -= cc << 10;
+	t[7] -= cc << 5;
+	t[0] += cc;
+	norm13(d, t, 20);
+}
+
+/*
+ * Square an integer modulo 2^256-2^224+2^192+2^96-1 (for NIST curve
+ * P-256). Operand is an array of 20 words, each containing 13 bits of
+ * data, in little-endian order. On input, upper word may be up to 13
+ * bits (hence value up to 2^260-1); on output, value fits on 257 bits
+ * and is lower than twice the modulus.
+ */
+static void
+square_f256(uint32_t *d, const uint32_t *a)
+{
+	uint32_t t[40], cc;
+	int i;
+
+	/*
+	 * Compute raw square. All result words fit in 13 bits each.
+	 */
+	square20(t, a);
 
 	/*
 	 * Modular reduction: each high word in added/subtracted where
@@ -954,7 +1251,7 @@ p256_to_affine(p256_jacobian *P)
 	 */
 	memcpy(t1, P->z, sizeof P->z);
 	for (i = 0; i < 30; i ++) {
-		mul_f256(t1, t1, t1);
+		square_f256(t1, t1);
 		mul_f256(t1, t1, P->z);
 	}
 
@@ -965,7 +1262,7 @@ p256_to_affine(p256_jacobian *P)
 	 */
 	memcpy(t2, P->z, sizeof P->z);
 	for (i = 1; i < 256; i ++) {
-		mul_f256(t2, t2, t2);
+		square_f256(t2, t2);
 		switch (i) {
 		case 31:
 		case 190:
@@ -1027,7 +1324,7 @@ p256_double(p256_jacobian *Q)
 	/*
 	 * Compute z^2 in t1.
 	 */
-	mul_f256(t1, Q->z, Q->z);
+	square_f256(t1, Q->z);
 
 	/*
 	 * Compute x-z^2 in t2 and x+z^2 in t1.
@@ -1051,7 +1348,7 @@ p256_double(p256_jacobian *Q)
 	/*
 	 * Compute 4*x*y^2 (in t2) and 2*y^2 (in t3).
 	 */
-	mul_f256(t3, Q->y, Q->y);
+	square_f256(t3, Q->y);
 	for (i = 0; i < 20; i ++) {
 		t3[i] <<= 1;
 	}
@@ -1066,7 +1363,7 @@ p256_double(p256_jacobian *Q)
 	/*
 	 * Compute x' = m^2 - 2*s.
 	 */
-	mul_f256(Q->x, t1, t1);
+	square_f256(Q->x, t1);
 	for (i = 0; i < 20; i ++) {
 		Q->x[i] += (F256[i] << 2) - (t2[i] << 1);
 	}
@@ -1092,7 +1389,7 @@ p256_double(p256_jacobian *Q)
 	}
 	norm13(t2, t2, 20);
 	mul_f256(Q->y, t1, t2);
-	mul_f256(t4, t3, t3);
+	square_f256(t4, t3);
 	for (i = 0; i < 20; i ++) {
 		Q->y[i] += (F256[i] << 2) - (t4[i] << 1);
 	}
@@ -1154,7 +1451,7 @@ p256_add(p256_jacobian *P1, const p256_jacobian *P2)
 	/*
 	 * Compute u1 = x1*z2^2 (in t1) and s1 = y1*z2^3 (in t3).
 	 */
-	mul_f256(t3, P2->z, P2->z);
+	square_f256(t3, P2->z);
 	mul_f256(t1, P1->x, t3);
 	mul_f256(t4, P2->z, t3);
 	mul_f256(t3, P1->y, t4);
@@ -1162,7 +1459,7 @@ p256_add(p256_jacobian *P1, const p256_jacobian *P2)
 	/*
 	 * Compute u2 = x2*z1^2 (in t2) and s2 = y2*z1^3 (in t4).
 	 */
-	mul_f256(t4, P1->z, P1->z);
+	square_f256(t4, P1->z);
 	mul_f256(t2, P2->x, t4);
 	mul_f256(t5, P1->z, t4);
 	mul_f256(t4, P2->y, t5);
@@ -1189,14 +1486,14 @@ p256_add(p256_jacobian *P1, const p256_jacobian *P2)
 	/*
 	 * Compute u1*h^2 (in t6) and h^3 (in t5);
 	 */
-	mul_f256(t7, t2, t2);
+	square_f256(t7, t2);
 	mul_f256(t6, t1, t7);
 	mul_f256(t5, t7, t2);
 
 	/*
 	 * Compute x3 = r^2 - h^3 - 2*u1*h^2.
 	 */
-	mul_f256(P1->x, t4, t4);
+	square_f256(P1->x, t4);
 	for (i = 0; i < 20; i ++) {
 		P1->x[i] += (F256[i] << 3) - t5[i] - (t6[i] << 1);
 	}
@@ -1223,6 +1520,128 @@ p256_add(p256_jacobian *P1, const p256_jacobian *P2)
 	 */
 	mul_f256(t1, P1->z, P2->z);
 	mul_f256(P1->z, t1, t2);
+
+	return ret;
+}
+
+/*
+ * Add point P2 to point P1. This is a specialised function for the
+ * case when P2 is a non-zero point in affine coordinate.
+ *
+ * This function computes the wrong result in the following cases:
+ *
+ *   - If P1 == 0
+ *   - If P1 == P2
+ *
+ * In both cases, P1 is set to the point at infinity.
+ *
+ * Returned value is 0 if one of the following occurs:
+ *
+ *   - P1 and P2 have the same Y coordinate
+ *   - The Y coordinate of P2 is 0 and P1 is the point at infinity.
+ *
+ * The second case cannot actually happen with valid points, since a point
+ * with Y == 0 is a point of order 2, and there is no point of order 2 on
+ * curve P-256.
+ *
+ * Therefore, assuming that P1 != 0 on input, then the caller
+ * can apply the following:
+ *
+ *   - If the result is not the point at infinity, then it is correct.
+ *   - Otherwise, if the returned value is 1, then this is a case of
+ *     P1+P2 == 0, so the result is indeed the point at infinity.
+ *   - Otherwise, P1 == P2, so a "double" operation should have been
+ *     performed.
+ */
+static uint32_t
+p256_add_mixed(p256_jacobian *P1, const p256_jacobian *P2)
+{
+	/*
+	 * Addtions formulas are:
+	 *
+	 *   u1 = x1
+	 *   u2 = x2 * z1^2
+	 *   s1 = y1
+	 *   s2 = y2 * z1^3
+	 *   h = u2 - u1
+	 *   r = s2 - s1
+	 *   x3 = r^2 - h^3 - 2 * u1 * h^2
+	 *   y3 = r * (u1 * h^2 - x3) - s1 * h^3
+	 *   z3 = h * z1
+	 */
+	uint32_t t1[20], t2[20], t3[20], t4[20], t5[20], t6[20], t7[20];
+	uint32_t ret;
+	int i;
+
+	/*
+	 * Compute u1 = x1 (in t1) and s1 = y1 (in t3).
+	 */
+	memcpy(t1, P1->x, sizeof t1);
+	memcpy(t3, P1->y, sizeof t3);
+
+	/*
+	 * Compute u2 = x2*z1^2 (in t2) and s2 = y2*z1^3 (in t4).
+	 */
+	square_f256(t4, P1->z);
+	mul_f256(t2, P2->x, t4);
+	mul_f256(t5, P1->z, t4);
+	mul_f256(t4, P2->y, t5);
+
+	/*
+	 * Compute h = h2 - u1 (in t2) and r = s2 - s1 (in t4).
+	 * We need to test whether r is zero, so we will do some extra
+	 * reduce.
+	 */
+	for (i = 0; i < 20; i ++) {
+		t2[i] += (F256[i] << 1) - t1[i];
+		t4[i] += (F256[i] << 1) - t3[i];
+	}
+	norm13(t2, t2, 20);
+	norm13(t4, t4, 20);
+	reduce_f256(t4);
+	reduce_final_f256(t4);
+	ret = 0;
+	for (i = 0; i < 20; i ++) {
+		ret |= t4[i];
+	}
+	ret = (ret | -ret) >> 31;
+
+	/*
+	 * Compute u1*h^2 (in t6) and h^3 (in t5);
+	 */
+	square_f256(t7, t2);
+	mul_f256(t6, t1, t7);
+	mul_f256(t5, t7, t2);
+
+	/*
+	 * Compute x3 = r^2 - h^3 - 2*u1*h^2.
+	 */
+	square_f256(P1->x, t4);
+	for (i = 0; i < 20; i ++) {
+		P1->x[i] += (F256[i] << 3) - t5[i] - (t6[i] << 1);
+	}
+	norm13(P1->x, P1->x, 20);
+	reduce_f256(P1->x);
+
+	/*
+	 * Compute y3 = r*(u1*h^2 - x3) - s1*h^3.
+	 */
+	for (i = 0; i < 20; i ++) {
+		t6[i] += (F256[i] << 1) - P1->x[i];
+	}
+	norm13(t6, t6, 20);
+	mul_f256(P1->y, t4, t6);
+	mul_f256(t1, t5, t3);
+	for (i = 0; i < 20; i ++) {
+		P1->y[i] += (F256[i] << 1) - t1[i];
+	}
+	norm13(P1->y, P1->y, 20);
+	reduce_f256(P1->y);
+
+	/*
+	 * Compute z3 = h*z1*z2.
+	 */
+	mul_f256(P1->z, P1->z, t2);
 
 	return ret;
 }
@@ -1264,9 +1683,9 @@ p256_decode(p256_jacobian *P, const void *src, size_t len)
 	/*
 	 * Check curve equation.
 	 */
-	mul_f256(t1, tx, tx);
+	square_f256(t1, tx);
 	mul_f256(t1, tx, t1);
-	mul_f256(t2, ty, ty);
+	square_f256(t2, ty);
 	for (i = 0; i < 20; i ++) {
 		t1[i] += (F256[i] << 3) - MUL15(3, tx[i]) + P256_B[i] - t2[i];
 	}
@@ -1358,6 +1777,183 @@ p256_mul(p256_jacobian *P, const unsigned char *x, size_t xlen)
 	*P = Q;
 }
 
+/*
+ * Precomputed window: k*G points, where G is the curve generator, and k
+ * is an integer from 1 to 15 (inclusive). The X and Y coordinates of
+ * the point are encoded as 20 words of 13 bits each (little-endian
+ * order); 13-bit words are then grouped 2-by-2 into 32-bit words
+ * (little-endian order within each word).
+ */
+static const uint32_t Gwin[15][20] = {
+
+	{ 0x04C60296, 0x02721176, 0x19D00F4A, 0x102517AC,
+	  0x13B8037D, 0x0748103C, 0x1E730E56, 0x08481FE2,
+	  0x0F97012C, 0x00D605F4, 0x1DFA11F5, 0x0C801A0D,
+	  0x0F670CBB, 0x0AED0CC5, 0x115E0E33, 0x181F0785,
+	  0x13F514A7, 0x0FF30E3B, 0x17171E1A, 0x009F18D0 },
+
+	{ 0x1B341978, 0x16911F11, 0x0D9A1A60, 0x1C4E1FC8,
+	  0x1E040969, 0x096A06B0, 0x091C0030, 0x09EF1A29,
+	  0x18C40D03, 0x00F91C9E, 0x13C313D1, 0x096F0748,
+	  0x011419E0, 0x1CC713A6, 0x1DD31DAD, 0x1EE80C36,
+	  0x1ECD0C69, 0x1A0800A4, 0x08861B8E, 0x000E1DD5 },
+
+	{ 0x173F1D6C, 0x02CC06F1, 0x14C21FB4, 0x043D1EB6,
+	  0x0F3606B7, 0x1A971C59, 0x1BF71951, 0x01481323,
+	  0x068D0633, 0x00BD12F9, 0x13EA1032, 0x136209E8,
+	  0x1C1E19A7, 0x06C7013E, 0x06C10AB0, 0x14C908BB,
+	  0x05830CE1, 0x1FEF18DD, 0x00620998, 0x010E0D19 },
+
+	{ 0x18180852, 0x0604111A, 0x0B771509, 0x1B6F0156,
+	  0x00181FE2, 0x1DCC0AF4, 0x16EF0659, 0x11F70E80,
+	  0x11A912D0, 0x01C414D2, 0x027618C6, 0x05840FC6,
+	  0x100215C4, 0x187E0C3B, 0x12771C96, 0x150C0B5D,
+	  0x0FF705FD, 0x07981C67, 0x1AD20C63, 0x01C11C55 },
+
+	{ 0x1E8113ED, 0x0A940370, 0x12920215, 0x1FA31D6F,
+	  0x1F7C0C82, 0x10CD03F7, 0x02640560, 0x081A0B5E,
+	  0x1BD21151, 0x00A21642, 0x0D0B0DA4, 0x0176113F,
+	  0x04440D1D, 0x001A1360, 0x1068012F, 0x1F141E49,
+	  0x10DF136B, 0x0E4F162B, 0x0D44104A, 0x01C1105F },
+
+	{ 0x011411A9, 0x01551A4F, 0x0ADA0C6B, 0x01BD0EC8,
+	  0x18120C74, 0x112F1778, 0x099202CB, 0x0C05124B,
+	  0x195316A4, 0x01600685, 0x1E3B1FE2, 0x189014E3,
+	  0x0B5E1FD7, 0x0E0311F8, 0x08E000F7, 0x174E00DE,
+	  0x160702DF, 0x1B5A15BF, 0x03A11237, 0x01D01704 },
+
+	{ 0x0C3D12A3, 0x0C501C0C, 0x17AD1300, 0x1715003F,
+	  0x03F719F8, 0x18031ED8, 0x1D980667, 0x0F681896,
+	  0x1B7D00BF, 0x011C14CE, 0x0FA000B4, 0x1C3501B0,
+	  0x0D901C55, 0x06790C10, 0x029E0736, 0x0DEB0400,
+	  0x034F183A, 0x030619B4, 0x0DEF0033, 0x00E71AC7 },
+
+	{ 0x1B7D1393, 0x1B3B1076, 0x0BED1B4D, 0x13011F3A,
+	  0x0E0E1238, 0x156A132B, 0x013A02D3, 0x160A0D01,
+	  0x1CED1EE9, 0x00C5165D, 0x184C157E, 0x08141A83,
+	  0x153C0DA5, 0x1ED70F9D, 0x05170D51, 0x02CF13B8,
+	  0x18AE1771, 0x1B04113F, 0x05EC11E9, 0x015A16B3 },
+
+	{ 0x04A41EE0, 0x1D1412E4, 0x1C591D79, 0x118511B7,
+	  0x14F00ACB, 0x1AE31E1C, 0x049C0D51, 0x016E061E,
+	  0x1DB71EDF, 0x01D41A35, 0x0E8208FA, 0x14441293,
+	  0x011F1E85, 0x1D54137A, 0x026B114F, 0x151D0832,
+	  0x00A50964, 0x1F9C1E1C, 0x064B12C9, 0x005409D1 },
+
+	{ 0x062B123F, 0x0C0D0501, 0x183704C3, 0x08E31120,
+	  0x0A2E0A6C, 0x14440FED, 0x090A0D1E, 0x13271964,
+	  0x0B590A3A, 0x019D1D9B, 0x05780773, 0x09770A91,
+	  0x0F770CA3, 0x053F19D4, 0x02C80DED, 0x1A761304,
+	  0x091E0DD9, 0x15D201B8, 0x151109AA, 0x010F0198 },
+
+	{ 0x05E101D1, 0x072314DD, 0x045F1433, 0x1A041541,
+	  0x10B3142E, 0x01840736, 0x1C1B19DB, 0x098B0418,
+	  0x1DBC083B, 0x007D1444, 0x01511740, 0x11DD1F3A,
+	  0x04ED0E2F, 0x1B4B1A62, 0x10480D04, 0x09E911A2,
+	  0x04211AFA, 0x19140893, 0x04D60CC4, 0x01210648 },
+
+	{ 0x112703C4, 0x018B1BA1, 0x164C1D50, 0x05160BE0,
+	  0x0BCC1830, 0x01CB1554, 0x13291732, 0x1B2B1918,
+	  0x0DED0817, 0x00E80775, 0x0A2401D3, 0x0BFE08B3,
+	  0x0E531199, 0x058616E9, 0x04770B91, 0x110F0C55,
+	  0x19C11554, 0x0BFB1159, 0x03541C38, 0x000E1C2D },
+
+	{ 0x10390C01, 0x02BB0751, 0x0AC5098E, 0x096C17AB,
+	  0x03C90E28, 0x10BD18BF, 0x002E1F2D, 0x092B0986,
+	  0x1BD700AC, 0x002E1F20, 0x1E3D1FD8, 0x077718BB,
+	  0x06F919C4, 0x187407ED, 0x11370E14, 0x081E139C,
+	  0x00481ADB, 0x14AB0289, 0x066A0EBE, 0x00C70ED6 },
+
+	{ 0x0694120B, 0x124E1CC9, 0x0E2F0570, 0x17CF081A,
+	  0x078906AC, 0x066D17CF, 0x1B3207F4, 0x0C5705E9,
+	  0x10001C38, 0x00A919DE, 0x06851375, 0x0F900BD8,
+	  0x080401BA, 0x0EEE0D42, 0x1B8B11EA, 0x0B4519F0,
+	  0x090F18C0, 0x062E1508, 0x0DD909F4, 0x01EB067C },
+
+	{ 0x0CDC1D5F, 0x0D1818F9, 0x07781636, 0x125B18E8,
+	  0x0D7003AF, 0x13110099, 0x1D9B1899, 0x175C1EB7,
+	  0x0E34171A, 0x01E01153, 0x081A0F36, 0x0B391783,
+	  0x1D1F147E, 0x19CE16D7, 0x11511B21, 0x1F2C10F9,
+	  0x12CA0E51, 0x05A31D39, 0x171A192E, 0x016B0E4F }
+};
+
+/*
+ * Lookup one of the Gwin[] values, by index. This is constant-time.
+ */
+static void
+lookup_Gwin(p256_jacobian *T, uint32_t idx)
+{
+	uint32_t xy[20];
+	uint32_t k;
+	size_t u;
+
+	memset(xy, 0, sizeof xy);
+	for (k = 0; k < 15; k ++) {
+		uint32_t m;
+
+		m = -EQ(idx, k + 1);
+		for (u = 0; u < 20; u ++) {
+			xy[u] |= m & Gwin[k][u];
+		}
+	}
+	for (u = 0; u < 10; u ++) {
+		T->x[(u << 1) + 0] = xy[u] & 0xFFFF;
+		T->x[(u << 1) + 1] = xy[u] >> 16;
+		T->y[(u << 1) + 0] = xy[u + 10] & 0xFFFF;
+		T->y[(u << 1) + 1] = xy[u + 10] >> 16;
+	}
+	memset(T->z, 0, sizeof T->z);
+	T->z[0] = 1;
+}
+
+/*
+ * Multiply the generator by an integer. The integer is assumed non-zero
+ * and lower than the curve order.
+ */
+static void
+p256_mulgen(p256_jacobian *P, const unsigned char *x, size_t xlen)
+{
+	/*
+	 * qz is a flag that is initially 1, and remains equal to 1
+	 * as long as the point is the point at infinity.
+	 *
+	 * We use a 4-bit window to handle multiplier bits by groups
+	 * of 4. The precomputed window is constant static data, with
+	 * points in affine coordinates; we use a constant-time lookup.
+	 */
+	p256_jacobian Q;
+	uint32_t qz;
+
+	memset(&Q, 0, sizeof Q);
+	qz = 1;
+	while (xlen -- > 0) {
+		int k;
+		unsigned bx;
+
+		bx = *x ++;
+		for (k = 0; k < 2; k ++) {
+			uint32_t bits;
+			uint32_t bnz;
+			p256_jacobian T, U;
+
+			p256_double(&Q);
+			p256_double(&Q);
+			p256_double(&Q);
+			p256_double(&Q);
+			bits = (bx >> 4) & 0x0F;
+			bnz = NEQ(bits, 0);
+			lookup_Gwin(&T, bits);
+			U = Q;
+			p256_add_mixed(&U, &T);
+			CCOPY(bnz & qz, &Q, &T, sizeof Q);
+			CCOPY(bnz & ~qz, &Q, &U, sizeof Q);
+			qz &= ~bnz;
+			bx <<= 4;
+		}
+	}
+	*P = Q;
+}
+
 static const unsigned char P256_G[] = {
 	0x04, 0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47, 0xF8,
 	0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2, 0x77, 0x03, 0x7D,
@@ -1408,6 +2004,29 @@ api_mul(unsigned char *G, size_t Glen,
 	return r;
 }
 
+static size_t
+api_mulgen(unsigned char *R,
+	const unsigned char *x, size_t xlen, int curve)
+{
+	p256_jacobian P;
+
+	(void)curve;
+	p256_mulgen(&P, x, xlen);
+	p256_to_affine(&P);
+	p256_encode(R, &P);
+	return 65;
+
+	/*
+	const unsigned char *G;
+	size_t Glen;
+
+	G = api_generator(curve, &Glen);
+	memcpy(R, G, Glen);
+	api_mul(R, Glen, x, xlen, curve);
+	return Glen;
+	*/
+}
+
 static uint32_t
 api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	const unsigned char *x, size_t xlen,
@@ -1419,9 +2038,13 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 
 	(void)curve;
 	r = p256_decode(&P, A, len);
-	r &= p256_decode(&Q, B, len);
 	p256_mul(&P, x, xlen);
-	p256_mul(&Q, y, ylen);
+	if (B == NULL) {
+		p256_mulgen(&Q, y, ylen);
+	} else {
+		r &= p256_decode(&Q, B, len);
+		p256_mul(&Q, y, ylen);
+	}
 
 	/*
 	 * The final addition may fail in case both points are equal.
@@ -1457,5 +2080,6 @@ const br_ec_impl br_ec_p256_i15 = {
 	&api_generator,
 	&api_order,
 	&api_mul,
+	&api_mulgen,
 	&api_muladd
 };

@@ -236,7 +236,7 @@ do_ecdhe_part1(br_ssl_server_context *ctx, int curve)
 {
 	int hash;
 	unsigned mask;
-	const unsigned char *order, *generator;
+	const unsigned char *order;
 	size_t olen, glen;
 	br_multihash_context mhc;
 	unsigned char head[4];
@@ -268,6 +268,8 @@ do_ecdhe_part1(br_ssl_server_context *ctx, int curve)
 	/*
 	 * Compute our ECDH point.
 	 */
+#if 0
+/* obsolete */
 	generator = ctx->eng.iec->generator(curve, &glen);
 	memcpy(ctx->eng.ecdhe_point, generator, glen);
 	ctx->eng.ecdhe_point_len = glen;
@@ -276,6 +278,10 @@ do_ecdhe_part1(br_ssl_server_context *ctx, int curve)
 	{
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
+#endif
+	glen = ctx->eng.iec->mulgen(ctx->eng.ecdhe_point,
+		ctx->ecdhe_key, olen, curve);
+	ctx->eng.ecdhe_point_len = glen;
 
 	/*
 	 * Compute the signature.
