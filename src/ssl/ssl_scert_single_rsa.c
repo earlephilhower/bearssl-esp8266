@@ -32,7 +32,7 @@ sr_choose(const br_ssl_server_policy_class **pctx,
 	br_ssl_server_policy_rsa_context *pc;
 	const br_suite_translated *st;
 	size_t u, st_num;
-	int hash_id;
+	unsigned hash_id;
 
 	pc = (br_ssl_server_policy_rsa_context *)pctx;
 	st = br_ssl_server_get_client_suites(cc, &st_num);
@@ -58,7 +58,7 @@ sr_choose(const br_ssl_server_policy_class **pctx,
 				&& hash_id != 0)
 			{
 				choices->cipher_suite = st[u][0];
-				choices->hash_id = hash_id;
+				choices->algo_id = hash_id + 0xFF00;
 				return 1;
 			}
 			break;
@@ -110,7 +110,7 @@ static const unsigned char *HASH_OID[] = {
 
 static size_t
 sr_do_sign(const br_ssl_server_policy_class **pctx,
-	int hash_id, size_t hv_len, unsigned char *data, size_t len)
+	unsigned algo_id, unsigned char *data, size_t hv_len, size_t len)
 {
 	br_ssl_server_policy_rsa_context *pc;
 	unsigned char hv[64];
@@ -119,10 +119,11 @@ sr_do_sign(const br_ssl_server_policy_class **pctx,
 
 	pc = (br_ssl_server_policy_rsa_context *)pctx;
 	memcpy(hv, data, hv_len);
-	if (hash_id == 0) {
+	algo_id &= 0xFF;
+	if (algo_id == 0) {
 		hash_oid = NULL;
-	} else if (hash_id >= 2 && hash_id <= 6) {
-		hash_oid = HASH_OID[hash_id - 2];
+	} else if (algo_id >= 2 && algo_id <= 6) {
+		hash_oid = HASH_OID[algo_id - 2];
 	} else {
 		return 0;
 	}

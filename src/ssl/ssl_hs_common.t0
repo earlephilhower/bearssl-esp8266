@@ -469,7 +469,7 @@ cc: read-chunk-native ( addr len -- addr len ) {
 			\ no_renegotiation has value 100, and we treat it
 			\ as a fatal alert.
 			dup 100 = if 256 + fail then
-			0= ret
+			0=
 		endof
 		\ Fatal alert implies context termination.
 		drop 256 + fail
@@ -1062,13 +1062,22 @@ cc: compute-Finished-inner ( from_client prf_id -- ) {
 	read16 open-elt
 	begin dup while
 		read8 { hash } read8 { sign }
-		\ We keep the value if the signature is either 1 (RSA)
-		\ or 3 (ECDSA), and the hash is one of the SHA-* functions
-		\ (2 to 6, from SHA-1 to SHA-512); we reject MD5.
-		hash 2 >= hash 6 <= and
-		sign 1 = sign 3 = or
-		and if
-			hashes 1 sign 1- 2 << hash + << or >hashes
+
+		\ If hash is 0x08 then this is a "new algorithm" identifier,
+		\ and we set the corresponding bit if it is in the 0..15
+		\ range. Otherwise, we keep the value only if the signature
+		\ is either 1 (RSA) or 3 (ECDSA), and the hash is one of the
+		\ SHA-* functions (2 to 6). Note that we reject MD5.
+		hash 8 = if
+			sign 15 <= if
+				1 sign 16 + << hashes or >hashes
+			then
+		else
+			hash 2 >= hash 6 <= and
+			sign 1 = sign 3 = or
+			and if
+				hashes 1 sign 1- 2 << hash + << or >hashes
+			then
 		then
 	repeat
 	close-elt

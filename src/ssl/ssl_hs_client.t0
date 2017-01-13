@@ -230,7 +230,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 {
 	int curve;
 	unsigned char key[66], point[133];
-	const unsigned char *generator, *order, *point_src;
+	const unsigned char *order, *point_src;
 	size_t glen, olen, point_len;
 	unsigned char mask;
 
@@ -271,7 +271,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	 * Compute the common ECDH point, whose X coordinate is the
 	 * pre-master secret.
 	 */
-	generator = ctx->eng.iec->generator(curve, &glen);
+	ctx->eng.iec->generator(curve, &glen);
 	if (glen != point_len) {
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
@@ -1023,7 +1023,7 @@ cc: get-client-chain ( auth_types -- ) {
 		\  - There is an explicit list of supported sign+hash.
 		\  - The ECDH flags must be adjusted for RSA/ECDSA
 		\    support.
-		read-list-sign-algos dup addr-hashes set16
+		read-list-sign-algos dup addr-hashes set32
 
 		\ Trim down the list depending on what hash functions
 		\ we support (since the hashing itself is done by the SSL

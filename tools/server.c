@@ -228,6 +228,8 @@ usage_server(void)
 	fprintf(stderr,
 "   -hf names       add support for some hash functions (comma-separated)\n");
 	fprintf(stderr,
+"   -cbhash         test hashing in policy callback\n");
+	fprintf(stderr,
 "   -serverpref     enforce server's preferences for cipher suites\n");
 	fprintf(stderr,
 "   -noreneg        prohibit renegotiations\n");
@@ -245,6 +247,7 @@ typedef struct {
 	size_t chain_len;
 	int cert_signer_algo;
 	private_key *sk;
+	int cbhash;
 } policy_context;
 
 static void
@@ -270,10 +273,10 @@ print_hashes(unsigned chashes)
 	}
 }
 
-static int
+static unsigned
 choose_hash(unsigned chashes)
 {
-	int hash_id;
+	unsigned hash_id;
 
 	for (hash_id = 6; hash_id >= 2; hash_id --) {
 		if (((chashes >> hash_id) & 1) != 0) {
@@ -357,9 +360,21 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 				if (br_ssl_engine_get_version(&cc->eng)
 					< BR_TLS12)
 				{
-					choices->hash_id = 0;
+					if (pc->cbhash) {
+						choices->algo_id = 0x0001;
+					} else {
+						choices->algo_id = 0xFF00;
+					}
 				} else {
-					choices->hash_id = choose_hash(chashes);
+					unsigned id;
+
+					id = choose_hash(chashes);
+					if (pc->cbhash) {
+						choices->algo_id =
+							(id << 8) + 0x01;
+					} else {
+						choices->algo_id = 0xFF00 + id;
+					}
 				}
 				goto choose_ok;
 			}
@@ -370,10 +385,23 @@ sp_choose(const br_ssl_server_policy_class **pctx,
 				if (br_ssl_engine_get_version(&cc->eng)
 					< BR_TLS12)
 				{
-					choices->hash_id = br_sha1_ID;
+					if (pc->cbhash) {
+						choices->algo_id = 0x0203;
+					} else {
+						choices->algo_id =
+							0xFF00 + br_sha1_ID;
+					}
 				} else {
-					choices->hash_id =
-						choose_hash(chashes >> 8);
+					unsigned id;
+
+					id = choose_hash(chashes >> 8);
+					if (pc->cbhash) {
+						choices->algo_id =
+							(id << 8) + 0x03;
+					} else {
+						choices->algo_id =
+							0xFF00 + id;
+					}
 				}
 				goto choose_ok;
 			}
@@ -434,13 +462,40 @@ sp_do_keyx(const br_ssl_server_policy_class **pctx,
 
 static size_t
 sp_do_sign(const br_ssl_server_policy_class **pctx,
-	int hash_id, size_t hv_len, unsigned char *data, size_t len)
+	unsigned algo_id, unsigned char *data, size_t hv_len, size_t len)
 {
 	policy_context *pc;
 	unsigned char hv[64];
 
 	pc = (policy_context *)pctx;
-	memcpy(hv, data, hv_len);
+	if (algo_id >= 0xFF00) {
+		algo_id &= 0xFF;
+		memcpy(hv, data, hv_len);
+	} else {
+		const br_hash_class *hc;
+		br_hash_compat_context zc;
+
+		if (pc->verbose) {
+			fprintf(stderr, "Callback hashing, algo = 0x%04X,"
+				" data_len = %lu\n",
+				algo_id, (unsigned long)hv_len);
+		}
+		algo_id >>= 8;
+		hc = get_hash_impl(algo_id);
+		if (hc == NULL) {
+			if (pc->verbose) {
+				fprintf(stderr,
+					"ERROR: unsupported hash function %u\n",
+					algo_id);
+			}
+			return 0;
+		}
+		hc->init(&zc.vtable);
+		hc->update(&zc.vtable, data, hv_len);
+		hc->out(&zc.vtable, hv);
+		hv_len = (hc->desc >> BR_HASHDESC_OUT_OFF)
+			& BR_HASHDESC_OUT_MASK;
+	}
 	switch (pc->sk->key_type) {
 		size_t sig_len;
 		uint32_t x;
@@ -448,12 +503,12 @@ sp_do_sign(const br_ssl_server_policy_class **pctx,
 		const br_hash_class *hc;
 
 	case BR_KEYTYPE_RSA:
-		hash_oid = get_hash_oid(hash_id);
-		if (hash_oid == NULL && hash_id != 0) {
+		hash_oid = get_hash_oid(algo_id);
+		if (hash_oid == NULL && algo_id != 0) {
 			if (pc->verbose) {
 				fprintf(stderr, "ERROR: cannot RSA-sign with"
-					" unknown hash function: %d\n",
-					hash_id);
+					" unknown hash function: %u\n",
+					algo_id);
 			}
 			return 0;
 		}
@@ -479,12 +534,12 @@ sp_do_sign(const br_ssl_server_policy_class **pctx,
 		return sig_len;
 
 	case BR_KEYTYPE_EC:
-		hc = get_hash_impl(hash_id);
+		hc = get_hash_impl(algo_id);
 		if (hc == NULL) {
 			if (pc->verbose) {
 				fprintf(stderr, "ERROR: cannot ECDSA-sign with"
-					" unknown hash function: %d\n",
-					hash_id);
+					" unknown hash function: %u\n",
+					algo_id);
 			}
 			return 0;
 		}
@@ -539,6 +594,7 @@ do_server(int argc, char *argv[])
 	size_t num_suites;
 	uint16_t *suite_ids;
 	unsigned hfuns;
+	int cbhash;
 	br_x509_certificate *chain;
 	size_t chain_len;
 	int cert_signer_algo;
@@ -567,6 +623,7 @@ do_server(int argc, char *argv[])
 	suites = NULL;
 	num_suites = 0;
 	hfuns = 0;
+	cbhash = 0;
 	suite_ids = NULL;
 	chain = NULL;
 	chain_len = 0;
@@ -790,6 +847,8 @@ do_server(int argc, char *argv[])
 				goto server_exit_error;
 			}
 			hfuns |= x;
+		} else if (eqstr(arg, "-cbhash")) {
+			cbhash = 1;
 		} else if (eqstr(arg, "-serverpref")) {
 			flags |= BR_OPT_ENFORCE_SERVER_PREFERENCES;
 		} else if (eqstr(arg, "-noreneg")) {
@@ -1038,6 +1097,7 @@ do_server(int argc, char *argv[])
 	pc.chain_len = chain_len;
 	pc.cert_signer_algo = cert_signer_algo;
 	pc.sk = sk;
+	pc.cbhash = cbhash;
 	br_ssl_server_set_policy(&cc, &pc.vtable);
 
 	/*

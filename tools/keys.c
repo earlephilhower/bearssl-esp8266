@@ -217,6 +217,9 @@ get_hash_impl(int hash_id)
 {
 	size_t u;
 
+	if (hash_id == 0) {
+		return &br_md5sha1_vtable;
+	}
 	for (u = 0; hash_functions[u].name; u ++) {
 		const br_hash_class *hc;
 		int id;

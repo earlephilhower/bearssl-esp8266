@@ -2277,7 +2277,7 @@ struct br_ssl_client_context_ {
 	 * Bit field for algoithms (hash + signature) supported by the
 	 * server when requesting a client certificate.
 	 */
-	uint16_t hashes;
+	uint32_t hashes;
 
 	/*
 	 * Server's public key curve.
@@ -2321,15 +2321,33 @@ struct br_ssl_client_context_ {
  * \brief Get the hash functions and signature algorithms supported by
  * the server.
  *
- * This is a field of bits: for hash function of ID x, bit x is set if
- * the hash function is supported in RSA signatures, 8+x if it is supported
- * with ECDSA. This information is conveyed by the server when requesting
- * a client certificate.
+ * This value is a bit field:
+ *
+ *   - If RSA (PKCS#1 v1.5) is supported with hash function of ID `x`,
+ *     then bit `x` is set (hash function ID is 0 for the special MD5+SHA-1,
+ *     or 2 to 6 for the SHA family).
+ *
+ *   - If ECDSA is suported with hash function of ID `x`, then bit `8+x`
+ *     is set.
+ *
+ *   - Newer algorithms are symbolic 16-bit identifiers that do not
+ *     represent signature algorithm and hash function separately. If
+ *     the TLS-level identifier is `0x0800+x` for a `x` in the 0..15
+ *     range, then bit `16+x` is set.
+ *
+ * "New algorithms" are currently defined only in draft documents, so
+ * this support is subject to possible change. Right now (early 2017),
+ * this maps ed25519 (EdDSA on Curve25519) to bit 23, and ed448 (EdDSA
+ * on Curve448) to bit 24. If the identifiers on the wire change in
+ * future document, then the decoding mechanism in BearSSL will be
+ * amended to keep mapping ed25519 and ed448 on bits 23 and 24,
+ * respectively. Mapping of other new algorithms (e.g. RSA/PSS) is not
+ * guaranteed yet.
  *
  * \param cc   client context.
- * \return  the server-supported hash functions (for signatures).
+ * \return  the server-supported hash functions and signature algorithms.
  */
-static inline uint16_t
+static inline uint32_t
 br_ssl_client_get_server_hashes(const br_ssl_client_context *cc)
 {
 	return cc->hashes;
@@ -2654,18 +2672,47 @@ typedef struct {
 	uint16_t cipher_suite;
 
 	/**
-	 * \brief Hash function for signing the ServerKeyExchange.
+	 * \brief Hash function or algorithm for signing the ServerKeyExchange.
 	 *
-	 * This is the symbolic identifier for the hash function that
-	 * will be used to sign the ServerKeyExchange message, for ECDHE
-	 * cipher suites. This is ignored for RSA and ECDH cipher suites.
+	 * This parameter is ignored for `TLS_RSA_*` and `TLS_ECDH_*`
+	 * cipher suites; it is used only for `TLS_ECDHE_*` suites, in
+	 * which the server _signs_ the ephemeral EC Diffie-Hellman
+	 * parameters sent to the client.
 	 *
-	 * Take care that with TLS 1.0 and 1.1, that value MUST match
-	 * the protocol requirements: value must be 0 (MD5+SHA-1) for
-	 * a RSA signature, or 2 (SHA-1) for an ECDSA signature. Only
-	 * TLS 1.2 allows for other hash functions.
+	 * This identifier must be one of the following values:
+	 *
+	 *   - `0xFF00 + id`, where `id` is a hash function identifier
+	 *     (0 for MD5+SHA-1, or 2 to 6 for one of the SHA functions);
+	 *
+	 *   - a full 16-bit identifier, lower than `0xFF00`.
+	 *
+	 * If the first option is used, then the SSL engine will
+	 * compute the hash of the data that is to be signed, with the
+	 * designated hash function. The `do_sign()` method will be
+	 * invoked with that hash value provided in the the `data`
+	 * buffer.
+	 *
+	 * If the second option is used, then the SSL engine will NOT
+	 * compute a hash on the data; instead, it will provide the
+	 * to-be-signed data itself in `data`, i.e. the concatenation of
+	 * the client random, server random, and encoded ECDH
+	 * parameters. Furthermore, with TLS-1.2 and later, the 16-bit
+	 * identifier will be used "as is" in the protocol, in the
+	 * SignatureAndHashAlgorithm; for instance, `0x0401` stands for
+	 * RSA PKCS#1 v1.5 signature (the `01`) with SHA-256 as hash
+	 * function (the `04`).
+	 *
+	 * Take care that with TLS 1.0 and 1.1, the hash function is
+	 * constrainted by the protocol: RSA signature must use
+	 * MD5+SHA-1 (so use `0xFF00`), while ECDSA must use SHA-1
+	 * (`0xFF02`). Since TLS 1.0 and 1.1 don't include a
+	 * SignatureAndHashAlgorithm field in their ServerKeyExchange
+	 * messages, any value below `0xFF00` will be usable to send the
+	 * raw ServerKeyExchange data to the `do_sign()` callback, but
+	 * that callback must still follow the protocol requirements
+	 * when generating the signature.
 	 */
-	int hash_id;
+	unsigned algo_id;
 
 	/**
 	 * \brief Certificate chain to send to the client.
@@ -2795,33 +2842,45 @@ struct br_ssl_server_policy_class_ {
 	/**
 	 * \brief Perform a signature (for a ServerKeyExchange message).
 	 *
-	 * This callback function is invoked for ECDHE cipher suites.
-	 * On input, the hash value to sign is in `data`, of size
-	 * `hv_len`; the involved hash function is identified by
-	 * `hash_id`. The signature shall be computed and written
-	 * back into `data`; the total size of that buffer is `len`
-	 * bytes.
+	 * This callback function is invoked for ECDHE cipher suites. On
+	 * input, the hash value or message to sign is in `data`, of
+	 * size `hv_len`; the involved hash function or algorithm is
+	 * identified by `algo_id`. The signature shall be computed and
+	 * written back into `data`; the total size of that buffer is
+	 * `len` bytes.
 	 *
 	 * This callback shall verify that the signature length does not
 	 * exceed `len` bytes, and abstain from writing the signature if
 	 * it does not fit.
 	 *
-	 * For RSA signatures, the `hash_id` may be 0, in which case
-	 * this is the special header-less signature specified in TLS 1.0
-	 * and 1.1, with a 36-byte hash value. Otherwise, normal PKCS#1
-	 * v1.5 signatures shall be computed.
+	 * The `algo_id` value matches that which was written in the
+	 * `choices` structures by the `choose()` callback. This will be
+	 * one of the following:
+	 *
+	 *   - `0xFF00 + id` for a hash function identifier `id`. In
+	 *     that case, the `data` buffer contains a hash value
+	 *     already computed over the data that is to be signed,
+	 *     of length `hv_len`. The `id` may be 0 to designate the
+	 *     special MD5+SHA-1 concatenation (old-style RSA signing).
+	 *
+	 *   - Another value, lower than `0xFF00`. The `data` buffer
+	 *     then contains the raw, non-hashed data to be signed
+	 *     (concatenation of the client and server randoms and
+	 *     ECDH parameters). The callback is responsible to apply
+	 *     any relevant hashing as part of the signing process.
 	 *
 	 * Returned value is the signature length (in bytes), or 0 on error.
 	 *
 	 * \param pctx      policy context.
-	 * \param hash_id   hash function identifier.
-	 * \param hv_len    hash value length (in bytes).
-	 * \param data      input/output buffer (hash value, then signature).
+	 * \param algo_id   hash function / algorithm identifier.
+	 * \param data      input/output buffer (message/hash, then signature).
+	 * \param hv_len    hash value or message length (in bytes).
 	 * \param len       total buffer length (in bytes).
 	 * \return  signature length (in bytes) on success, or 0 on error.
 	 */
 	size_t (*do_sign)(const br_ssl_server_policy_class **pctx,
-		int hash_id, size_t hv_len, unsigned char *data, size_t len);
+		unsigned algo_id,
+		unsigned char *data, size_t hv_len, size_t len);
 };
 
 /**
@@ -3006,9 +3065,10 @@ struct br_ssl_server_context_ {
 	/*
 	 * Hash functions supported by the client, with ECDSA and RSA
 	 * (bit mask). For hash function with id 'x', set bit index is
-	 * x for RSA, x+8 for ECDSA.
+	 * x for RSA, x+8 for ECDSA. For newer algorithms, with ID
+	 * 0x08**, bit 16+k is set for algorithm 0x0800+k.
 	 */
-	uint16_t hashes;
+	uint32_t hashes;
 
 	/*
 	 * Curves supported by the client (bit mask, for named curves).
@@ -3019,7 +3079,7 @@ struct br_ssl_server_context_ {
 	 * Context for chain handler.
 	 */
 	const br_ssl_server_policy_class **policy_vtable;
-	unsigned char sign_hash_id;
+	uint16_t sign_hash_id;
 
 	/*
 	 * For the core handlers, thus avoiding (in most cases) the
@@ -3281,16 +3341,36 @@ br_ssl_server_get_client_suites(const br_ssl_server_context *cc, size_t *num)
 }
 
 /**
- * \brief Get the hash functions supported by the client.
+ * \brief Get the hash functions and signature algorithms supported by
+ * the client.
  *
- * This is a field of bits: for hash function of ID x, bit x is set if
- * the hash function is supported in RSA signatures, 8+x if it is supported
- * with ECDSA.
+ * This value is a bit field:
+ *
+ *   - If RSA (PKCS#1 v1.5) is supported with hash function of ID `x`,
+ *     then bit `x` is set (hash function ID is 0 for the special MD5+SHA-1,
+ *     or 2 to 6 for the SHA family).
+ *
+ *   - If ECDSA is suported with hash function of ID `x`, then bit `8+x`
+ *     is set.
+ *
+ *   - Newer algorithms are symbolic 16-bit identifiers that do not
+ *     represent signature algorithm and hash function separately. If
+ *     the TLS-level identifier is `0x0800+x` for a `x` in the 0..15
+ *     range, then bit `16+x` is set.
+ *
+ * "New algorithms" are currently defined only in draft documents, so
+ * this support is subject to possible change. Right now (early 2017),
+ * this maps ed25519 (EdDSA on Curve25519) to bit 23, and ed448 (EdDSA
+ * on Curve448) to bit 24. If the identifiers on the wire change in
+ * future document, then the decoding mechanism in BearSSL will be
+ * amended to keep mapping ed25519 and ed448 on bits 23 and 24,
+ * respectively. Mapping of other new algorithms (e.g. RSA/PSS) is not
+ * guaranteed yet.
  *
  * \param cc   server context.
- * \return  the client-supported hash functions (for signatures).
+ * \return  the client-supported hash functions and signature algorithms.
  */
-static inline uint16_t
+static inline uint32_t
 br_ssl_server_get_client_hashes(const br_ssl_server_context *cc)
 {
 	return cc->hashes;

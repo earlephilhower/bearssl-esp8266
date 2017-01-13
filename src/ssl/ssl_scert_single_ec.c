@@ -32,7 +32,7 @@ se_choose(const br_ssl_server_policy_class **pctx,
 	br_ssl_server_policy_ec_context *pc;
 	const br_suite_translated *st;
 	size_t u, st_num;
-	int hash_id;
+	unsigned hash_id;
 
 	pc = (br_ssl_server_policy_ec_context *)pctx;
 	st = br_ssl_server_get_client_suites(cc, &st_num);
@@ -68,7 +68,7 @@ se_choose(const br_ssl_server_policy_class **pctx,
 				&& hash_id != 0)
 			{
 				choices->cipher_suite = st[u][0];
-				choices->hash_id = hash_id;
+				choices->algo_id = hash_id + 0xFF00;
 				return 1;
 			}
 			break;
@@ -89,14 +89,15 @@ se_do_keyx(const br_ssl_server_policy_class **pctx,
 
 static size_t
 se_do_sign(const br_ssl_server_policy_class **pctx,
-	int hash_id, size_t hv_len, unsigned char *data, size_t len)
+	unsigned algo_id, unsigned char *data, size_t hv_len, size_t len)
 {
 	br_ssl_server_policy_ec_context *pc;
 	unsigned char hv[64];
 	const br_hash_class *hc;
 
+	algo_id &= 0xFF;
 	pc = (br_ssl_server_policy_ec_context *)pctx;
-	hc = br_multihash_getimpl(pc->mhash, hash_id);
+	hc = br_multihash_getimpl(pc->mhash, algo_id);
 	if (hc == NULL) {
 		return 0;
 	}

@@ -1299,6 +1299,7 @@ br_ssl_engine_hs_reset(br_ssl_engine_context *cc,
 	cc->hsrun = hsrun;
 	cc->shutdown_recv = 0;
 	cc->application_data = 0;
+	cc->alert = 0;
 	jump_handshake(cc, 0);
 }
 
