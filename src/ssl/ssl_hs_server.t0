@@ -49,7 +49,7 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	/*
 	 * Decrypt the PMS.
 	 */
-	x = (*ctx->policy_vtable)->do_keyx(ctx->policy_vtable, epms, len);
+	x = (*ctx->policy_vtable)->do_keyx(ctx->policy_vtable, epms, &len);
 
 	/*
 	 * Set the first two bytes to the maximum supported client
@@ -85,21 +85,12 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
  */
 static void
 ecdh_common(br_ssl_server_context *ctx, int prf_id,
-	unsigned char *cpoint, size_t cpoint_len, uint32_t ctl)
+	unsigned char *xcoor, size_t xcoor_len, uint32_t ctl)
 {
 	unsigned char rpms[80];
-	size_t pms_len;
 
-	/*
-	 * The point length is supposed to be 1+2*Xlen, where Xlen is
-	 * the length (in bytes) of the X coordinate, i.e. the pre-master
-	 * secret. If the provided point is too large, then it is
-	 * obviously incorrect (i.e. everybody can see that it is
-	 * incorrect), so leaking that fact is not a problem.
-	 */
-	pms_len = cpoint_len >> 1;
-	if (pms_len > sizeof rpms) {
-		pms_len = sizeof rpms;
+	if (xcoor_len > sizeof rpms) {
+		xcoor_len = sizeof rpms;
 		ctl = 0;
 	}
 
@@ -108,19 +99,19 @@ ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	 * decryption failed. Note that we use a constant-time conditional
 	 * copy.
 	 */
-	br_hmac_drbg_generate(&ctx->eng.rng, rpms, pms_len);
-	br_ccopy(ctl ^ 1, cpoint + 1, rpms, pms_len);
+	br_hmac_drbg_generate(&ctx->eng.rng, rpms, xcoor_len);
+	br_ccopy(ctl ^ 1, xcoor, rpms, xcoor_len);
 
 	/*
 	 * Compute master secret.
 	 */
-	br_ssl_engine_compute_master(&ctx->eng, prf_id, cpoint + 1, pms_len);
+	br_ssl_engine_compute_master(&ctx->eng, prf_id, xcoor, xcoor_len);
 
 	/*
 	 * Clear the pre-master secret from RAM: it is normally a buffer
 	 * in the context, hence potentially long-lived.
 	 */
-	memset(cpoint, 0, cpoint_len);
+	memset(xcoor, 0, xcoor_len);
 }
 
 /*
@@ -136,7 +127,7 @@ do_ecdh(br_ssl_server_context *ctx, int prf_id,
 	 * Finalise the key exchange.
 	 */
 	x = (*ctx->policy_vtable)->do_keyx(ctx->policy_vtable,
-		cpoint, cpoint_len);
+		cpoint, &cpoint_len);
 	ecdh_common(ctx, prf_id, cpoint, cpoint_len, x);
 }
 
@@ -288,16 +279,18 @@ do_ecdhe_part2(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *cpoint, size_t cpoint_len)
 {
 	int curve;
-	uint32_t x;
+	uint32_t ctl;
+	size_t xoff, xlen;
 
 	curve = ctx->eng.ecdhe_curve;
 
 	/*
 	 * Finalise the key exchange.
 	 */
-	x = ctx->eng.iec->mul(cpoint, cpoint_len,
+	ctl = ctx->eng.iec->mul(cpoint, cpoint_len,
 		ctx->ecdhe_key, ctx->ecdhe_key_len, curve);
-	ecdh_common(ctx, prf_id, cpoint, cpoint_len, x);
+	xoff = ctx->eng.iec->xoff(curve, &xlen);
+	ecdh_common(ctx, prf_id, cpoint + xoff, xlen, ctl);
 
 	/*
 	 * Clear the ECDHE private key. Forward Secrecy is achieved insofar
@@ -988,21 +981,33 @@ cc: do-ecdhe-part1 ( curve -- len ) {
 	T0_PUSHi(do_ecdhe_part1(CTX, curve));
 }
 
+\ Get index of first bit set to 1 (in low to high order).
+: lowest-1 ( bits -- n )
+	dup ifnot drop -1 ret then
+	0 begin dup2 >> 1 and 0= while 1+ repeat
+	swap drop ;
+
 \ Write the Server Key Exchange message (if applicable).
 : write-ServerKeyExchange ( -- )
 	addr-cipher_suite get16 use-ecdhe? ifnot ret then
 
 	\ We must select an appropriate curve among the curves that
-	\ are supported both by us and the peer. Right now we use
-	\ the one with the smallest ID, which in practice means P-256.
+	\ are supported both by us and the peer. Right now, we apply
+	\ a fixed preference order: Curve25519, P-256, P-384, P-521,
+	\ then the common curve with the lowest ID.
 	\ (TODO: add some option to make that behaviour configurable.)
 	\
 	\ This loop always terminates because previous processing made
 	\ sure that ECDHE suites are not selectable if there is no common
 	\ curve.
-	addr-curves get32 0
-	begin dup2 >> 1 and 0= while 1+ repeat
-	{ curve-id } drop
+	addr-curves get32
+	dup 0x20000000 and if
+		drop 29
+	else
+		dup 0x38000000 and dup if swap then
+		drop lowest-1
+	then
+	{ curve-id }
 
 	\ Compute the signed curve point to send.
 	curve-id do-ecdhe-part1 dup 0< if neg fail then { sig-len }

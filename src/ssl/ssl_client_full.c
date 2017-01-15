@@ -127,11 +127,11 @@ br_ssl_client_init_full(br_ssl_client_context *cc,
 		(sizeof suites) / (sizeof suites[0]));
 	br_ssl_client_set_rsapub(cc, &br_rsa_i31_public);
 	br_ssl_engine_set_rsavrfy(&cc->eng, &br_rsa_i31_pkcs1_vrfy);
-	br_ssl_engine_set_ec(&cc->eng, &br_ec_prime_i31);
+	br_ssl_engine_set_ec(&cc->eng, &br_ec_all_m15);
 	br_ssl_engine_set_ecdsa(&cc->eng, &br_ecdsa_i31_vrfy_asn1);
 	br_x509_minimal_set_rsa(xc, &br_rsa_i31_pkcs1_vrfy);
 	br_x509_minimal_set_ecdsa(xc,
-		&br_ec_prime_i31, &br_ecdsa_i31_vrfy_asn1);
+		&br_ec_all_m15, &br_ecdsa_i31_vrfy_asn1);
 
 	/*
 	 * Set supported hash functions, for the SSL engine and for the

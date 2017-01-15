@@ -69,12 +69,12 @@ sr_choose(const br_ssl_server_policy_class **pctx,
 
 static uint32_t
 sr_do_keyx(const br_ssl_server_policy_class **pctx,
-	unsigned char *data, size_t len)
+	unsigned char *data, size_t *len)
 {
 	br_ssl_server_policy_rsa_context *pc;
 
 	pc = (br_ssl_server_policy_rsa_context *)pctx;
-	return br_rsa_ssl_decrypt(pc->irsacore, pc->sk, data, len);
+	return br_rsa_ssl_decrypt(pc->irsacore, pc->sk, data, *len);
 }
 
 /*

@@ -440,19 +440,25 @@ choose_ok:
 
 static uint32_t
 sp_do_keyx(const br_ssl_server_policy_class **pctx,
-	unsigned char *data, size_t len)
+	unsigned char *data, size_t *len)
 {
 	policy_context *pc;
+	uint32_t r;
+	size_t xoff, xlen;
 
 	pc = (policy_context *)pctx;
 	switch (pc->sk->key_type) {
 	case BR_KEYTYPE_RSA:
 		return br_rsa_ssl_decrypt(
 			&br_rsa_i31_private, &pc->sk->key.rsa,
-			data, len);
+			data, *len);
 	case BR_KEYTYPE_EC:
-		return br_ec_prime_i31.mul(data, len, pc->sk->key.ec.x,
+		r = br_ec_all_m15.mul(data, *len, pc->sk->key.ec.x,
 			pc->sk->key.ec.xlen, pc->sk->key.ec.curve);
+		xoff = br_ec_all_m15.xoff(pc->sk->key.ec.curve, &xlen);
+		memmove(data, data + xoff, xlen);
+		*len = xlen;
+		return r;
 	default:
 		fprintf(stderr, "ERROR: unknown private key type (%d)\n",
 			(int)pc->sk->key_type);
@@ -551,7 +557,7 @@ sp_do_sign(const br_ssl_server_policy_class **pctx,
 			}
 			return 0;
 		}
-		sig_len = br_ecdsa_i31_sign_asn1(&br_ec_prime_i31, 
+		sig_len = br_ecdsa_i31_sign_asn1(&br_ec_all_m15, 
 			hc, hv, &pc->sk->key.ec, data);
 		if (sig_len == 0) {
 			if (pc->verbose) {
@@ -923,7 +929,7 @@ do_server(int argc, char *argv[])
 		break;
 	case BR_KEYTYPE_EC:
 		curve = sk->key.ec.curve;
-		supp = br_ec_prime_i31.supported_curves;
+		supp = br_ec_all_m15.supported_curves;
 		if (curve > 31 || !((supp >> curve) & 1)) {
 			fprintf(stderr, "ERROR: private key curve (%d)"
 				" is not supported\n", curve);
@@ -1047,7 +1053,7 @@ do_server(int argc, char *argv[])
 				&br_sslrec_out_cbc_vtable);
 		}
 		if ((req & (REQ_ECDHE_RSA | REQ_ECDHE_ECDSA)) != 0) {
-			br_ssl_engine_set_ec(&cc.eng, &br_ec_prime_i31);
+			br_ssl_engine_set_ec(&cc.eng, &br_ec_all_m15);
 		}
 	}
 	br_ssl_engine_set_suites(&cc.eng, suite_ids, num_suites);
@@ -1120,11 +1126,11 @@ do_server(int argc, char *argv[])
 			}
 		}
 		br_ssl_engine_set_rsavrfy(&cc.eng, &br_rsa_i31_pkcs1_vrfy);
-		br_ssl_engine_set_ec(&cc.eng, &br_ec_prime_i31);
+		br_ssl_engine_set_ec(&cc.eng, &br_ec_all_m15);
 		br_ssl_engine_set_ecdsa(&cc.eng, &br_ecdsa_i31_vrfy_asn1);
 		br_x509_minimal_set_rsa(&xc, &br_rsa_i31_pkcs1_vrfy);
 		br_x509_minimal_set_ecdsa(&xc,
-			&br_ec_prime_i31, &br_ecdsa_i31_vrfy_asn1);
+			&br_ec_all_m15, &br_ecdsa_i31_vrfy_asn1);
 		br_ssl_engine_set_x509(&cc.eng, &xc.vtable);
 		br_ssl_server_set_trust_anchor_names_alt(&cc,
 			&VEC_ELT(anchors, 0), VEC_LEN(anchors));

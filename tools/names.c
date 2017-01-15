@@ -271,6 +271,111 @@ const cipher_suite cipher_suites[] = {
 	{ NULL, 0, 0, NULL }
 };
 
+static struct {
+	int id;
+	const char *name;
+} curves[] = {
+	{ BR_EC_sect163k1,
+	  "sect163k1" },
+	{ BR_EC_sect163r1,
+	  "sect163r1" },
+	{ BR_EC_sect163r2,
+	  "sect163r2" },
+	{ BR_EC_sect193r1,
+	  "sect193r1" },
+	{ BR_EC_sect193r2,
+	  "sect193r2" },
+	{ BR_EC_sect233k1,
+	  "sect233k1" },
+	{ BR_EC_sect233r1,
+	  "sect233r1" },
+	{ BR_EC_sect239k1,
+	  "sect239k1" },
+	{ BR_EC_sect283k1,
+	  "sect283k1" },
+	{ BR_EC_sect283r1,
+	  "sect283r1" },
+	{ BR_EC_sect409k1,
+	  "sect409k1" },
+	{ BR_EC_sect409r1,
+	  "sect409r1" },
+	{ BR_EC_sect571k1,
+	  "sect571k1" },
+	{ BR_EC_sect571r1,
+	  "sect571r1" },
+	{ BR_EC_secp160k1,
+	  "secp160k1" },
+	{ BR_EC_secp160r1,
+	  "secp160r1" },
+	{ BR_EC_secp160r2,
+	  "secp160r2" },
+	{ BR_EC_secp192k1,
+	  "secp192k1" },
+	{ BR_EC_secp192r1,
+	  "secp192r1" },
+	{ BR_EC_secp224k1,
+	  "secp224k1" },
+	{ BR_EC_secp224r1,
+	  "secp224r1" },
+	{ BR_EC_secp256k1,
+	  "secp256k1" },
+	{ BR_EC_secp256r1,
+	  "secp256r1 (P-256)" },
+	{ BR_EC_secp384r1,
+	  "secp384r1 (P-384)" },
+	{ BR_EC_secp521r1,
+	  "secp521r1 (P-521)" },
+	{ BR_EC_brainpoolP256r1,
+	  "brainpoolP256r1" },
+	{ BR_EC_brainpoolP384r1,
+	  "brainpoolP384r1" },
+	{ BR_EC_brainpoolP512r1,
+	  "brainpoolP512r1" },
+	{ BR_EC_curve25519,
+	  "Curve25519" },
+	{ BR_EC_curve448,
+	  "Curve448" },
+	{ 0, 0 }
+};
+
+/* see brssl.h */
+const char *
+get_curve_name(int id)
+{
+	size_t u;
+
+	for (u = 0; curves[u].name; u ++) {
+		if (curves[u].id == id) {
+			return curves[u].name;
+		}
+	}
+	return NULL;
+}
+
+/* see brssl.h */
+int
+get_curve_name_ext(int id, char *dst, size_t len)
+{
+	const char *name;
+	char tmp[30];
+	size_t n;
+
+	name = get_curve_name(id);
+	if (name == NULL) {
+		sprintf(tmp, "unknown (%d)", id);
+		name = tmp;
+	}
+	n = 1 + strlen(name);
+	if (n > len) {
+		if (len > 0) {
+			dst[0] = 0;
+		}
+		return -1;
+	}
+	memcpy(dst, name, n);
+	return 0;
+}
+
 /* see brssl.h */
 const char *
 get_suite_name(unsigned suite)
@@ -306,6 +411,21 @@ get_suite_name_ext(unsigned suite, char *dst, size_t len)
 		return -1;
 	}
 	memcpy(dst, name, n);
+	return 0;
+}
+
+/* see brssl.h */
+int
+uses_ecdhe(unsigned suite)
+{
+	size_t u;
+
+	for (u = 0; cipher_suites[u].name; u ++) {
+		if (cipher_suites[u].suite == suite) {
+			return (cipher_suites[u].req
+				& (REQ_ECDHE_RSA | REQ_ECDHE_ECDSA)) != 0;
+		}
+	}
 	return 0;
 }
 

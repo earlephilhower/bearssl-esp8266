@@ -239,6 +239,13 @@ run_ssl_engine(br_ssl_engine_context *cc, int fd, unsigned flags)
 			get_suite_name_ext(
 				cc->session.cipher_suite, csn, sizeof csn);
 			fprintf(stderr, "   cipher suite:          %s\n", csn);
+			if (uses_ecdhe(cc->session.cipher_suite)) {
+				get_curve_name_ext(
+					br_ssl_engine_get_ecdhe_curve(cc),
+					csn, sizeof csn);
+				fprintf(stderr,
+					"   ECDHE curve:           %s\n", csn);
+			}
 			fprintf(stderr, "   secure renegotiation:  %s\n",
 				cc->reneg == 1 ? "no" : "yes");
 			pname = br_ssl_engine_get_selected_protocol(cc);

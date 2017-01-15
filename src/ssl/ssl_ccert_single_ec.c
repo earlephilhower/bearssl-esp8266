@@ -89,12 +89,18 @@ cc_choose(const br_ssl_client_certificate_class **pctx,
 
 static uint32_t
 cc_do_keyx(const br_ssl_client_certificate_class **pctx,
-	unsigned char *data, size_t len)
+	unsigned char *data, size_t *len)
 {
 	br_ssl_client_certificate_ec_context *zc;
+	uint32_t r;
+	size_t xoff, xlen;
 
 	zc = (br_ssl_client_certificate_ec_context *)pctx;
-	return zc->iec->mul(data, len, zc->sk->x, zc->sk->xlen, zc->sk->curve);
+	r = zc->iec->mul(data, *len, zc->sk->x, zc->sk->xlen, zc->sk->curve);
+	xoff = zc->iec->xoff(zc->sk->curve, &xlen);
+	memmove(data, data + xoff, xlen);
+	*len = xlen;
+	return r;
 }
 
 static size_t

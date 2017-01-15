@@ -51,7 +51,7 @@ br_ssl_server_init_minv2g(br_ssl_server_context *cc,
 	 * and private key operations.
 	 */
 	br_ssl_server_set_single_ec(cc, chain, chain_len, sk,
-		BR_KEYTYPE_KEYX, BR_KEYTYPE_EC, &br_ec_prime_i31, 0);
+		BR_KEYTYPE_KEYX, BR_KEYTYPE_EC, &br_ec_all_m15, 0);
 
 	/*
 	 * Set supported hash functions.

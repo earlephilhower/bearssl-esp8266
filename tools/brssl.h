@@ -212,6 +212,23 @@ extern const hash_function hash_functions[];
 unsigned parse_hash_functions(const char *arg);
 
 /*
+ * Get a curve name (by ID). If the curve ID is not known, this returns
+ * NULL.
+ */
+const char *get_curve_name(int id);
+
+/*
+ * Get a curve name (by ID). The name is written in the provided buffer
+ * (zero-terminated). If the curve ID is not known, the name is
+ * "unknown (***)" where "***" is the decimal value of the identifier.
+ * If the name does not fit in the provided buffer, then dst[0] is set
+ * to 0 (unless len is 0, in which case nothing is written), and -1 is
+ * returned. Otherwise, the name is written in dst[] (with a terminating
+ * 0), and this function returns 0.
+ */
+int get_curve_name_ext(int id, char *dst, size_t len);
+
+/*
  * Type for a known cipher suite.
  */
 typedef struct {
@@ -269,6 +286,11 @@ const char *get_suite_name(unsigned suite);
  * 0), and this function returns 0.
  */
 int get_suite_name_ext(unsigned suite, char *dst, size_t len);
+
+/*
+ * Tell whether a cipher suite uses ECDHE key exchange.
+ */
+int uses_ecdhe(unsigned suite);
 
 /*
  * Print out all known names (for protocol versions, cipher suites...).

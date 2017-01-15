@@ -45,7 +45,7 @@ br_ssl_server_init_mine2c(br_ssl_server_context *cc,
 	 */
 	br_ssl_engine_set_suites(&cc->eng, suites,
 		(sizeof suites) / (sizeof suites[0]));
-	br_ssl_engine_set_ec(&cc->eng, &br_ec_prime_i31);
+	br_ssl_engine_set_ec(&cc->eng, &br_ec_all_m15);
 
 	/*
 	 * Set the "server policy": handler for the certificate chain

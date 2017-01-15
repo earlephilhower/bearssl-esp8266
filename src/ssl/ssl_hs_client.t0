@@ -231,7 +231,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	int curve;
 	unsigned char key[66], point[133];
 	const unsigned char *order, *point_src;
-	size_t glen, olen, point_len;
+	size_t glen, olen, point_len, xoff, xlen;
 	unsigned char mask;
 
 	if (ecdhe) {
@@ -284,7 +284,8 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	/*
 	 * The pre-master secret is the X coordinate.
 	 */
-	br_ssl_engine_compute_master(&ctx->eng, prf_id, point + 1, glen >> 1);
+	xoff = ctx->eng.iec->xoff(curve, &xlen);
+	br_ssl_engine_compute_master(&ctx->eng, prf_id, point + xoff, xlen);
 
 	ctx->eng.iec->mulgen(point, key, olen, curve);
 	memcpy(ctx->eng.pad, point, glen);
@@ -317,12 +318,12 @@ make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 	}
 	memcpy(point, pk->key.ec.q, point_len);
 	if (!(*ctx->client_auth_vtable)->do_keyx(
-		ctx->client_auth_vtable, point, point_len))
+		ctx->client_auth_vtable, point, &point_len))
 	{
 		return -1;
 	}
 	br_ssl_engine_compute_master(&ctx->eng,
-		prf_id, point + 1, point_len >> 1);
+		prf_id, point, point_len);
 	return 0;
 }
 
@@ -390,10 +391,9 @@ addr-ctx: hash_id
 
 \ Length of Signatures extension.
 : ext-signatures-length ( -- len )
-	supported-hash-functions { x } drop
-	0
-	supports-rsa-sign? if x + then
-	supports-ecdsa? if x + then
+	supported-hash-functions { num } drop 0
+	supports-rsa-sign? if num + then
+	supports-ecdsa? if num + then
 	dup if 1 << 6 + then ;
 
 \ Write supported hash functions ( sign -- )
@@ -535,13 +535,16 @@ cc: ext-ALPN-length ( -- len ) {
 			supports-rsa-sign? if 1 write-hashes then
 		then
 		\ TODO: add an API to specify preference order for curves.
-		\ Right now we use increasing id order, which makes P-256
-		\ the preferred curve.
+		\ Right now we send Curve25519 first, then other curves in
+		\ increasing ID values (hence P-256 in second).
 		ext-supported-curves-length dup if
 			0x000A write16          \ extension type (10)
 			4 - dup write16         \ extension length
 			2- write16              \ list length
 			supported-curves 0
+			dup 0x20000000 and if
+				0xDFFFFFFF and 29 write16
+			then
 			begin dup 32 < while
 				dup2 >> 1 and if dup write16 then
 				1+

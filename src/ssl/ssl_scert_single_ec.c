@@ -79,12 +79,18 @@ se_choose(const br_ssl_server_policy_class **pctx,
 
 static uint32_t
 se_do_keyx(const br_ssl_server_policy_class **pctx,
-	unsigned char *data, size_t len)
+	unsigned char *data, size_t *len)
 {
 	br_ssl_server_policy_ec_context *pc;
+	uint32_t r;
+	size_t xoff, xlen;
 
 	pc = (br_ssl_server_policy_ec_context *)pctx;
-	return pc->iec->mul(data, len, pc->sk->x, pc->sk->xlen, pc->sk->curve);
+	r = pc->iec->mul(data, *len, pc->sk->x, pc->sk->xlen, pc->sk->curve);
+	xoff = pc->iec->xoff(pc->sk->curve, &xlen);
+	memmove(data, data + xoff, xlen);
+	*len = xlen;
+	return r;
 }
 
 static size_t

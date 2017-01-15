@@ -717,6 +717,14 @@ api_order(int curve, size_t *len)
 	return cd->order;
 }
 
+static size_t
+api_xoff(int curve, size_t *len)
+{
+	api_generator(curve, len);
+	*len >>= 1;
+	return 1;
+}
+
 static uint32_t
 api_mul(unsigned char *G, size_t Glen,
 	const unsigned char *x, size_t xlen, int curve)
@@ -804,6 +812,7 @@ const br_ec_impl br_ec_prime_i31 = {
 	(uint32_t)0x03800000,
 	&api_generator,
 	&api_order,
+	&api_xoff,
 	&api_mul,
 	&api_mulgen,
 	&api_muladd

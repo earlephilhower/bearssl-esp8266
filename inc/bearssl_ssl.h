@@ -1658,6 +1658,25 @@ br_ssl_engine_set_session_parameters(br_ssl_engine_context *cc,
 }
 
 /**
+ * \brief Get identifier for the curve used for key exchange.
+ *
+ * If the cipher suite uses ECDHE, then this function returns the
+ * identifier for the curve used for transient parameters. This is
+ * defined during the course of the handshake, when the ServerKeyExchange
+ * is sent (on the server) or received (on the client). If the
+ * cipher suite does not use ECDHE (e.g. static ECDH, or RSA key
+ * exchange), then this value is indeterminate.
+ *
+ * @param cc   SSL engine context.
+ * @return  the ECDHE curve identifier.
+ */
+static inline int
+br_ssl_engine_get_ecdhe_curve(br_ssl_engine_context *cc)
+{
+	return cc->ecdhe_curve;
+}
+
+/**
  * \brief Get the current engine state.
  *
  * An SSL engine (client or server) has, at any time, a state which is
@@ -2136,12 +2155,13 @@ struct br_ssl_client_certificate_class_ {
 	 *     structure was set to -1).
 	 *
 	 * In that situation, this callback is invoked to compute the
-	 * client-side ECDH: the provided `data` (of length `len` bytes)
+	 * client-side ECDH: the provided `data` (of length `*len` bytes)
 	 * is the server's public key point (as decoded from its
 	 * certificate), and the client shall multiply that point with
 	 * its own private key, and write back the X coordinate of the
-	 * resulting point in the same buffer, starting at offset 1
-	 * (therefore, writing back the complete encoded point works).
+	 * resulting point in the same buffer, starting at offset 0.
+	 * The `*len` value shall be modified to designate the actual
+	 * length of the X coordinate.
 	 *
 	 * The callback must uphold the following:
 	 *
@@ -2158,11 +2178,11 @@ struct br_ssl_client_certificate_class_ {
 	 *
 	 * \param pctx   certificate handler context.
 	 * \param data   server public key point.
-	 * \param len    server public key point length (in bytes).
+	 * \param len    public key point length / X coordinate length.
 	 * \return  1 on success, 0 on error.
 	 */
 	uint32_t (*do_keyx)(const br_ssl_client_certificate_class **pctx,
-		unsigned char *data, size_t len);
+		unsigned char *data, size_t *len);
 
 	/**
 	 * \brief Perform a signature (client authentication).
@@ -2791,12 +2811,12 @@ struct br_ssl_server_policy_class_ {
 	 * operation for a key exchange that is not ECDHE. This callback
 	 * uses the private key.
 	 *
-	 * **For RSA key exchange**, the provided `data` (of length `len`
+	 * **For RSA key exchange**, the provided `data` (of length `*len`
 	 * bytes) shall be decrypted with the server's private key, and
 	 * the 48-byte premaster secret copied back to the first 48 bytes
 	 * of `data`.
 	 *
-	 *   - The caller makes sure that `len` is at least 59 bytes.
+	 *   - The caller makes sure that `*len` is at least 59 bytes.
 	 *
 	 *   - This callback MUST check that the provided length matches
 	 *     that of the key modulus; it shall report an error otherwise.
@@ -2813,12 +2833,11 @@ struct br_ssl_server_policy_class_ {
 	 *     in the first 48 bytes of `data` is unimportant (the caller
 	 *     will use random bytes instead).
 	 *
-	 * **For ECDH key exchange**, the provided `data` (of length `len`
+	 * **For ECDH key exchange**, the provided `data` (of length `*len`
 	 * bytes) is the elliptic curve point from the client. The
 	 * callback shall multiply it with its private key, and store
-	 * the resulting X coordinate in `data`, starting at offset 1
-	 * (thus, simply encoding the point in compressed or uncompressed
-	 * format in `data` is fine).
+	 * the resulting X coordinate in `data`, starting at offset 0,
+	 * and set `*len` to the length of the X coordinate.
 	 *
 	 *   - If the input array does not have the proper length for
 	 *     an encoded curve point, then an error (0) shall be reported.
@@ -2837,7 +2856,7 @@ struct br_ssl_server_policy_class_ {
 	 * \return  1 on success, 0 on error.
 	 */
 	uint32_t (*do_keyx)(const br_ssl_server_policy_class **pctx,
-		unsigned char *data, size_t len);
+		unsigned char *data, size_t *len);
 
 	/**
 	 * \brief Perform a signature (for a ServerKeyExchange message).

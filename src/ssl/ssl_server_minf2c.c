@@ -45,14 +45,14 @@ br_ssl_server_init_minf2c(br_ssl_server_context *cc,
 	 */
 	br_ssl_engine_set_suites(&cc->eng, suites,
 		(sizeof suites) / (sizeof suites[0]));
-	br_ssl_engine_set_ec(&cc->eng, &br_ec_prime_i31);
+	br_ssl_engine_set_ec(&cc->eng, &br_ec_all_m15);
 
 	/*
 	 * Set the "server policy": handler for the certificate chain
 	 * and private key operations.
 	 */
 	br_ssl_server_set_single_ec(cc, chain, chain_len, sk,
-		BR_KEYTYPE_SIGN, 0, &br_ec_prime_i31, br_ecdsa_i31_sign_asn1);
+		BR_KEYTYPE_SIGN, 0, &br_ec_all_m15, br_ecdsa_i31_sign_asn1);
 
 	/*
 	 * Set supported hash functions.
