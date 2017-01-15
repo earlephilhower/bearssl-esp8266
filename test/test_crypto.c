@@ -4935,13 +4935,13 @@ const struct {
 static void
 test_EC_c25519(const char *name, const br_ec_impl *iec)
 {
+	unsigned char bu[32], bk[32], br[32];
 	size_t v;
+	int i;
 
 	printf("Test %s: ", name);
 	fflush(stdout);
 	for (v = 0; C25519_KAT[v].scalar; v ++) {
-		unsigned char bu[32], bk[32], br[32];
-
 		hextobin(bk, C25519_KAT[v].scalar);
 		hextobin(bu, C25519_KAT[v].u_in);
 		hextobin(br, C25519_KAT[v].u_out);
@@ -4956,6 +4956,44 @@ test_EC_c25519(const char *name, const br_ec_impl *iec)
 		printf(".");
 		fflush(stdout);
 	}
+	printf(" ");
+	fflush(stdout);
+
+	memset(bu, 0, sizeof bu);
+	bu[0] = 0x09;
+	memcpy(bk, bu, sizeof bu);
+	for (i = 1; i <= 1000; i ++) {
+		if (!iec->mul(bu, sizeof bu, bk, sizeof bk, BR_EC_curve25519)) {
+			fprintf(stderr, "Curve25519 multiplication failed"
+				" (iter=%d)\n", i);
+			exit(EXIT_FAILURE);
+		}
+		for (v = 0; v < sizeof bu; v ++) {
+			unsigned t;
+
+			t = bu[v];
+			bu[v] = bk[v];
+			bk[v] = t;
+		}
+		if (i == 1 || i == 1000) {
+			const char *sref;
+
+			sref = (i == 1)
+				? "422C8E7A6227D7BCA1350B3E2BB7279F7897B87BB6854B783C60E80311AE3079"
+				: "684CF59BA83309552800EF566F2F4D3C1C3887C49360E3875F2EB94D99532C51";
+			hextobin(br, sref);
+			if (memcmp(bk, br, sizeof bk) != 0) {
+				fprintf(stderr,
+					"Curve25519 failed KAT (iter=%d)\n", i);
+				exit(EXIT_FAILURE);
+			}
+		}
+		if (i % 100 == 0) {
+			printf(".");
+			fflush(stdout);
+		}
+	}
+
 	printf(" done.\n");
 	fflush(stdout);
 }
@@ -4964,6 +5002,12 @@ static void
 test_EC_c25519_i15(void)
 {
 	test_EC_c25519("EC_c25519_i15", &br_ec_c25519_i15);
+}
+
+static void
+test_EC_c25519_m15(void)
+{
+	test_EC_c25519("EC_c25519_m15", &br_ec_c25519_m15);
 }
 
 static const unsigned char EC_P256_PUB_POINT[] = {
@@ -5513,6 +5557,7 @@ static const struct {
 	STU(EC_p256_m15),
 	/* STU(EC_prime_i32), */
 	STU(EC_c25519_i15),
+	STU(EC_c25519_m15),
 	STU(ECDSA_i15),
 	STU(ECDSA_i31),
 	{ 0, 0 }

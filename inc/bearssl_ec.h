@@ -410,12 +410,12 @@ extern const br_ec_impl br_ec_prime_i31;
 extern const br_ec_impl br_ec_prime_i15;
 
 /**
- * \brief EC implementation "i15" for P-256.
+ * \brief EC implementation "m15" for P-256.
  *
  * This implementation uses specialised code for curve secp256r1 (also
- * known as NIST P-256), with Karatsuba decomposition, and fast modular
- * reduction thanks to the field modulus special format. Only 32-bit
- * multiplications are used (with 32-bit results, not 64-bit).
+ * known as NIST P-256), with optional Karatsuba decomposition, and fast
+ * modular reduction thanks to the field modulus special format. Only
+ * 32-bit multiplications are used (with 32-bit results, not 64-bit).
  */
 extern const br_ec_impl br_ec_p256_m15;
 
@@ -427,6 +427,14 @@ extern const br_ec_impl br_ec_p256_m15;
  * implemented.
  */
 extern const br_ec_impl br_ec_c25519_i15;
+
+/**
+ * \brief EC implementation "m15" (specialised code) for Curve25519.
+ *
+ * This implementation uses custom code relying on multiplication of
+ * integers up to 15 bits. The `muladd()` method is not implemented.
+ */
+extern const br_ec_impl br_ec_c25519_m15;
 
 /**
  * \brief Convert a signature from "raw" to "asn1".

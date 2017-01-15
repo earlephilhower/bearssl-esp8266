@@ -46,6 +46,27 @@ static const uint16_t C255_R2[] = {
 	0x0000
 };
 
+/* obsolete
+#include <stdio.h>
+#include <stdlib.h>
+static void
+print_int_mont(const char *name, const uint16_t *x)
+{
+	uint16_t y[18];
+	unsigned char tmp[32];
+	size_t u;
+
+	printf("%s = ", name);
+	memcpy(y, x, sizeof y);
+	br_i15_from_monty(y, C255_P, P0I);
+	br_i15_encode(tmp, sizeof tmp, y);
+	for (u = 0; u < sizeof tmp; u ++) {
+		printf("%02X", tmp[u]);
+	}
+	printf("\n");
+}
+*/
+
 static const uint16_t C255_A24[] = {
 	0x0110,
 	0x45D3, 0x0046, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -194,6 +215,10 @@ api_mul(unsigned char *G, size_t Glen,
 	k[31] &= 0x7F;
 	k[31] |= 0x40;
 
+	/* obsolete
+	print_int_mont("x1", x1);
+	*/
+
 	swap = 0;
 	for (i = 254; i >= 0; i --) {
 		uint32_t kt;
@@ -204,6 +229,13 @@ api_mul(unsigned char *G, size_t Glen,
 		cswap(z2, z3, swap);
 		swap = kt;
 
+		/* obsolete
+		print_int_mont("x2", x2);
+		print_int_mont("z2", z2);
+		print_int_mont("x3", x3);
+		print_int_mont("z3", z3);
+		*/
+
 		c255_add(a, x2, z2);
 		c255_mul(aa, a, a);
 		c255_sub(b, x2, z2);
@@ -213,6 +245,19 @@ api_mul(unsigned char *G, size_t Glen,
 		c255_sub(d, x3, z3);
 		c255_mul(da, d, a);
 		c255_mul(cb, c, b);
+
+		/* obsolete
+		print_int_mont("a ", a);
+		print_int_mont("aa", aa);
+		print_int_mont("b ", b);
+		print_int_mont("bb", bb);
+		print_int_mont("e ", e);
+		print_int_mont("c ", c);
+		print_int_mont("d ", d);
+		print_int_mont("da", da);
+		print_int_mont("cb", cb);
+		*/
+
 		c255_add(x3, da, cb);
 		c255_mul(x3, x3, x3);
 		c255_sub(z3, da, cb);
@@ -222,6 +267,13 @@ api_mul(unsigned char *G, size_t Glen,
 		c255_mul(z2, C255_A24, e);
 		c255_add(z2, z2, aa);
 		c255_mul(z2, e, z2);
+
+		/* obsolete
+		print_int_mont("x2", x2);
+		print_int_mont("z2", z2);
+		print_int_mont("x3", x3);
+		print_int_mont("z3", z3);
+		*/
 	}
 	cswap(x2, x3, swap);
 	cswap(z2, z3, swap);

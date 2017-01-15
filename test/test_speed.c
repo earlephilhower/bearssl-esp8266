@@ -715,6 +715,13 @@ test_speed_ec_c25519_i15(void)
 }
 
 static void
+test_speed_ec_c25519_m15(void)
+{
+	test_speed_ec_inner("EC m15 C25519",
+		&br_ec_c25519_m15, &br_curve25519);
+}
+
+static void
 test_speed_ecdsa_inner(const char *name,
 	const br_ec_impl *impl, const br_ec_curve_def *cd,
 	br_ecdsa_sign sign, br_ecdsa_vrfy vrfy)
@@ -1256,6 +1263,7 @@ static const struct {
 	STU(ec_prime_i15),
 	STU(ec_prime_i31),
 	STU(ec_c25519_i15),
+	STU(ec_c25519_m15),
 	STU(ecdsa_p256_m15),
 	STU(ecdsa_i15),
 	STU(ecdsa_i31),
