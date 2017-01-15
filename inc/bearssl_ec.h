@@ -218,6 +218,12 @@
 /** \brief Identifier for named curve brainpoolP512r1. */
 #define BR_EC_brainpoolP512r1    28
 
+/** \brief Identifier for named curve Curve25519. */
+#define BR_EC_curve25519         29
+
+/** \brief Identifier for named curve Curve448. */
+#define BR_EC_curve448           30
+
 /**
  * \brief Structure for an EC public key.
  */
@@ -411,7 +417,16 @@ extern const br_ec_impl br_ec_prime_i15;
  * reduction thanks to the field modulus special format. Only 32-bit
  * multiplications are used (with 32-bit results, not 64-bit).
  */
-extern const br_ec_impl br_ec_p256_i15;
+extern const br_ec_impl br_ec_p256_m15;
+
+/**
+ * \brief EC implementation "i15" (generic code) for Curve25519.
+ *
+ * This implementation uses the generic code for modular integers (with
+ * 15-bit words) to support Curve25519. The `muladd()` method is not
+ * implemented.
+ */
+extern const br_ec_impl br_ec_c25519_i15;
 
 /**
  * \brief Convert a signature from "raw" to "asn1".

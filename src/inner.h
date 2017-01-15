@@ -1456,6 +1456,8 @@ extern const br_ec_curve_def br_secp256r1;
 extern const br_ec_curve_def br_secp384r1;
 extern const br_ec_curve_def br_secp521r1;
 
+extern const br_ec_curve_def br_curve25519;
+
 #if 0
 /* obsolete */
 /*

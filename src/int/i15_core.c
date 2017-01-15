@@ -263,7 +263,8 @@ br_i15_montymul(uint16_t *d, const uint16_t *x, const uint16_t *y,
 		uint32_t f, xu, r, zh;
 
 		xu = x[u + 1];
-		f = MUL15(d[1] + MUL15(x[u + 1], y[1]), m0i) & 0x7FFF;
+		f = MUL15((d[1] + MUL15(x[u + 1], y[1])) & 0x7FFF, m0i)
+			& 0x7FFF;
 
 		r = 0;
 		for (v = 0; v < len4; v += 4) {
@@ -297,7 +298,7 @@ br_i15_montymul(uint16_t *d, const uint16_t *x, const uint16_t *y,
 
 		zh = dh + r;
 		d[len] = zh & 0x7FFF;
-		dh = zh >> 31;
+		dh = zh >> 15;
 	}
 
 	/*
