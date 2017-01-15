@@ -451,6 +451,20 @@ extern const br_ec_impl br_ec_p256_m15;
 extern const br_ec_impl br_ec_c25519_i15;
 
 /**
+ * \brief EC implementation "i31" (generic code) for Curve25519.
+ *
+ * This implementation uses the generic code for modular integers (with
+ * 31-bit words) to support Curve25519. Due to the specificities of the
+ * curve definition, the following applies:
+ *
+ *   - `muladd()` is not implemented (the function returns 0 systematically).
+ *   - `order()` returns 2^255-1, since the point multiplication algorithm
+ *     accepts any 32-bit integer as input (it clears the top bit and low
+ *     three bits systematically).
+ */
+extern const br_ec_impl br_ec_c25519_i31;
+
+/**
  * \brief EC implementation "m15" (specialised code) for Curve25519.
  *
  * This implementation uses custom code relying on multiplication of
@@ -463,6 +477,20 @@ extern const br_ec_impl br_ec_c25519_i15;
  *     three bits systematically).
  */
 extern const br_ec_impl br_ec_c25519_m15;
+
+/**
+ * \brief EC implementation "m31" (specialised code) for Curve25519.
+ *
+ * This implementation uses custom code relying on multiplication of
+ * integers up to 31 bits. Due to the specificities of the curve
+ * definition, the following applies:
+ *
+ *   - `muladd()` is not implemented (the function returns 0 systematically).
+ *   - `order()` returns 2^255-1, since the point multiplication algorithm
+ *     accepts any 32-bit integer as input (it clears the top bit and low
+ *     three bits systematically).
+ */
+extern const br_ec_impl br_ec_c25519_m31;
 
 /**
  * \brief Aggregate EC implementation "m15".

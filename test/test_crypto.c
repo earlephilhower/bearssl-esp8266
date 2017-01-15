@@ -5005,9 +5005,21 @@ test_EC_c25519_i15(void)
 }
 
 static void
+test_EC_c25519_i31(void)
+{
+	test_EC_c25519("EC_c25519_i31", &br_ec_c25519_i31);
+}
+
+static void
 test_EC_c25519_m15(void)
 {
 	test_EC_c25519("EC_c25519_m15", &br_ec_c25519_m15);
+}
+
+static void
+test_EC_c25519_m31(void)
+{
+	test_EC_c25519("EC_c25519_m31", &br_ec_c25519_m31);
 }
 
 static const unsigned char EC_P256_PUB_POINT[] = {
@@ -5555,9 +5567,10 @@ static const struct {
 	STU(EC_prime_i15),
 	STU(EC_prime_i31),
 	STU(EC_p256_m15),
-	/* STU(EC_prime_i32), */
 	STU(EC_c25519_i15),
+	STU(EC_c25519_i31),
 	STU(EC_c25519_m15),
+	STU(EC_c25519_m31),
 	STU(ECDSA_i15),
 	STU(ECDSA_i31),
 	{ 0, 0 }
