@@ -437,6 +437,15 @@ extern const br_ec_impl br_ec_prime_i15;
 extern const br_ec_impl br_ec_p256_m15;
 
 /**
+ * \brief EC implementation "m31" for P-256.
+ *
+ * This implementation uses specialised code for curve secp256r1 (also
+ * known as NIST P-256), relying on multiplications of 31-bit values
+ * (MUL31).
+ */
+extern const br_ec_impl br_ec_p256_m31;
+
+/**
  * \brief EC implementation "i15" (generic code) for Curve25519.
  *
  * This implementation uses the generic code for modular integers (with

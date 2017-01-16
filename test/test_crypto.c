@@ -4918,6 +4918,13 @@ test_EC_p256_m15(void)
 		(uint32_t)1 << BR_EC_secp256r1);
 }
 
+static void
+test_EC_p256_m31(void)
+{
+	test_EC_KAT("EC_p256_m31", &br_ec_p256_m31,
+		(uint32_t)1 << BR_EC_secp256r1);
+}
+
 const struct {
 	const char *scalar;
 	const char *u_in;
@@ -5567,6 +5574,7 @@ static const struct {
 	STU(EC_prime_i15),
 	STU(EC_prime_i31),
 	STU(EC_p256_m15),
+	STU(EC_p256_m31),
 	STU(EC_c25519_i15),
 	STU(EC_c25519_i31),
 	STU(EC_c25519_m15),

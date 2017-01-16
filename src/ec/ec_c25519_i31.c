@@ -203,10 +203,26 @@ api_mul(unsigned char *G, size_t Glen,
 	byteswap(G);
 
 	/*
+	 * Decode the point ('u' coordinate). This should be reduced
+	 * modulo p, but we prefer to avoid the dependency on
+	 * br_i31_decode_reduce(). Instead, we use br_i31_decode_mod()
+	 * with a synthetic modulus of value 2^255 (this must work
+	 * since G was truncated to 255 bits), then use a conditional
+	 * subtraction. We use br_i31_decode_mod() and not
+	 * br_i31_decode(), because the ec_prime_i31 implementation uses
+	 * the former but not the latter.
+	 *    br_i31_decode_reduce(a, G, 32, C255_P);
+	 */
+	br_i31_zero(b, 0x108);
+	b[9] = 0x0100;
+	br_i31_decode_mod(a, G, 32, b);
+	a[0] = 0x107;
+	br_i31_sub(a, C255_P, NOT(br_i31_sub(a, C255_P, 0)));
+
+	/*
 	 * Initialise variables x1, x2, z2, x3 and z3. We set all of them
 	 * into Montgomery representation.
 	 */
-	br_i31_decode_reduce(a, G, 32, C255_P);
 	br_i31_montymul(x1, a, C255_R2, C255_P, P0I);
 	memcpy(x3, x1, sizeof x1);
 	br_i31_zero(z2, C255_P[0]);
@@ -308,8 +324,18 @@ api_mul(unsigned char *G, size_t Glen,
 			c255_mul(b, z2, b);
 		}
 	}
-	c255_mul(x2, x2, b);
-	br_i31_from_monty(x2, C255_P, P0I);
+	c255_mul(b, x2, b);
+
+	/*
+	 * To avoid a dependency on br_i31_from_monty(), we use
+	 * a Montgomery multiplication with 1.
+	 *    memcpy(x2, b, sizeof b);
+	 *    br_i31_from_monty(x2, C255_P, P0I);
+	 */
+	br_i31_zero(a, C255_P[0]);
+	a[1] = 1;
+	br_i31_montymul(x2, a, b, C255_P, P0I);
+
 	br_i31_encode(G, 32, x2);
 	byteswap(G);
 	return 1;

@@ -1101,18 +1101,20 @@ mul_f256(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	}
 
 	/*
-	 * Propagate carries. Since the operation above really is a
-	 * truncature, followed by the addition of nonnegative values,
-	 * the result will be positive. Moreover, the carry cannot
-	 * exceed 5 bits (we performed 20 additions with values smaller
-	 * than 256 bits).
+	 * Propagate carries. This is a signed propagation, and the
+	 * result may be negative. The loop above may enlarge values,
+	 * but not two much: worst case is the chain involving t[i - 3],
+	 * in which a value may be added to itself up to 7 times. Since
+	 * starting values are 13-bit each, all words fit on 20 bits
+	 * (21 to account for the sign bit).
 	 */
 	cc = norm13(t, t, 20);
 
 	/*
 	 * Perform modular reduction again for the bits beyond 256 (the carry
-	 * and the bits 256..259). This time, we can simply inject full
-	 * word values.
+	 * and the bits 256..259). Since the largest shift below is by 10
+	 * bits, and the values fit on 21 bits, values fit in 32-bit words,
+	 * thereby allowing injecting full word values.
 	 */
 	cc = (cc << 4) | (t[19] >> 9);
 	t[19] &= 0x01FF;
@@ -1172,18 +1174,20 @@ square_f256(uint32_t *d, const uint32_t *a)
 	}
 
 	/*
-	 * Propagate carries. Since the operation above really is a
-	 * truncature, followed by the addition of nonnegative values,
-	 * the result will be positive. Moreover, the carry cannot
-	 * exceed 5 bits (we performed 20 additions with values smaller
-	 * than 256 bits).
+	 * Propagate carries. This is a signed propagation, and the
+	 * result may be negative. The loop above may enlarge values,
+	 * but not two much: worst case is the chain involving t[i - 3],
+	 * in which a value may be added to itself up to 7 times. Since
+	 * starting values are 13-bit each, all words fit on 20 bits
+	 * (21 to account for the sign bit).
 	 */
 	cc = norm13(t, t, 20);
 
 	/*
 	 * Perform modular reduction again for the bits beyond 256 (the carry
-	 * and the bits 256..259). This time, we can simply inject full
-	 * word values.
+	 * and the bits 256..259). Since the largest shift below is by 10
+	 * bits, and the values fit on 21 bits, values fit in 32-bit words,
+	 * thereby allowing injecting full word values.
 	 */
 	cc = (cc << 4) | (t[19] >> 9);
 	t[19] &= 0x01FF;

@@ -47,7 +47,7 @@ TESTX509 = testx509
 TESTMATH = testmath
 
 OBJCODEC = $(BUILD)/ccopy.o $(BUILD)/dec16be.o $(BUILD)/dec16le.o $(BUILD)/dec32be.o $(BUILD)/dec32le.o $(BUILD)/dec64be.o $(BUILD)/dec64le.o $(BUILD)/enc16be.o $(BUILD)/enc16le.o $(BUILD)/enc32be.o $(BUILD)/enc32le.o $(BUILD)/enc64be.o $(BUILD)/enc64le.o $(BUILD)/pemdec.o
-OBJEC = $(BUILD)/ec_all_m15.o $(BUILD)/ec_c25519_i15.o $(BUILD)/ec_c25519_i31.o $(BUILD)/ec_c25519_m15.o $(BUILD)/ec_c25519_m31.o $(BUILD)/ec_curve25519.o $(BUILD)/ec_p256_m15.o $(BUILD)/ec_prime_i15.o $(BUILD)/ec_prime_i31.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i15_bits.o $(BUILD)/ecdsa_i15_sign_asn1.o $(BUILD)/ecdsa_i15_sign_raw.o $(BUILD)/ecdsa_i15_vrfy_asn1.o $(BUILD)/ecdsa_i15_vrfy_raw.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
+OBJEC = $(BUILD)/ec_all_m15.o $(BUILD)/ec_all_m31.o $(BUILD)/ec_c25519_i15.o $(BUILD)/ec_c25519_i31.o $(BUILD)/ec_c25519_m15.o $(BUILD)/ec_c25519_m31.o $(BUILD)/ec_curve25519.o $(BUILD)/ec_p256_m15.o $(BUILD)/ec_p256_m31.o $(BUILD)/ec_prime_i15.o $(BUILD)/ec_prime_i31.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i15_bits.o $(BUILD)/ecdsa_i15_sign_asn1.o $(BUILD)/ecdsa_i15_sign_raw.o $(BUILD)/ecdsa_i15_vrfy_asn1.o $(BUILD)/ecdsa_i15_vrfy_raw.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
 # $(BUILD)/ec_prime_i31_secp256r1.o $(BUILD)/ec_prime_i31_secp384r1.o $(BUILD)/ec_prime_i31_secp521r1.o
 OBJHASH = $(BUILD)/dig_oid.o $(BUILD)/dig_size.o $(BUILD)/ghash_ctmul.o $(BUILD)/ghash_ctmul32.o $(BUILD)/ghash_ctmul64.o $(BUILD)/md5.o $(BUILD)/md5sha1.o $(BUILD)/multihash.o $(BUILD)/sha1.o $(BUILD)/sha2big.o $(BUILD)/sha2small.o
 OBJINT15 = $(BUILD)/i15_core.o $(BUILD)/i15_ext1.o $(BUILD)/i15_ext2.o
@@ -165,6 +165,9 @@ $(BUILD)/ec_g_secp521r1.o: src/ec/ec_g_secp521r1.c $(HEADERS)
 $(BUILD)/ec_all_m15.o: src/ec/ec_all_m15.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_all_m15.o src/ec/ec_all_m15.c
 
+$(BUILD)/ec_all_m31.o: src/ec/ec_all_m31.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_all_m31.o src/ec/ec_all_m31.c
+
 $(BUILD)/ec_c25519_i15.o: src/ec/ec_c25519_i15.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_c25519_i15.o src/ec/ec_c25519_i15.c
 
@@ -182,6 +185,9 @@ $(BUILD)/ec_curve25519.o: src/ec/ec_curve25519.c $(HEADERS)
 
 $(BUILD)/ec_p256_m15.o: src/ec/ec_p256_m15.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_p256_m15.o src/ec/ec_p256_m15.c
+
+$(BUILD)/ec_p256_m31.o: src/ec/ec_p256_m31.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_p256_m31.o src/ec/ec_p256_m31.c
 
 $(BUILD)/ec_prime_i15.o: src/ec/ec_prime_i15.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/ec_prime_i15.o src/ec/ec_prime_i15.c
