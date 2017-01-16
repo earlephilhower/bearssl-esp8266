@@ -24,11 +24,6 @@
 
 #include "inner.h"
 
-/*
- * This file contains some additional functions for "i15" big integers.
- * These functions are needed to support RSA.
- */
-
 /* see inner.h */
 void
 br_i15_decode_reduce(uint16_t *x,
@@ -101,73 +96,5 @@ br_i15_decode_reduce(uint16_t *x,
 		acc = (acc | (x[1] << acc_len)) & 0x7FFF;
 		br_i15_rshift(x, 15 - acc_len);
 		br_i15_muladd_small(x, acc, m);
-	}
-}
-
-/* see inner.h */
-void
-br_i15_reduce(uint16_t *x, const uint16_t *a, const uint16_t *m)
-{
-	uint32_t m_bitlen, a_bitlen;
-	size_t mlen, alen, u;
-
-	m_bitlen = m[0];
-	mlen = (m_bitlen + 15) >> 4;
-
-	x[0] = m_bitlen;
-	if (m_bitlen == 0) {
-		return;
-	}
-
-	/*
-	 * If the source is shorter, then simply copy all words from a[]
-	 * and zero out the upper words.
-	 */
-	a_bitlen = a[0];
-	alen = (a_bitlen + 15) >> 4;
-	if (a_bitlen < m_bitlen) {
-		memcpy(x + 1, a + 1, alen * sizeof *a);
-		for (u = alen; u < mlen; u ++) {
-			x[u + 1] = 0;
-		}
-		return;
-	}
-
-	/*
-	 * The source length is at least equal to that of the modulus.
-	 * We must thus copy N-1 words, and input the remaining words
-	 * one by one.
-	 */
-	memcpy(x + 1, a + 2 + (alen - mlen), (mlen - 1) * sizeof *a);
-	x[mlen] = 0;
-	for (u = 1 + alen - mlen; u > 0; u --) {
-		br_i15_muladd_small(x, a[u], m);
-	}
-}
-
-/* see inner.h */
-void
-br_i15_mulacc(uint16_t *d, const uint16_t *a, const uint16_t *b)
-{
-	size_t alen, blen, u;
-
-	alen = (a[0] + 15) >> 4;
-	blen = (b[0] + 15) >> 4;
-	d[0] = a[0] + b[0];
-	for (u = 0; u < blen; u ++) {
-		uint32_t f;
-		size_t v;
-		uint32_t cc;
-
-		f = b[1 + u];
-		cc = 0;
-		for (v = 0; v < alen; v ++) {
-			uint32_t z;
-
-			z = (uint32_t)d[1 + u + v] + MUL15(f, a[1 + v]) + cc;
-			cc = z >> 15;
-			d[1 + u + v] = z & 0x7FFF;
-		}
-		d[1 + u + alen] = cc;
 	}
 }

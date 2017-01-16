@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+ * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the
@@ -24,25 +24,36 @@
 
 #include "inner.h"
 
-static const uint32_t P384_P[] = {
-	0x0000018C,
-	0x7FFFFFFF, 0x00000001, 0x00000000, 0x7FFFFFF8,
-	0x7FFFFFEF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x00000FFF
-};
-
-static const uint32_t P384_B[] = {
-	0x0000018C,
-	0x6E666840, 0x070D0392, 0x5D810231, 0x7651D50C,
-	0x17E218D6, 0x1B192002, 0x44EFE441, 0x3A524E2B,
-	0x2719BA5F, 0x41F02209, 0x36C5643E, 0x5813EFFE,
-	0x000008A5
-};
-
 /* see inner.h */
-const br_ec_prime_i31_curve br_ec_prime_i31_secp384r1 = {
-	P384_P,
-	P384_B,
-	0x00000001
-};
+void
+br_i15_from_monty(uint16_t *x, const uint16_t *m, uint16_t m0i)
+{
+	size_t len, u, v;
+
+	len = (m[0] + 15) >> 4;
+	for (u = 0; u < len; u ++) {
+		uint32_t f, cc;
+
+		f = MUL15(x[1], m0i) & 0x7FFF;
+		cc = 0;
+		for (v = 0; v < len; v ++) {
+			uint32_t z;
+
+			z = (uint32_t)x[v + 1] + MUL15(f, m[v + 1]) + cc;
+			cc = z >> 15;
+			if (v != 0) {
+				x[v] = z & 0x7FFF;
+			}
+		}
+		x[len] = cc;
+	}
+
+	/*
+	 * We may have to do an extra subtraction, but only if the
+	 * value in x[] is indeed greater than or equal to that of m[],
+	 * which is why we must do two calls (first call computes the
+	 * carry, second call performs the subtraction only if the carry
+	 * is 0).
+	 */
+	br_i15_sub(x, m, NOT(br_i15_sub(x, m, 0)));
+}

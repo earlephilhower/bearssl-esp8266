@@ -50,7 +50,7 @@ OBJCODEC = $(BUILD)/ccopy.o $(BUILD)/dec16be.o $(BUILD)/dec16le.o $(BUILD)/dec32
 OBJEC = $(BUILD)/ec_all_m15.o $(BUILD)/ec_all_m31.o $(BUILD)/ec_c25519_i15.o $(BUILD)/ec_c25519_i31.o $(BUILD)/ec_c25519_m15.o $(BUILD)/ec_c25519_m31.o $(BUILD)/ec_curve25519.o $(BUILD)/ec_p256_m15.o $(BUILD)/ec_p256_m31.o $(BUILD)/ec_prime_i15.o $(BUILD)/ec_prime_i31.o $(BUILD)/ec_secp256r1.o $(BUILD)/ec_secp384r1.o $(BUILD)/ec_secp521r1.o $(BUILD)/ecdsa_atr.o $(BUILD)/ecdsa_i15_bits.o $(BUILD)/ecdsa_i15_sign_asn1.o $(BUILD)/ecdsa_i15_sign_raw.o $(BUILD)/ecdsa_i15_vrfy_asn1.o $(BUILD)/ecdsa_i15_vrfy_raw.o $(BUILD)/ecdsa_i31_bits.o $(BUILD)/ecdsa_i31_sign_asn1.o $(BUILD)/ecdsa_i31_sign_raw.o $(BUILD)/ecdsa_i31_vrfy_asn1.o $(BUILD)/ecdsa_i31_vrfy_raw.o $(BUILD)/ecdsa_rta.o
 # $(BUILD)/ec_prime_i31_secp256r1.o $(BUILD)/ec_prime_i31_secp384r1.o $(BUILD)/ec_prime_i31_secp521r1.o
 OBJHASH = $(BUILD)/dig_oid.o $(BUILD)/dig_size.o $(BUILD)/ghash_ctmul.o $(BUILD)/ghash_ctmul32.o $(BUILD)/ghash_ctmul64.o $(BUILD)/md5.o $(BUILD)/md5sha1.o $(BUILD)/multihash.o $(BUILD)/sha1.o $(BUILD)/sha2big.o $(BUILD)/sha2small.o
-OBJINT15 = $(BUILD)/i15_core.o $(BUILD)/i15_ext1.o $(BUILD)/i15_ext2.o
+OBJINT15 = $(BUILD)/i15_add.o $(BUILD)/i15_bitlen.o $(BUILD)/i15_decmod.o $(BUILD)/i15_decode.o $(BUILD)/i15_decred.o $(BUILD)/i15_encode.o $(BUILD)/i15_fmont.o $(BUILD)/i15_iszero.o $(BUILD)/i15_modpow.o $(BUILD)/i15_montmul.o $(BUILD)/i15_mulacc.o $(BUILD)/i15_muladd.o $(BUILD)/i15_ninv15.o $(BUILD)/i15_reduce.o $(BUILD)/i15_rshift.o $(BUILD)/i15_sub.o $(BUILD)/i15_tmont.o
 OBJINT31 = $(BUILD)/i31_add.o $(BUILD)/i31_bitlen.o $(BUILD)/i31_decmod.o $(BUILD)/i31_decode.o $(BUILD)/i31_decred.o $(BUILD)/i31_encode.o $(BUILD)/i31_fmont.o $(BUILD)/i31_iszero.o $(BUILD)/i31_modpow.o $(BUILD)/i31_montmul.o $(BUILD)/i31_mulacc.o $(BUILD)/i31_muladd.o $(BUILD)/i31_ninv31.o $(BUILD)/i31_reduce.o $(BUILD)/i31_rshift.o $(BUILD)/i31_sub.o $(BUILD)/i31_tmont.o
 OBJINT32 = $(BUILD)/i32_add.o $(BUILD)/i32_bitlen.o $(BUILD)/i32_decmod.o $(BUILD)/i32_decode.o $(BUILD)/i32_decred.o $(BUILD)/i32_div32.o $(BUILD)/i32_encode.o $(BUILD)/i32_fmont.o $(BUILD)/i32_iszero.o $(BUILD)/i32_modpow.o $(BUILD)/i32_montmul.o $(BUILD)/i32_mulacc.o $(BUILD)/i32_muladd.o $(BUILD)/i32_ninv32.o $(BUILD)/i32_reduce.o $(BUILD)/i32_sub.o $(BUILD)/i32_tmont.o
 OBJMAC = $(BUILD)/hmac.o $(BUILD)/hmac_ct.o
@@ -282,14 +282,56 @@ $(BUILD)/sha2big.o: src/hash/sha2big.c $(HEADERS)
 $(BUILD)/sha2small.o: src/hash/sha2small.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/sha2small.o src/hash/sha2small.c
 
-$(BUILD)/i15_core.o: src/int/i15_core.c $(HEADERS)
-	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_core.o src/int/i15_core.c
+$(BUILD)/i15_add.o: src/int/i15_add.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_add.o src/int/i15_add.c
 
-$(BUILD)/i15_ext1.o: src/int/i15_ext1.c $(HEADERS)
-	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_ext1.o src/int/i15_ext1.c
+$(BUILD)/i15_bitlen.o: src/int/i15_bitlen.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_bitlen.o src/int/i15_bitlen.c
 
-$(BUILD)/i15_ext2.o: src/int/i15_ext2.c $(HEADERS)
-	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_ext2.o src/int/i15_ext2.c
+$(BUILD)/i15_decmod.o: src/int/i15_decmod.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_decmod.o src/int/i15_decmod.c
+
+$(BUILD)/i15_decode.o: src/int/i15_decode.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_decode.o src/int/i15_decode.c
+
+$(BUILD)/i15_decred.o: src/int/i15_decred.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_decred.o src/int/i15_decred.c
+
+$(BUILD)/i15_encode.o: src/int/i15_encode.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_encode.o src/int/i15_encode.c
+
+$(BUILD)/i15_fmont.o: src/int/i15_fmont.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_fmont.o src/int/i15_fmont.c
+
+$(BUILD)/i15_iszero.o: src/int/i15_iszero.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_iszero.o src/int/i15_iszero.c
+
+$(BUILD)/i15_modpow.o: src/int/i15_modpow.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_modpow.o src/int/i15_modpow.c
+
+$(BUILD)/i15_montmul.o: src/int/i15_montmul.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_montmul.o src/int/i15_montmul.c
+
+$(BUILD)/i15_mulacc.o: src/int/i15_mulacc.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_mulacc.o src/int/i15_mulacc.c
+
+$(BUILD)/i15_muladd.o: src/int/i15_muladd.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_muladd.o src/int/i15_muladd.c
+
+$(BUILD)/i15_ninv15.o: src/int/i15_ninv15.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_ninv15.o src/int/i15_ninv15.c
+
+$(BUILD)/i15_reduce.o: src/int/i15_reduce.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_reduce.o src/int/i15_reduce.c
+
+$(BUILD)/i15_rshift.o: src/int/i15_rshift.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_rshift.o src/int/i15_rshift.c
+
+$(BUILD)/i15_sub.o: src/int/i15_sub.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_sub.o src/int/i15_sub.c
+
+$(BUILD)/i15_tmont.o: src/int/i15_tmont.c $(HEADERS)
+	$(CC) $(CFLAGS) -c -o $(BUILD)/i15_tmont.o src/int/i15_tmont.c
 
 $(BUILD)/i31_add.o: src/int/i31_add.c $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/i31_add.o src/int/i31_add.c

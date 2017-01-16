@@ -24,52 +24,6 @@
 
 #include "inner.h"
 
-/*
- * This file contains some additional functions for "i15" big integers.
- * These functions are needed to support ECDSA.
- */
-
-/* see inner.h */
-void
-br_i15_rshift(uint16_t *x, int count)
-{
-	size_t u, len;
-	unsigned r;
-
-	len = (x[0] + 15) >> 4;
-	if (len == 0) {
-		return;
-	}
-	r = x[1] >> count;
-	for (u = 2; u <= len; u ++) {
-		unsigned w;
-
-		w = x[u];
-		x[u - 1] = ((w << (15 - count)) | r) & 0x7FFF;
-		r = w >> count;
-	}
-	x[len] = r;
-}
-
-/* see inner.h */
-uint32_t
-br_i15_bit_length(uint16_t *x, size_t xlen)
-{
-	uint32_t tw, twk;
-
-	tw = 0;
-	twk = 0;
-	while (xlen -- > 0) {
-		uint32_t w, c;
-
-		c = EQ(tw, 0);
-		w = x[xlen];
-		tw = MUX(c, w, tw);
-		twk = MUX(c, (uint32_t)xlen, twk);
-	}
-	return (twk << 4) + BIT_LENGTH(tw);
-}
-
 /* see inner.h */
 void
 br_i15_decode(uint16_t *x, const void *src, size_t len)
@@ -99,38 +53,4 @@ br_i15_decode(uint16_t *x, const void *src, size_t len)
 		x[v ++] = acc;
 	}
 	x[0] = br_i15_bit_length(x + 1, v - 1);
-}
-
-/* see inner.h */
-void
-br_i15_from_monty(uint16_t *x, const uint16_t *m, uint16_t m0i)
-{
-	size_t len, u, v;
-
-	len = (m[0] + 15) >> 4;
-	for (u = 0; u < len; u ++) {
-		uint32_t f, cc;
-
-		f = MUL15(x[1], m0i) & 0x7FFF;
-		cc = 0;
-		for (v = 0; v < len; v ++) {
-			uint32_t z;
-
-			z = (uint32_t)x[v + 1] + MUL15(f, m[v + 1]) + cc;
-			cc = z >> 15;
-			if (v != 0) {
-				x[v] = z & 0x7FFF;
-			}
-		}
-		x[len] = cc;
-	}
-
-	/*
-	 * We may have to do an extra subtraction, but only if the
-	 * value in x[] is indeed greater than or equal to that of m[],
-	 * which is why we must do two calls (first call computes the
-	 * carry, second call performs the subtraction only if the carry
-	 * is 0).
-	 */
-	br_i15_sub(x, m, NOT(br_i15_sub(x, m, 0)));
 }

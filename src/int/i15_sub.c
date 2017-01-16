@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+ * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the
@@ -24,27 +24,23 @@
 
 #include "inner.h"
 
-static const uint32_t P521_P[] = {
-	0x00000219,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
-	0x01FFFFFF
-};
-
-static const uint32_t P521_B[] = {
-	0x00000219,
-	0x540FC00A, 0x228FEA35, 0x2C34F1EF, 0x67BF107A,
-	0x46FC1CD5, 0x1605E9DD, 0x6937B165, 0x272A3D8F,
-	0x42785586, 0x44C8C778, 0x15F3B8B4, 0x64B73366,
-	0x03BA8B69, 0x0D05B42A, 0x21F929A2, 0x2C31C393,
-	0x00654FAE
-};
-
 /* see inner.h */
-const br_ec_prime_i31_curve br_ec_prime_i31_secp521r1 = {
-	P521_P,
-	P521_B,
-	0x00000001
-};
+uint32_t
+br_i15_sub(uint16_t *a, const uint16_t *b, uint32_t ctl)
+{
+	uint32_t cc;
+	size_t u, m;
+
+	cc = 0;
+	m = (a[0] + 31) >> 4;
+	for (u = 1; u < m; u ++) {
+		uint32_t aw, bw, naw;
+
+		aw = a[u];
+		bw = b[u];
+		naw = aw - bw - cc;
+		cc = naw >> 31;
+		a[u] = MUX(ctl, naw & 0x7FFF, aw);
+	}
+	return cc;
+}

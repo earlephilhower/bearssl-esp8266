@@ -1456,30 +1456,14 @@ extern const br_ec_curve_def br_secp256r1;
 extern const br_ec_curve_def br_secp384r1;
 extern const br_ec_curve_def br_secp521r1;
 
-extern const br_ec_curve_def br_curve25519;
-
-#if 0
-/* obsolete */
 /*
- * Type for the parameters for a "prime curve":
- *   coordinates are in GF(p), with p prime
- *   curve equation is Y^2 = X^3 - 3*X + b
- *   b is in Montgomery representation
- *   curve order is n and is prime
- *   base point is G (encoded) and has order n
+ * For Curve25519, the advertised "order" really is 2^255-1, since the
+ * point multipliction function really works over arbitrary 255-bit
+ * scalars. This value is only meant as a hint for ECDH key generation;
+ * only ECDSA uses the exact curve order, and ECDSA is not used with
+ * that specific curve.
  */
-typedef struct {
-	const uint32_t *p;
-	const uint32_t *b;
-	const uint32_t p0i;
-} br_ec_prime_i31_curve;
-
-extern const br_ec_prime_i31_curve br_ec_prime_i31_secp256r1;
-extern const br_ec_prime_i31_curve br_ec_prime_i31_secp384r1;
-extern const br_ec_prime_i31_curve br_ec_prime_i31_secp521r1;
-
-#define BR_EC_I31_LEN   ((BR_MAX_EC_SIZE + 61) / 31)
-#endif
+extern const br_ec_curve_def br_curve25519;
 
 /*
  * Decode some bytes as an i31 integer, with truncation (corresponding
