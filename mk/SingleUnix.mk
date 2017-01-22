@@ -22,20 +22,17 @@
 
 # ======================================================================
 
-# The lines below are a horrible hack that nonetheless works. On a
-# "make" utility compatible with Single Unix v4 (this includes GNU and
-# BSD make), the '\' at the end of a command line counts as an escape
-# for the newline character, so the next line is still a comment.
-# However, Microsoft's nmake.exe (that comes with Visual Studio) does
-# not interpret the final '\' that way in a comment. The end result is
-# that when using nmake.exe, this will include "mk/Win.mk", whereas
-# GNU/BSD make will include "mk/Unix.mk".
+# This file sets variables for use with a SingleUnix-compatible 'make'
+# utility.
 
-# \
-!ifndef 0 # \
-!include mk/NMake.mk # \
-!else
-.POSIX:
-include mk/SingleUnix.mk
-# \
-!endif
+# Load generic default.
+include mk/Defaults.mk
+
+# Path separator.
+P = /
+
+# Default configuration is 'Unix' (native build on a Unix-like system).
+CONF = Unix
+
+include conf/$(CONF).mk
+include mk/Rules.mk

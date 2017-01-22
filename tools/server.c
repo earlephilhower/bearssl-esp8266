@@ -29,6 +29,10 @@
 #include <errno.h>
 #include <signal.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -37,14 +41,18 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "brssl.h"
-#include "bearssl.h"
+#define SOCKET             int
+#define INVALID_SOCKET     (-1)
+#define SOCKADDR_STORAGE   struct sockaddr_storage
+#endif
 
-static int
+#include "brssl.h"
+
+static SOCKET
 host_bind(const char *host, const char *port, int verbose)
 {
 	struct addrinfo hints, *si, *p;
-	int fd;
+	SOCKET fd;
 	int err;
 
 	memset(&hints, 0, sizeof hints);
@@ -54,9 +62,9 @@ host_bind(const char *host, const char *port, int verbose)
 	if (err != 0) {
 		fprintf(stderr, "ERROR: getaddrinfo(): %s\n",
 			gai_strerror(err));
-		return -1;
+		return INVALID_SOCKET;
 	}
-	fd = -1;
+	fd = INVALID_SOCKET;
 	for (p = si; p != NULL; p = p->ai_next) {
 		struct sockaddr *sa;
 		struct sockaddr_in sa4;
@@ -102,21 +110,27 @@ host_bind(const char *host, const char *port, int verbose)
 			fprintf(stderr, "binding to: %s\n", tmp);
 		}
 		fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (fd < 0) {
+		if (fd == INVALID_SOCKET) {
 			if (verbose) {
 				perror("socket()");
 			}
 			continue;
 		}
 		opt = 1;
-		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
+		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+			(void *)&opt, sizeof opt);
 		opt = 0;
-		setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof opt);
+		setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
+			(void *)&opt, sizeof opt);
 		if (bind(fd, sa, sa_len) < 0) {
 			if (verbose) {
 				perror("bind()");
 			}
+#ifdef _WIN32
+			closesocket(fd);
+#else
 			close(fd);
+#endif
 			continue;
 		}
 		break;
@@ -124,15 +138,19 @@ host_bind(const char *host, const char *port, int verbose)
 	if (p == NULL) {
 		freeaddrinfo(si);
 		fprintf(stderr, "ERROR: failed to bind\n");
-		return -1;
+		return INVALID_SOCKET;
 	}
 	freeaddrinfo(si);
 	if (listen(fd, 5) < 0) {
 		if (verbose) {
 			perror("listen()");
 		}
+#ifdef _WIN32
+		closesocket(fd);
+#else
 		close(fd);
-		return -1;
+#endif
+		return INVALID_SOCKET;
 	}
 	if (verbose) {
 		fprintf(stderr, "bound.\n");
@@ -140,27 +158,27 @@ host_bind(const char *host, const char *port, int verbose)
 	return fd;
 }
 
-static int
-accept_client(int server_fd, int verbose)
+static SOCKET
+accept_client(SOCKET server_fd, int verbose)
 {
 	int fd;
-	struct sockaddr sa;
+	SOCKADDR_STORAGE sa;
 	socklen_t sa_len;
 
 	sa_len = sizeof sa;
-	fd = accept(server_fd, &sa, &sa_len);
-	if (fd < 0) {
+	fd = accept(server_fd, (struct sockaddr *)&sa, &sa_len);
+	if (fd == INVALID_SOCKET) {
 		if (verbose) {
 			perror("accept()");
 		}
-		return -1;
+		return INVALID_SOCKET;
 	}
 	if (verbose) {
 		char tmp[INET6_ADDRSTRLEN + 50];
 		const char *name;
 
 		name = NULL;
-		switch (sa.sa_family) {
+		switch (((struct sockaddr *)&sa)->sa_family) {
 		case AF_INET:
 			name = inet_ntop(AF_INET,
 				&((struct sockaddr_in *)&sa)->sin_addr,
@@ -173,8 +191,8 @@ accept_client(int server_fd, int verbose)
 			break;
 		}
 		if (name == NULL) {
-			sprintf(tmp, "<unknown: %lu>",
-				(unsigned long)sa.sa_family);
+			sprintf(tmp, "<unknown: %lu>", (unsigned long)
+				((struct sockaddr *)&sa)->sa_family);
 			name = tmp;
 		}
 		fprintf(stderr, "accepting connection from: %s\n", name);
@@ -182,9 +200,18 @@ accept_client(int server_fd, int verbose)
 
 	/*
 	 * We make the socket non-blocking, since we are going to use
-	 * poll() to organise I/O.
+	 * poll() or select() to organise I/O.
 	 */
+#ifdef _WIN32
+	{
+		u_long arg;
+
+		arg = 1;
+		ioctlsocket(fd, FIONBIO, &arg);
+	}
+#else
 	fcntl(fd, F_SETFL, O_NONBLOCK);
+#endif
 	return fd;
 }
 
@@ -606,7 +633,7 @@ do_server(int argc, char *argv[])
 	int cert_signer_algo;
 	private_key *sk;
 	anchor_list anchors = VEC_INIT;
-	VECTOR(const char *) alpn_names = VEC_INIT;
+	VECTOR(char *) alpn_names = VEC_INIT;
 	br_x509_minimal_context xc;
 	const br_hash_class *dnhash;
 	size_t u;
@@ -616,7 +643,7 @@ do_server(int argc, char *argv[])
 	unsigned char *iobuf, *cache;
 	size_t iobuf_len, cache_len;
 	uint32_t flags;
-	int server_fd, fd;
+	SOCKET server_fd, fd;
 
 	retcode = 0;
 	verbose = 1;
@@ -639,8 +666,8 @@ do_server(int argc, char *argv[])
 	cache = NULL;
 	cache_len = (size_t)-1;
 	flags = 0;
-	server_fd = -1;
-	fd = -1;
+	server_fd = INVALID_SOCKET;
+	fd = INVALID_SOCKET;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
 
@@ -1089,7 +1116,8 @@ do_server(int argc, char *argv[])
 
 	if (VEC_LEN(alpn_names) != 0) {
 		br_ssl_engine_set_protocol_names(&cc.eng,
-			&VEC_ELT(alpn_names, 0), VEC_LEN(alpn_names));
+			(const char **)&VEC_ELT(alpn_names, 0),
+			VEC_LEN(alpn_names));
 	}
 
 	/*
@@ -1139,15 +1167,17 @@ do_server(int argc, char *argv[])
 	br_ssl_engine_set_buffer(&cc.eng, iobuf, iobuf_len, bidi);
 
 	/*
-	 * We need to ignore SIGPIPE.
+	 * On Unix systems, we need to ignore SIGPIPE.
 	 */
+#ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
+#endif
 
 	/*
 	 * Open the server socket.
 	 */
 	server_fd = host_bind(bind_name, port, verbose);
-	if (server_fd < 0) {
+	if (server_fd == INVALID_SOCKET) {
 		goto server_exit_error;
 	}
 
@@ -1162,15 +1192,19 @@ do_server(int argc, char *argv[])
 		int x;
 
 		fd = accept_client(server_fd, verbose);
-		if (fd < 0) {
+		if (fd == INVALID_SOCKET) {
 			goto server_exit_error;
 		}
 		br_ssl_server_reset(&cc);
 		x = run_ssl_engine(&cc.eng, fd,
 			(verbose ? RUN_ENGINE_VERBOSE : 0)
 			| (trace ? RUN_ENGINE_TRACE : 0));
+#ifdef _WIN32
+		closesocket(fd);
+#else
 		close(fd);
-		fd = -1;
+#endif
+		fd = INVALID_SOCKET;
 		if (x < -1) {
 			goto server_exit_error;
 		}
@@ -1188,8 +1222,12 @@ server_exit:
 	VEC_CLEAREXT(alpn_names, &free_alpn);
 	xfree(iobuf);
 	xfree(cache);
-	if (fd >= 0) {
+	if (fd != INVALID_SOCKET) {
+#ifdef _WIN32
+		closesocket(fd);
+#else
 		close(fd);
+#endif
 	}
 	return retcode;
 

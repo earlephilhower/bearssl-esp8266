@@ -475,13 +475,17 @@ const char *find_error_name(int err, const char **comment);
  * Run a SSL engine, with a socket connected to the peer, and using
  * stdin/stdout to exchange application data.
  *
+ * To help with Win32 compatibility, the socket descriptor is provided
+ * as an "unsigned long" value.
+ *
  * Returned value:
  *    0        SSL connection closed successfully
  *    x > 0    SSL error "x"
  *   -1        early socket close
  *   -2        stdout was closed, or something failed badly
  */
-int run_ssl_engine(br_ssl_engine_context *eng, int fd, unsigned flags);
+int run_ssl_engine(br_ssl_engine_context *eng,
+	unsigned long fd, unsigned flags);
 
 #define RUN_ENGINE_VERBOSE     0x0001  /* enable verbose messages */
 #define RUN_ENGINE_TRACE       0x0002  /* hex dump of records */

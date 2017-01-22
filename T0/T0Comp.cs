@@ -252,6 +252,12 @@ public class T0Comp {
 	List<string> extraCode;
 
 	/*
+	 * 'extraCodeDefer' is for C code that is to be added in the C
+	 * output _after_ the data and code blocks.
+	 */
+	List<string> extraCodeDefer;
+
+	/*
 	 * 'dataBlock' is the data block in which constant data bytes
 	 * are accumulated.
 	 */
@@ -287,6 +293,7 @@ public class T0Comp {
 			StringComparer.Ordinal);
 		compiling = false;
 		extraCode = new List<string>();
+		extraCodeDefer = new List<string>();
 		enableFlowAnalysis = true;
 
 		/*
@@ -346,6 +353,15 @@ public class T0Comp {
 		 */
 		AddNative("preamble", false, SType.BLANK, cpu => {
 			extraCode.Add(ParseCCode());
+		});
+
+		/*
+		 * postamble
+		 * Parses a C code snippet, then adds it to the generated
+		 * output after the data and code blocks.
+		 */
+		AddNative("postamble", false, SType.BLANK, cpu => {
+			extraCodeDefer.Add(ParseCCode());
 		});
 
 		/*
@@ -1729,7 +1745,7 @@ t0_parse7E_signed(const unsigned char **p)
 #define T0_INT4(x)       T0_VBYTE(x, 21), T0_VBYTE(x, 14), T0_VBYTE(x, 7), T0_FBYTE(x, 0)
 #define T0_INT5(x)       T0_SBYTE(x), T0_VBYTE(x, 21), T0_VBYTE(x, 14), T0_VBYTE(x, 7), T0_FBYTE(x, 0)
 
-static const uint8_t t0_datablock[];
+/* static const unsigned char t0_datablock[]; */
 ");
 
 			/*
@@ -1757,7 +1773,8 @@ static const uint8_t t0_datablock[];
 
 			BlobWriter bw;
 			tw.WriteLine();
-			tw.Write("static const uint8_t t0_datablock[] = {");
+			tw.Write("static const unsigned char"
+				+ " t0_datablock[] = {");
 			bw = new BlobWriter(tw, 78, 1);
 			bw.Append((byte)0);
 			foreach (ConstData cd in blocks.Values) {
@@ -1767,7 +1784,8 @@ static const uint8_t t0_datablock[];
 			tw.WriteLine("};");
 
 			tw.WriteLine();
-			tw.Write("static const uint8_t t0_codeblock[] = {");
+			tw.Write("static const unsigned char"
+				+ " t0_codeblock[] = {");
 			bw = new BlobWriter(tw, 78, 1);
 			foreach (CodeElement ce in gcode) {
 				ce.Encode(bw, oneByteCode);
@@ -1952,6 +1970,17 @@ t0_exit:
 	((t0_context *)t0ctx)->rp = rp;
 	((t0_context *)t0ctx)->ip = ip;
 }");
+
+			/*
+			 * Add the "postamblr" elements here. These are
+			 * elements that may need access to the data
+			 * block or code block, so they must occur after
+			 * their definition.
+			 */
+			foreach (string pp in extraCodeDefer) {
+				tw.WriteLine();
+				tw.WriteLine("{0}", pp);
+			}
 		}
 
 		int codeLen = 0;

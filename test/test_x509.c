@@ -27,6 +27,12 @@
 #include <string.h>
 #include <stdint.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #include "bearssl.h"
 
 #define STR(x)    STR_(x)
@@ -1976,9 +1982,58 @@ test_name_extraction(void)
 }
 
 int
-main(void)
+main(int argc, const char *argv[])
 {
 	size_t u;
+
+#ifdef SRCDIRNAME
+	/*
+	 * We want to change the current directory to that of the
+	 * executable, so that test files are reliably located. We
+	 * do that only if SRCDIRNAME is defined (old Makefile would
+	 * not do that).
+	 */
+	if (argc >= 1) {
+		const char *arg, *c;
+
+		arg = argv[0];
+		for (c = arg + strlen(arg);; c --) {
+			int sep, r;
+
+#ifdef _WIN32
+			sep = (*c == '/') || (*c == '\\');
+#else
+			sep = (*c == '/');
+#endif
+			if (sep) {
+				size_t len;
+				char *dn;
+
+				len = 1 + (c - arg);
+				dn = xmalloc(len + 1);
+				memcpy(dn, arg, len);
+				dn[len] = 0;
+#ifdef _WIN32
+				r = _chdir(dn);
+#else
+				r = chdir(dn);
+#endif
+				if (r != 0) {
+					fprintf(stderr, "warning: could not"
+						" set directory to '%s'\n", dn);
+				}
+				xfree(dn);
+				break;
+			}
+			if (c == arg) {
+				break;
+			}
+		}
+	}
+#else
+	(void)argc;
+	(void)argv;
+#endif
 
 	process_conf_file(CONFFILE);
 

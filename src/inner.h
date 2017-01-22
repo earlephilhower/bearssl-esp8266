@@ -32,6 +32,15 @@
 #include "bearssl.h"
 
 /*
+ * On MSVC, disable the warning about applying unary minus on an
+ * unsigned type: it is standard, we do it all the time, and for
+ * good reasons.
+ */
+#if _MSC_VER
+#pragma warning( disable : 4146 )
+#endif
+
+/*
  * Maximum size for a RSA modulus (in bits). Allocated stack buffers
  * depend on that size, so this value should be kept small. Currently,
  * 2048-bit RSA keys offer adequate security, and should still do so for
@@ -300,7 +309,7 @@ static inline void
 br_multihash_copyimpl(br_multihash_context *dst,
 	const br_multihash_context *src)
 {
-	memcpy(dst->impl, src->impl, sizeof src->impl);
+	memcpy((void *)dst->impl, src->impl, sizeof src->impl);
 }
 
 /* ==================================================================== */

@@ -28,8 +28,16 @@
 #include <stdint.h>
 #include <errno.h>
 
+/*
+ * Network stuff on Windows requires some specific code.
+ */
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "Ws2_32.lib")
+#endif
+
 #include "brssl.h"
-#include "bearssl.h"
 
 static void
 usage(void)
@@ -53,6 +61,18 @@ main(int argc, char *argv[])
 		usage();
 		return EXIT_FAILURE;
 	}
+#ifdef _WIN32
+	{
+		WSADATA wd;
+		int r;
+
+		r = WSAStartup(MAKEWORD(2, 2), &wd);
+		if (r != 0) {
+			fprintf(stderr, "WARNING: network initialisation"
+				" failed (WSAStartup() returned %d)\n", r);
+		}
+	}
+#endif
 	cmd = argv[1];
 	if (eqstr(cmd, "client")) {
 		if (do_client(argc - 2, argv + 2) < 0) {

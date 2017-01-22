@@ -1,3 +1,8 @@
+# Documentation
+
+The most up-to-date documentation is supposed to be available on the
+[BearSSL Web site](https://www.bearssl.org/).
+
 # Disclaimer
 
 BearSSL is for now considered alpha-level software. This means that it
@@ -27,61 +32,81 @@ The usage license is explicited in the `LICENSE.txt` file. This is the
 
 # Installation
 
-As of version 0.1, BearSSL is a simple static library. Most of the
-process is rather manual and old-style, and there is no installer (this
-will be added in a later version, in particular when all the man pages
-for BearSSL functions are written).
+Right now, BearSSL is a simple library, along with a few test and debug
+command-line tools. There is no installer yet. The library _can_ be
+compiled as a shared library on some systems, but since the binary API
+is not fully stabilised, this is not a very good idea to do that right
+now.
 
- 1. Have a look at the top of the `Makefile`. There you can configure the
-    command names and flags for invoking the C compiler, linker, and
-    static library archiver.
+To compile the code, just type `make`. This will try to use sane
+"default" values. On a Windows system with Visual Studio, run a console
+with the environment initialised for a specific version of the C compiler,
+and type `nmake`.
 
- 2. There are a few configurable switches in `src/config.h`. These switches
-    relate to compile-time options, e.g. support of a system-provided
-    random source. On usual platforms (e.g. Linux or OS X), auto-detection
-    should work, but you can always override things with `config.h`.
+To override the default settings, create a custom configuration file in
+the `conf` directory, and invoke `make` (or `nmake`) with an explicit
+`CONF=` parameter. For instance, to use the provided `samd20.mk`
+configuration file (that targets cross-compilation for an Atmel board
+that features a Cortex-M0+ CPU), type:
 
- 3. Type `make`. This should produce the static library (`libbearssl.a`),
-    the test executables (`testcrypto`, `testspeed` and `testx509`), and
-    the command-line debug tool (`brssl`). You might want to run the tests:
+    make CONF=samd20
 
-     - `testcrypto all` runs the cryptographic tests (test vectors on all
-       implemented cryptogaphic functions). It can be slow.
+The `conf/samd20.mk` file includes the `Unix.mk` file and then overrides
+some of the parameters, including the destination directory. Any custom
+configuration can be made the same way.
 
-     - `testspeed all` runs a number of performance benchmarks, there again
-       on cryptographic functions. It gives a taste of how things go on the
-       current platform.
+Some compile-time options can be set through macros, either on the
+compiler command-line, or in the `src/config.h` file. See the comments
+in that file. Some settings are autodetected but they can still be
+explicitly overridden.
 
-     - `testx509` runs X.509 validation tests. The test certificates are
-       all in `test/x509/`.
+When compilation is done, the library (static and DLL, when appropriate)
+and the command-line tools can be found in the designated build
+directory (by default named `build`). The public headers (to be used
+by applications linked against BearSSL) are in the `inc/` directory.
 
- 4. The `brssl` command-line tool is a stand-alone binary. It can exercise
-    some of the functionalities of BearSSL, in particular running a test
-    SSL client or server. It is not meant for production purposes (e.g.
-    the SSL client has a mode where it disregards the inability to validate
-    the server's certificate, which is inherently unsafe, but convenient
-    for debug).
+To run the tests:
 
- 5. Using the library means writing some application code that invokes it,
-    and linking with the static library. The header files are all in the
-    `inc` directory; copy them wherever makes sense (e.g. in the
-    `/usr/local/include` directory). The library itself (`libbearssl.a`)
-    is what you link against.
+  - `testcrypto all` runs the cryptographic tests (test vectors on all
+    implemented cryptogaphic functions). It can be slow. You can also
+    run a selection of the tests by providing their names (run
+    `testcrypto` without any parameter to see the available names).
 
-    Alternatively, you may want to copy the source files directly into
-    your own application code. This will make integrating ulterior versions
-    of BearSSL more difficult. If you still want to go down that road,
-    then simply copy all the `*.h` and `*.c` files from the `src` and `inc`
-    directories into your application source code. In the BearSSL source
-    archive, the source files are segregated into various sub-directories,
-    but this is for my convenience only. There is no technical requirement
-    for that, and all files can be dumped together in a simple directory.
+  - `testspeed all` runs a number of performance benchmarks, there again
+    on cryptographic functions. It gives a taste of how things go on the
+    current platform. As for `testcrypto`, specific named benchmarks can
+    be executed.
 
-    Dependencies are simple and systematic:
+  - `testx509` runs X.509 validation tests. The test certificates are
+    all in `test/x509/`.
 
-     - Each `*.c` file includes `inner.h`
-     - `inner.h` includes `config.h` and `bearssl.h`
-     - `bearssl.h` includes the other `bearssl_*.h`
+The `brssl` command-line tool produced in the build directory is a
+stand-alone binary. It can exercise some of the functionalities of
+BearSSL, in particular running a test SSL client or server. It is not
+meant for production purposes (e.g. the SSL client has a mode where it
+disregards the inability to validate the server's certificate, which is
+inherently unsafe, but convenient for debug).
+
+**Using the library** means writing some application code that invokes
+it, and linking with the static library. The header files are all in the
+`inc` directory; copy them wherever makes sense (e.g. in the
+`/usr/local/include` directory). The library itself (`libbearssl.a`) is
+what you link against.
+
+Alternatively, you may want to copy the source files directly into your
+own application code. This will make integrating ulterior versions of
+BearSSL more difficult. If you still want to go down that road, then
+simply copy all the `*.h` and `*.c` files from the `src` and `inc`
+directories into your application source code. In the BearSSL source
+archive, the source files are segregated into various sub-directories,
+but this is for my convenience only. There is no technical requirement
+for that, and all files can be dumped together in a simple directory.
+
+Dependencies are simple and systematic:
+
+  - Each `*.c` file includes `inner.h`
+  - `inner.h` includes `config.h` and `bearssl.h`
+  - `bearssl.h` includes the other `bearssl_*.h`
 
 # Versioning
 
@@ -108,62 +133,3 @@ I follow this simple version numbering scheme:
    it can be expected that `1.3` will contain some extra functions when
    compared to `1.2`. The next version level (the `z` part) is for
    bugfixes that do not add any functionality.
-
-# API Usage
-
-Right now there is little documentation. The following principles are
-maintained:
-
- - All public symbols (global functions and data elements, macros) have
-   a name that starts with `br_` or `BR_`.
-
- - The header files (the `bearssl_*.h` in the `inc` directory) contain
-   for now the most complete documentation (as comments).
-
- - Context structures are allocated by the caller. BearSSL does not
-   contain any single `malloc()` call; this means that there is no
-   "freeing up" call to be done. When you don't need some BearSSL
-   functionality, just cease to call it, and that's it.
-
- - BearSSL contains no modifiable static data. It is thus thread-safe
-   and reentrant, _for distinct contexts_. Accessing the same context
-   structure from distinct threads, though, is a recipe for disaster.
-
- - The main SSL I/O API is organised as a state machine. A running
-   SSL engine (client or server) has four I/O ports:
-
-    - It can receive bytes from the transport medium ("record data").
-    - It can send bytes to the transport medium.
-    - It can receive application data, to be sent to the peer through
-      the SSL tunnel.
-    - It can produce application data, built from the records sent by
-      the peer.
-
-   BearSSL never performs I/O by itself; it expects the caller to
-   provide or retrieve the data. Each port consists in a pair of
-   functions: one yields the pointer to the buffer from which data
-   can be read or to which data can be written, and the maximum
-   size for such an operation; the other function is used to
-   inform the engine about how many bytes were actually read or
-   written.
-
-   For instance, if the `br_ssl_engine_sendrec_buf()` function returns a
-   non-NULL pointer, then this means that there are bytes to be sent to
-   the transport medium. When the caller has indeed sent some or all of
-   these bytes, it informs the engine with
-   `br_ssl_engine_sendrec_ack()`.
-
-   This state-machine API means that the engine never blocks. Each
-   invocation may trigger computations, but will always return as
-   promptly as the CPU power allows. All the I/O waiting is supposed to
-   be done on the outside. This structure allows managing several
-   concurrent SSL engines, along with other I/O tasks, with a single
-   mono-threaded loop using `select()` or `poll()`. It also makes it
-   easier to integrate BearSSL with various transport mechanisms (e.g.
-   messages in the EAP-TLS authentication framework).
-
- - Nevertheless, there are situations where simple blocking calls _can_
-   be used, and are convenient. For these situations, use the
-   `br_sslio_context` wrapper. Then do blocking reads and writes with
-   `br_sslio_read()` and similar functions. The sample client code
-   in `samples/client_basic.c` shows how such things are done.

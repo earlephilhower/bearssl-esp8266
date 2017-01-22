@@ -29,6 +29,10 @@
 #include <errno.h>
 #include <signal.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -37,14 +41,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#define SOCKET             int
+#define INVALID_SOCKET     (-1)
+#endif
+
 #include "brssl.h"
-#include "bearssl.h"
 
 static int
 host_connect(const char *host, const char *port, int verbose)
 {
 	struct addrinfo hints, *si, *p;
-	int fd;
+	SOCKET fd;
 	int err;
 
 	memset(&hints, 0, sizeof hints);
@@ -54,9 +61,9 @@ host_connect(const char *host, const char *port, int verbose)
 	if (err != 0) {
 		fprintf(stderr, "ERROR: getaddrinfo(): %s\n",
 			gai_strerror(err));
-		return -1;
+		return INVALID_SOCKET;
 	}
-	fd = -1;
+	fd = INVALID_SOCKET;
 	for (p = si; p != NULL; p = p->ai_next) {
 		if (verbose) {
 			struct sockaddr *sa;
@@ -84,17 +91,21 @@ host_connect(const char *host, const char *port, int verbose)
 			fprintf(stderr, "connecting to: %s\n", tmp);
 		}
 		fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (fd < 0) {
+		if (fd == INVALID_SOCKET) {
 			if (verbose) {
 				perror("socket()");
 			}
 			continue;
 		}
-		if (connect(fd, p->ai_addr, p->ai_addrlen) < 0) {
+		if (connect(fd, p->ai_addr, p->ai_addrlen) == INVALID_SOCKET) {
 			if (verbose) {
 				perror("connect()");
 			}
+#ifdef _WIN32
+			closesocket(fd);
+#else
 			close(fd);
+#endif
 			continue;
 		}
 		break;
@@ -102,7 +113,7 @@ host_connect(const char *host, const char *port, int verbose)
 	if (p == NULL) {
 		freeaddrinfo(si);
 		fprintf(stderr, "ERROR: failed to connect\n");
-		return -1;
+		return INVALID_SOCKET;
 	}
 	freeaddrinfo(si);
 	if (verbose) {
@@ -111,9 +122,18 @@ host_connect(const char *host, const char *port, int verbose)
 
 	/*
 	 * We make the socket non-blocking, since we are going to use
-	 * poll() to organise I/O.
+	 * poll() or select() to organise I/O.
 	 */
+#ifdef _WIN32
+	{
+		u_long arg;
+
+		arg = 1;
+		ioctlsocket(fd, FIONBIO, &arg);
+	}
+#else
 	fcntl(fd, F_SETFL, O_NONBLOCK);
+#endif
 	return fd;
 }
 
@@ -494,7 +514,7 @@ do_client(int argc, char *argv[])
 	const char *sni;
 	anchor_list anchors = VEC_INIT;
 	unsigned vmin, vmax;
-	VECTOR(const char *) alpn_names = VEC_INIT;
+	VECTOR(char *) alpn_names = VEC_INIT;
 	cipher_suite *suites;
 	size_t num_suites;
 	uint16_t *suite_ids;
@@ -514,7 +534,7 @@ do_client(int argc, char *argv[])
 	size_t minhello_len;
 	int fallback;
 	uint32_t flags;
-	int fd;
+	SOCKET fd;
 
 	retcode = 0;
 	verbose = 1;
@@ -539,7 +559,7 @@ do_client(int argc, char *argv[])
 	minhello_len = (size_t)-1;
 	fallback = 0;
 	flags = 0;
-	fd = -1;
+	fd = INVALID_SOCKET;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
 
@@ -1031,7 +1051,8 @@ do_client(int argc, char *argv[])
 	br_ssl_engine_set_all_flags(&cc.eng, flags);
 	if (VEC_LEN(alpn_names) != 0) {
 		br_ssl_engine_set_protocol_names(&cc.eng,
-			&VEC_ELT(alpn_names, 0), VEC_LEN(alpn_names));
+			(const char **)&VEC_ELT(alpn_names, 0),
+			VEC_LEN(alpn_names));
 	}
 
 	if (chain != NULL) {
@@ -1055,15 +1076,17 @@ do_client(int argc, char *argv[])
 	br_ssl_client_reset(&cc, sni, 0);
 
 	/*
-	 * We need to avoid SIGPIPE.
+	 * On Unix systems, we need to avoid SIGPIPE.
 	 */
+#ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
+#endif
 
 	/*
 	 * Connect to the peer.
 	 */
 	fd = host_connect(host, port, verbose);
-	if (fd < 0) {
+	if (fd == INVALID_SOCKET) {
 		goto client_exit_error;
 	}
 
@@ -1092,8 +1115,12 @@ client_exit:
 	free_certificates(chain, chain_len);
 	free_private_key(sk);
 	xfree(iobuf);
-	if (fd >= 0) {
+	if (fd != INVALID_SOCKET) {
+#ifdef _WIN32
+		closesocket(fd);
+#else
 		close(fd);
+#endif
 	}
 	return retcode;
 

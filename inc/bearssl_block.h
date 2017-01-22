@@ -1000,10 +1000,10 @@ uint32_t br_aes_ct64_ctr_run(const br_aes_ct64_ctr_keys *ctx,
  */
 typedef union {
 	const br_block_cbcenc_class *vtable;
-	br_aes_big_cbcenc_keys big;
-	br_aes_small_cbcenc_keys small;
-	br_aes_ct_cbcenc_keys ct;
-	br_aes_ct64_cbcenc_keys ct64;
+	br_aes_big_cbcenc_keys c_big;
+	br_aes_small_cbcenc_keys c_small;
+	br_aes_ct_cbcenc_keys c_ct;
+	br_aes_ct64_cbcenc_keys c_ct64;
 } br_aes_gen_cbcenc_keys;
 
 /**
@@ -1012,10 +1012,10 @@ typedef union {
  */
 typedef union {
 	const br_block_cbcdec_class *vtable;
-	br_aes_big_cbcdec_keys big;
-	br_aes_small_cbcdec_keys small;
-	br_aes_ct_cbcdec_keys ct;
-	br_aes_ct64_cbcdec_keys ct64;
+	br_aes_big_cbcdec_keys c_big;
+	br_aes_small_cbcdec_keys c_small;
+	br_aes_ct_cbcdec_keys c_ct;
+	br_aes_ct64_cbcdec_keys c_ct64;
 } br_aes_gen_cbcdec_keys;
 
 /**
@@ -1024,10 +1024,10 @@ typedef union {
  */
 typedef union {
 	const br_block_ctr_class *vtable;
-	br_aes_big_ctr_keys big;
-	br_aes_small_ctr_keys small;
-	br_aes_ct_ctr_keys ct;
-	br_aes_ct64_ctr_keys ct64;
+	br_aes_big_ctr_keys c_big;
+	br_aes_small_ctr_keys c_small;
+	br_aes_ct_ctr_keys c_ct;
+	br_aes_ct64_ctr_keys c_ct64;
 } br_aes_gen_ctr_keys;
 
 /*
@@ -1235,8 +1235,8 @@ typedef union {
  */
 typedef union {
 	const br_block_cbcdec_class *vtable;
-	br_des_tab_cbcdec_keys tab;
-	br_des_ct_cbcdec_keys ct;
+	br_des_tab_cbcdec_keys c_tab;
+	br_des_ct_cbcdec_keys c_ct;
 } br_des_gen_cbcdec_keys;
 
 /**

@@ -58,7 +58,7 @@ t0_parse7E_signed(const unsigned char **p)
 #define T0_INT4(x)       T0_VBYTE(x, 21), T0_VBYTE(x, 14), T0_VBYTE(x, 7), T0_FBYTE(x, 0)
 #define T0_INT5(x)       T0_SBYTE(x), T0_VBYTE(x, 21), T0_VBYTE(x, 14), T0_VBYTE(x, 7), T0_FBYTE(x, 0)
 
-static const uint8_t t0_datablock[];
+/* static const unsigned char t0_datablock[]; */
 
 
 void br_x509_minimal_init_main(void *t0ctx);
@@ -393,55 +393,6 @@ eqbigint(const unsigned char *b1, size_t len1,
 }
 
 /*
- * Verify the signature on the certificate with the provided public key.
- * This function checks the public key type with regards to the expected
- * type. Returned value is either 0 on success, or a non-zero error code.
- */
-static int
-verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
-{
-	int kt;
-
-	kt = ctx->cert_signer_key_type;
-	if ((pk->key_type & 0x0F) != kt) {
-		return BR_ERR_X509_WRONG_KEY_TYPE;
-	}
-	switch (kt) {
-		unsigned char tmp[64];
-
-	case BR_KEYTYPE_RSA:
-		if (ctx->irsa == 0) {
-			return BR_ERR_X509_UNSUPPORTED;
-		}
-		if (!ctx->irsa(ctx->cert_sig, ctx->cert_sig_len,
-			&t0_datablock[ctx->cert_sig_hash_oid],
-			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))
-		{
-			return BR_ERR_X509_BAD_SIGNATURE;
-		}
-		if (memcmp(ctx->tbs_hash, tmp, ctx->cert_sig_hash_len) != 0) {
-			return BR_ERR_X509_BAD_SIGNATURE;
-		}
-		return 0;
-
-	case BR_KEYTYPE_EC:
-		if (ctx->iecdsa == 0) {
-			return BR_ERR_X509_UNSUPPORTED;
-		}
-		if (!ctx->iecdsa(ctx->iec, ctx->tbs_hash,
-			ctx->cert_sig_hash_len, &pk->key.ec,
-			ctx->cert_sig, ctx->cert_sig_len))
-		{
-			return BR_ERR_X509_BAD_SIGNATURE;
-		}
-		return 0;
-
-	default:
-		return BR_ERR_X509_UNSUPPORTED;
-	}
-}
-
-/*
  * Compare two strings for equality, in a case-insensitive way. This
  * function handles casing only for ASCII letters.
  */
@@ -470,9 +421,12 @@ eqnocase(const void *s1, const void *s2, size_t len)
 	return 1;
 }
 
+static int verify_signature(br_x509_minimal_context *ctx,
+	const br_x509_pkey *pk);
 
 
-static const uint8_t t0_datablock[] = {
+
+static const unsigned char t0_datablock[] = {
 	0x00, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x09,
 	0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x05, 0x09, 0x2A, 0x86,
 	0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0E, 0x09, 0x2A, 0x86, 0x48, 0x86,
@@ -499,7 +453,7 @@ static const uint8_t t0_datablock[] = {
 	0x01, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x01, 0x0B
 };
 
-static const uint8_t t0_codeblock[] = {
+static const unsigned char t0_codeblock[] = {
 	0x00, 0x01, 0x00, 0x0D, 0x00, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x01,
 	0x00, 0x11, 0x00, 0x00, 0x01, 0x01, 0x09, 0x00, 0x00, 0x01, 0x01, 0x0A,
 	0x00, 0x00, 0x24, 0x24, 0x00, 0x00, 0x01,
@@ -1704,3 +1658,56 @@ t0_exit:
 	((t0_context *)t0ctx)->rp = rp;
 	((t0_context *)t0ctx)->ip = ip;
 }
+
+
+
+/*
+ * Verify the signature on the certificate with the provided public key.
+ * This function checks the public key type with regards to the expected
+ * type. Returned value is either 0 on success, or a non-zero error code.
+ */
+static int
+verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
+{
+	int kt;
+
+	kt = ctx->cert_signer_key_type;
+	if ((pk->key_type & 0x0F) != kt) {
+		return BR_ERR_X509_WRONG_KEY_TYPE;
+	}
+	switch (kt) {
+		unsigned char tmp[64];
+
+	case BR_KEYTYPE_RSA:
+		if (ctx->irsa == 0) {
+			return BR_ERR_X509_UNSUPPORTED;
+		}
+		if (!ctx->irsa(ctx->cert_sig, ctx->cert_sig_len,
+			&t0_datablock[ctx->cert_sig_hash_oid],
+			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))
+		{
+			return BR_ERR_X509_BAD_SIGNATURE;
+		}
+		if (memcmp(ctx->tbs_hash, tmp, ctx->cert_sig_hash_len) != 0) {
+			return BR_ERR_X509_BAD_SIGNATURE;
+		}
+		return 0;
+
+	case BR_KEYTYPE_EC:
+		if (ctx->iecdsa == 0) {
+			return BR_ERR_X509_UNSUPPORTED;
+		}
+		if (!ctx->iecdsa(ctx->iec, ctx->tbs_hash,
+			ctx->cert_sig_hash_len, &pk->key.ec,
+			ctx->cert_sig, ctx->cert_sig_len))
+		{
+			return BR_ERR_X509_BAD_SIGNATURE;
+		}
+		return 0;
+
+	default:
+		return BR_ERR_X509_UNSUPPORTED;
+	}
+}
+
+
