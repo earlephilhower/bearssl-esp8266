@@ -808,6 +808,7 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	t[37] = MUL15(a[18], b[19])
 		+ MUL15(a[19], b[18]);
 	t[38] = MUL15(a[19], b[19]);
+
 	d[39] = norm13(d, t, 39);
 }
 
@@ -1026,6 +1027,7 @@ square20(uint32_t *d, const uint32_t *a)
 		+ ((MUL15(a[17], a[19])) << 1);
 	t[37] = ((MUL15(a[18], a[19])) << 1);
 	t[38] = MUL15(a[19], a[19]);
+
 	d[39] = norm13(d, t, 39);
 }
 
@@ -1060,89 +1062,105 @@ reduce_final_f255(uint32_t *d)
 	return cc;
 }
 
+static void
+f255_mulgen(uint32_t *d, const uint32_t *a, const uint32_t *b, int square)
+{
+	uint32_t t[40], cc, w;
+
+	/*
+	 * Compute raw multiplication. All result words fit in 13 bits
+	 * each; upper word (t[39]) must fit on 5 bits, since the product
+	 * of two 256-bit integers must fit on 512 bits.
+	 */
+	if (square) {
+		square20(t, a);
+	} else {
+		mul20(t, a, b);
+	}
+
+	/*
+	 * Modular reduction: each high word is added where necessary.
+	 * Since the modulus is 2^255-19 and word 20 corresponds to
+	 * offset 20*13 = 260, word 20+k must be added to word k with
+	 * a factor of 19*2^5 = 608. The extra bits in word 19 are also
+	 * added that way.
+	 */
+	cc = MUL15(t[19] >> 8, 19);
+	t[19] &= 0xFF;
+
+#define MM1(x)   do { \
+		w = t[x] + cc + MUL15(t[(x) + 20], 608); \
+		t[x] = w & 0x1FFF; \
+		cc = w >> 13; \
+	} while (0)
+
+	MM1( 0);
+	MM1( 1);
+	MM1( 2);
+	MM1( 3);
+	MM1( 4);
+	MM1( 5);
+	MM1( 6);
+	MM1( 7);
+	MM1( 8);
+	MM1( 9);
+	MM1(10);
+	MM1(11);
+	MM1(12);
+	MM1(13);
+	MM1(14);
+	MM1(15);
+	MM1(16);
+	MM1(17);
+	MM1(18);
+	MM1(19);
+
+#undef MM1
+
+	cc = MUL15(w >> 8, 19);
+	t[19] &= 0xFF;
+
+#define MM2(x)   do { \
+		w = t[x] + cc; \
+		d[x] = w & 0x1FFF; \
+		cc = w >> 13; \
+	} while (0)
+
+	MM2( 0);
+	MM2( 1);
+	MM2( 2);
+	MM2( 3);
+	MM2( 4);
+	MM2( 5);
+	MM2( 6);
+	MM2( 7);
+	MM2( 8);
+	MM2( 9);
+	MM2(10);
+	MM2(11);
+	MM2(12);
+	MM2(13);
+	MM2(14);
+	MM2(15);
+	MM2(16);
+	MM2(17);
+	MM2(18);
+	MM2(19);
+
+#undef MM2
+}
+
 /*
  * Perform a multiplication of two integers modulo 2^255-19.
  * Operands are arrays of 20 words, each containing 13 bits of data, in
  * little-endian order. Input value may be up to 2^256-1; on output, value
  * fits on 256 bits and is lower than twice the modulus.
+ *
+ * f255_mul() is the general multiplication, f255_square() is specialised
+ * for squarings.
  */
-static void
-f255_mul(uint32_t *d, const uint32_t *a, const uint32_t *b)
-{
-	uint32_t t[40], cc, w;
-	int i;
-
-	/*
-	 * Compute raw multiplication. All result words fit in 13 bits
-	 * each; upper word (t[39]) must fit on 5 bits, since the product
-	 * of two 256-bit integers must fit on 512 bits.
-	 */
-	mul20(t, a, b);
-
-	/*
-	 * Modular reduction: each high word is added where necessary.
-	 * Since the modulus is 2^255-19 and word 20 corresponds to
-	 * offset 20*13 = 260, word 20+k must be added to word k with
-	 * a factor of 19*2^5 = 608. The extra bits in word 19 are also
-	 * added that way.
-	 */
-	cc = MUL15(t[19] >> 8, 19);
-	t[19] &= 0xFF;
-	for (i = 0; i < 20; i ++) {
-		w = t[i] + cc + MUL15(t[i + 20], 608);
-		t[i] = w & 0x1FFF;
-		cc = w >> 13;
-	}
-	cc = MUL15(w >> 8, 19);
-	t[19] &= 0xFF;
-	for (i = 0; i < 20; i ++) {
-		w = t[i] + cc;
-		d[i] = w & 0x1FFF;
-		cc = w >> 13;
-	}
-}
-
-/*
- * Square an integer modulo 2^255-19.
- * Operand is an array of 20 words, each containing 13 bits of data, in
- * little-endian order. Input value may be up to 2^256-1; on output, value
- * fits on 256 bits and is lower than twice the modulus.
- */
-static void
-f255_square(uint32_t *d, const uint32_t *a)
-{
-	uint32_t t[40], cc, w;
-	int i;
-
-	/*
-	 * Compute raw multiplication. All result words fit in 13 bits
-	 * each; upper word (t[39]) must fit on 5 bits, since the product
-	 * of two 256-bit integers must fit on 512 bits.
-	 */
-	square20(t, a);
-
-	/*
-	 * Modular reduction: each high word is added where necessary.
-	 * Since the modulus is 2^255-19 and word 20 corresponds to
-	 * offset 20*13 = 260, word 20+k must be added to word k with
-	 * a factor of 19*2^5 = 608. The extra bits in word 19 are also
-	 * added that way.
-	 */
-	cc = MUL15(t[19] >> 8, 19);
-	t[19] &= 0xFF;
-	for (i = 0; i < 20; i ++) {
-		w = t[i] + cc + MUL15(t[i + 20], 608);
-		t[i] = w & 0x1FFF;
-		cc = w >> 13;
-	}
-	cc = MUL15(w >> 8, 19);
-	t[19] &= 0xFF;
-	for (i = 0; i < 20; i ++) {
-		w = t[i] + cc;
-		d[i] = w & 0x1FFF;
-		cc = w >> 13;
-	}
-}
+#define f255_mul(d, a, b)   f255_mulgen(d, a, b, 0)
+#define f255_square(d, a)   f255_mulgen(d, a, a, 1)
 
 /*
  * Add two values in F255. Partial reduction is performed (down to less
