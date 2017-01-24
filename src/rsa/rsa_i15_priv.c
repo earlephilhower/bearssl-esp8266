@@ -24,7 +24,26 @@
 
 #include "inner.h"
 
-#define U   (1 + ((BR_MAX_RSA_FACTOR + 14) / 15))
+#define U      (1 + ((BR_MAX_RSA_FACTOR + 14) / 15))
+#define TLEN   (8 * U)
+
+/* obsolete
+static void
+print_int(const char *name, const uint16_t *x)
+{
+	extern int printf(const char *fmt, ...);
+	unsigned char tmp[1000];
+	size_t u, len;
+
+	len = (x[0] - (x[0] >> 4) + 7) >> 3;
+	br_i15_encode(tmp, len, x);
+	printf("%s = ", name);
+	for (u = 0; u < len; u ++) {
+		printf("%02X", tmp[u]);
+	}
+	printf("\n");
+}
+*/
 
 /* see bearssl_rsa.h */
 uint32_t
@@ -32,30 +51,18 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 {
 	const unsigned char *p, *q;
 	size_t plen, qlen;
-	uint16_t tmp[6 * U];
-	uint16_t *mp, *mq, *s1, *s2, *t1, *t2, *t3;
+	size_t fwlen;
 	uint16_t p0i, q0i;
 	size_t xlen;
+	uint16_t tmp[TLEN];
+	long z;
+	uint16_t *mp, *mq, *s1, *s2, *t1, *t2, *t3;
+	uint32_t r;
 
 	/*
-	 * All our temporary buffers are from the tmp[] array.
-	 *
-	 * The mp, mq, s1, s2, t1 and t2 buffers are large enough to
-	 * contain a RSA factor. The t3 buffer can contain a complete
-	 * RSA modulus. t3 shares its storage space with s2, s1 and t1,
-	 * in that order (this is important, see below).
-	 */
-	mq = tmp;
-	mp = tmp + U;
-	t2 = tmp + 2 * U;
-	s2 = tmp + 3 * U;
-	s1 = tmp + 4 * U;
-	t1 = tmp + 5 * U;
-	t3 = s2;
-
-	/*
-	 * Compute the actual lengths (in bytes) of p and q, and check
-	 * that they fit within our stack buffers.
+	 * Compute the actual lengths of p and q, in bytes.
+	 * These lengths are not considered secret (we cannot really hide
+	 * them anyway in constant-time code).
 	 */
 	p = sk->p;
 	plen = sk->plen;
@@ -69,17 +76,23 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 		q ++;
 		qlen --;
 	}
-	if (plen > (BR_MAX_RSA_FACTOR >> 3)
-		|| qlen > (BR_MAX_RSA_FACTOR >> 3))
-	{
-		return 0;
+
+	/*
+	 * Compute the maximum factor length, in words.
+	 */
+	z = (long)(plen > qlen ? plen : qlen) << 3;
+	fwlen = 1;
+	while (z > 0) {
+		z -= 15;
+		fwlen ++;
 	}
 
 	/*
-	 * Decode p and q.
+	 * We need to fit at least 6 values in the stack buffer.
 	 */
-	br_i15_decode(mp, p, plen);
-	br_i15_decode(mq, q, qlen);
+	if (6 * fwlen > TLEN) {
+		return 0;
+	}
 
 	/*
 	 * Compute signature length (in bytes).
@@ -87,18 +100,34 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	xlen = (sk->n_bitlen + 7) >> 3;
 
 	/*
-	 * Compute s1 = x^dp mod p.
+	 * Decode q.
 	 */
-	p0i = br_i15_ninv15(mp[1]);
-	br_i15_decode_reduce(s1, x, xlen, mp);
-	br_i15_modpow(s1, sk->dp, sk->dplen, mp, p0i, t1, t2);
+	mq = tmp;
+	br_i15_decode(mq, q, qlen);
 
 	/*
 	 * Compute s2 = x^dq mod q.
 	 */
 	q0i = br_i15_ninv15(mq[1]);
+	s2 = tmp + fwlen;
 	br_i15_decode_reduce(s2, x, xlen, mq);
-	br_i15_modpow(s2, sk->dq, sk->dqlen, mq, q0i, t1, t2);
+	r = br_i15_modpow_opt(s2, sk->dq, sk->dqlen, mq, q0i,
+		tmp + 2 * fwlen, TLEN - 2 * fwlen);
+
+	/*
+	 * Decode p.
+	 */
+	mp = tmp + 2 * fwlen;
+	br_i15_decode(mp, p, plen);
+
+	/*
+	 * Compute s1 = x^dq mod q.
+	 */
+	p0i = br_i15_ninv15(mp[1]);
+	s1 = tmp + 3 * fwlen;
+	br_i15_decode_reduce(s1, x, xlen, mp);
+	r &= br_i15_modpow_opt(s1, sk->dp, sk->dplen, mp, p0i,
+		tmp + 4 * fwlen, TLEN - 4 * fwlen);
 
 	/*
 	 * Compute:
@@ -113,6 +142,8 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * inverse of q modulo p), we also tolerate improperly large
 	 * values for this parameter.
 	 */
+	t1 = tmp + 4 * fwlen;
+	t2 = tmp + 5 * fwlen;
 	br_i15_reduce(t2, s2, mp);
 	br_i15_add(s1, mp, br_i15_sub(s1, t2, 1));
 	br_i15_to_monty(s1, mp);
@@ -125,11 +156,13 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * All these operations are non-modular.
 	 *
 	 * We need mq, s2 and t2. We use the t3 buffer as destination.
-	 * The buffers mp, s1 and t1 are no longer needed. Moreover,
-	 * the first step is to copy s2 into the destination buffer t3.
-	 * We thus arranged for t3 to actually share space with s2, and
-	 * to be followed by the space formerly used by s1 and t1.
+	 * The buffers mp, s1 and t1 are no longer needed, so we can
+	 * reuse them for t3. Moreover, the first step of the computation
+	 * is to copy s2 into t3, after which s2 is not needed. Right
+	 * now, mq is in slot 0, s2 is in slot 1, and t2 in slot 5.
+	 * Therefore, we have ample room for t3 by simply using s2.
 	 */
+	t3 = s2;
 	br_i15_mulacc(t3, mq, t2);
 
 	/*
@@ -142,5 +175,5 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * The only error conditions remaining at that point are invalid
 	 * values for p and q (even integers).
 	 */
-	return p0i & q0i & 1;
+	return p0i & q0i & r;
 }

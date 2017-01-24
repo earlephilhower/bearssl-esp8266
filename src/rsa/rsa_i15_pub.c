@@ -24,6 +24,12 @@
 
 #include "inner.h"
 
+/*
+ * As a strict minimum, we need four buffers that can hold a
+ * modular integer.
+ */
+#define TLEN   (4 * (1 + ((BR_MAX_RSA_SIZE + 14) / 15)))
+
 /* see bearssl_rsa.h */
 uint32_t
 br_rsa_i15_public(unsigned char *x, size_t xlen,
@@ -31,10 +37,10 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 {
 	const unsigned char *n;
 	size_t nlen;
-	uint16_t m[1 + ((BR_MAX_RSA_SIZE + 14) / 15)];
-	uint16_t a[1 + ((BR_MAX_RSA_SIZE + 14) / 15)];
-	uint16_t t1[1 + ((BR_MAX_RSA_SIZE + 14) / 15)];
-	uint16_t t2[1 + ((BR_MAX_RSA_SIZE + 14) / 15)];
+	uint16_t tmp[TLEN];
+	uint16_t *m, *a, *t;
+	size_t fwlen;
+	long z;
 	uint16_t m0i;
 	uint32_t r;
 
@@ -51,6 +57,25 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 	if (nlen == 0 || nlen > (BR_MAX_RSA_SIZE >> 3) || xlen != nlen) {
 		return 0;
 	}
+	z = (long)nlen << 3;
+	fwlen = 1;
+	while (z > 0) {
+		z -= 15;
+		fwlen ++;
+	}
+
+	/*
+	 * The modulus gets decoded into m[].
+	 * The value to exponentiate goes into a[].
+	 * The temporaries for modular exponentiations are in t[].
+	 */
+	m = tmp;
+	a = tmp + fwlen;
+	t = tmp + 2 * fwlen;
+
+	/*
+	 * Decode the modulus.
+	 */
 	br_i15_decode(m, n, nlen);
 	m0i = br_i15_ninv15(m[1]);
 
@@ -68,7 +93,7 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 	/*
 	 * Compute the modular exponentiation.
 	 */
-	br_i15_modpow(a, pk->e, pk->elen, m, m0i, t1, t2);
+	br_i15_modpow_opt(a, pk->e, pk->elen, m, m0i, t, TLEN - 2 * fwlen);
 
 	/*
 	 * Encode the result.

@@ -1102,6 +1102,9 @@ void br_i15_to_monty(uint16_t *x, const uint16_t *m);
 void br_i15_modpow(uint16_t *x, const unsigned char *e, size_t elen,
 	const uint16_t *m, uint16_t m0i, uint16_t *t1, uint16_t *t2);
 
+uint32_t br_i15_modpow_opt(uint16_t *x, const unsigned char *e, size_t elen,
+	const uint16_t *m, uint16_t m0i, uint16_t *tmp, size_t twlen);
+
 void br_i15_encode(void *dst, size_t len, const uint16_t *x);
 
 uint32_t br_i15_decode_mod(uint16_t *x,

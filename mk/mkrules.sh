@@ -109,6 +109,7 @@ coresrc=" \
 	src/int/i15_fmont.c \
 	src/int/i15_iszero.c \
 	src/int/i15_modpow.c \
+	src/int/i15_modpow2.c \
 	src/int/i15_montmul.c \
 	src/int/i15_mulacc.c \
 	src/int/i15_muladd.c \
