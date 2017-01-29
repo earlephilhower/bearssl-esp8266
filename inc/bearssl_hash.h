@@ -1279,4 +1279,34 @@ void br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len);
  */
 void br_ghash_ctmul64(void *y, const void *h, const void *data, size_t len);
 
+/**
+ * \brief GHASH implementation using the `pclmulqdq` opcode (part of the
+ * AES-NI instructions).
+ *
+ * This implementation is available only on x86 platforms where the
+ * compiler supports the relevant intrinsic functions. Even if the
+ * compiler supports these functions, the local CPU might not support
+ * the `pclmulqdq` opcode, meaning that a call will fail with an
+ * illegal instruction exception. To safely obtain a pointer to this
+ * function when supported (or 0 otherwise), use `br_ghash_pclmul_get()`.
+ *
+ * \param y      the array to update.
+ * \param h      the GHASH key.
+ * \param data   the input data (may be `NULL` if `len` is zero).
+ * \param len    the input data length (in bytes).
+ */
+void br_ghash_pclmul(void *y, const void *h, const void *data, size_t len);
+
+/**
+ * \brief Obtain the `pclmul` GHASH implementation, if available.
+ *
+ * If the `pclmul` implementation was compiled in the library (depending
+ * on the compiler abilities) _and_ the local CPU appears to support the
+ * opcode, then this function will return a pointer to the
+ * `br_ghash_pclmul()` function. Otherwise, it will return `0`.
+ *
+ * \return  the `pclmul` GHASH implementation, or `0`.
+ */
+br_ghash br_ghash_pclmul_get(void);
+
 #endif

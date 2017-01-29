@@ -70,6 +70,7 @@ coresrc=" \
 	src/ec/ec_c25519_m15.c \
 	src/ec/ec_c25519_m31.c \
 	src/ec/ec_curve25519.c \
+	src/ec/ec_default.c \
 	src/ec/ec_p256_m15.c \
 	src/ec/ec_p256_m31.c \
 	src/ec/ec_prime_i15.c \
@@ -78,6 +79,10 @@ coresrc=" \
 	src/ec/ec_secp384r1.c \
 	src/ec/ec_secp521r1.c \
 	src/ec/ecdsa_atr.c \
+	src/ec/ecdsa_default_sign_asn1.c \
+	src/ec/ecdsa_default_sign_raw.c \
+	src/ec/ecdsa_default_vrfy_asn1.c \
+	src/ec/ecdsa_default_vrfy_raw.c \
 	src/ec/ecdsa_i15_bits.c \
 	src/ec/ecdsa_i15_sign_asn1.c \
 	src/ec/ecdsa_i15_sign_raw.c \
@@ -94,6 +99,7 @@ coresrc=" \
 	src/hash/ghash_ctmul.c \
 	src/hash/ghash_ctmul32.c \
 	src/hash/ghash_ctmul64.c \
+	src/hash/ghash_pclmul.c \
 	src/hash/md5.c \
 	src/hash/md5sha1.c \
 	src/hash/multihash.c \
@@ -155,6 +161,10 @@ coresrc=" \
 	src/mac/hmac.c \
 	src/mac/hmac_ct.c \
 	src/rand/hmac_drbg.c \
+	src/rsa/rsa_default_pkcs1_sign.c \
+	src/rsa/rsa_default_pkcs1_vrfy.c \
+	src/rsa/rsa_default_priv.c \
+	src/rsa/rsa_default_pub.c \
 	src/rsa/rsa_i15_pkcs1_sign.c \
 	src/rsa/rsa_i15_pkcs1_vrfy.c \
 	src/rsa/rsa_i15_priv.c \
@@ -177,8 +187,16 @@ coresrc=" \
 	src/ssl/ssl_ccert_single_ec.c \
 	src/ssl/ssl_ccert_single_rsa.c \
 	src/ssl/ssl_client.c \
+	src/ssl/ssl_client_default_rsapub.c \
 	src/ssl/ssl_client_full.c \
 	src/ssl/ssl_engine.c \
+	src/ssl/ssl_engine_default_aescbc.c \
+	src/ssl/ssl_engine_default_aesgcm.c \
+	src/ssl/ssl_engine_default_chapol.c \
+	src/ssl/ssl_engine_default_descbc.c \
+	src/ssl/ssl_engine_default_ec.c \
+	src/ssl/ssl_engine_default_ecdsa.c \
+	src/ssl/ssl_engine_default_rsavrfy.c \
 	src/ssl/ssl_hashes.c \
 	src/ssl/ssl_hs_client.c \
 	src/ssl/ssl_hs_server.c \
@@ -222,6 +240,10 @@ coresrc=" \
 	src/symcipher/aes_small_ctr.c \
 	src/symcipher/aes_small_dec.c \
 	src/symcipher/aes_small_enc.c \
+	src/symcipher/aes_x86ni.c \
+	src/symcipher/aes_x86ni_cbcdec.c \
+	src/symcipher/aes_x86ni_cbcenc.c \
+	src/symcipher/aes_x86ni_ctr.c \
 	src/symcipher/chacha20_ct.c \
 	src/symcipher/des_ct.c \
 	src/symcipher/des_ct_cbcdec.c \

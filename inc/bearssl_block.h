@@ -191,6 +191,7 @@
  * | aes_small | AES      |        16          | 16, 24 and 32       |
  * | aes_ct    | AES      |        16          | 16, 24 and 32       |
  * | aes_ct64  | AES      |        16          | 16, 24 and 32       |
+ * | aes_x86ni | AES      |        16          | 16, 24 and 32       |
  * | des_ct    | DES/3DES |         8          | 8, 16 and 24        |
  * | des_tab   | DES/3DES |         8          | 8, 16 and 24        |
  *
@@ -222,6 +223,11 @@
  * a larger footprint; however, on 64-bit architectures, `aes_ct64`
  * is typically twice faster than `aes_ct` for modes that allow parallel
  * operations (i.e. CTR, and CBC decryption, but not CBC encryption).
+ *
+ * `aes_x86ni` exists only on x86 architectures (32-bit and 64-bit). It
+ * uses the AES-NI opcodes when available; if the opcodes are not present,
+ * then it automatically fall backs on an appropriate constant-time
+ * implementation (`aes_ct` for 32-bit, `aes_ct64` for 64-bit).
  *
  * `des_tab` is a classic, table-based implementation of DES/3DES. It
  * is not constant-time.
@@ -994,6 +1000,219 @@ void br_aes_ct64_cbcdec_run(const br_aes_ct64_cbcdec_keys *ctx, void *iv,
 uint32_t br_aes_ct64_ctr_run(const br_aes_ct64_ctr_keys *ctx,
 	const void *iv, uint32_t cc, void *data, size_t len);
 
+/*
+ * AES implementation using AES-NI opcode (x86 platform). When the
+ * opcodes are not present, this falls back to "ct" or "ct64" (depending
+ * on architecture).
+ */
+
+/** \brief AES block size (16 bytes). */
+#define br_aes_x86ni_BLOCK_SIZE   16
+
+/**
+ * \brief Context for AES subkeys (`aes_x86ni` implementation, CBC encryption).
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/** \brief Pointer to vtable for this context. */
+	const br_block_cbcenc_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	union {
+		unsigned char skni[16 * 15];
+		struct {
+			uint32_t skey[60];
+		} fallback_ct;
+		struct {
+			uint64_t skey[30];
+		} fallback_ct64;
+	} skey;
+	unsigned num_rounds;
+#endif
+} br_aes_x86ni_cbcenc_keys;
+
+/**
+ * \brief Context for AES subkeys (`aes_x86ni` implementation, CBC decryption).
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/** \brief Pointer to vtable for this context. */
+	const br_block_cbcdec_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	union {
+		unsigned char skni[16 * 15];
+		struct {
+			uint32_t skey[60];
+		} fallback_ct;
+		struct {
+			uint64_t skey[30];
+		} fallback_ct64;
+	} skey;
+	unsigned num_rounds;
+#endif
+} br_aes_x86ni_cbcdec_keys;
+
+/**
+ * \brief Context for AES subkeys (`aes_x86ni` implementation, CTR encryption
+ * and decryption).
+ *
+ * First field is a pointer to the vtable; it is set by the initialisation
+ * function. Other fields are not supposed to be accessed by user code.
+ */
+typedef struct {
+	/** \brief Pointer to vtable for this context. */
+	const br_block_ctr_class *vtable;
+#ifndef BR_DOXYGEN_IGNORE
+	union {
+		unsigned char skni[16 * 15];
+		struct {
+			uint32_t skey[60];
+		} fallback_ct;
+		struct {
+			uint64_t skey[30];
+		} fallback_ct64;
+	} skey;
+	unsigned num_rounds;
+#endif
+} br_aes_x86ni_ctr_keys;
+
+/**
+ * \brief Class instance for AES CBC encryption (`aes_x86ni` implementation).
+ *
+ * Since this implementation might be omitted from the library, or the
+ * AES opcode unavailable on the current CPU, a pointer to this class
+ * instance should be obtained through `br_aes_x86ni_cbcenc_get_vtable()`.
+ */
+extern const br_block_cbcenc_class br_aes_x86ni_cbcenc_vtable;
+
+/**
+ * \brief Class instance for AES CBC decryption (`aes_x86ni` implementation).
+ *
+ * Since this implementation might be omitted from the library, or the
+ * AES opcode unavailable on the current CPU, a pointer to this class
+ * instance should be obtained through `br_aes_x86ni_cbcdec_get_vtable()`.
+ */
+extern const br_block_cbcdec_class br_aes_x86ni_cbcdec_vtable;
+
+/**
+ * \brief Class instance for AES CTR encryption and decryption
+ * (`aes_x86ni` implementation).
+ *
+ * Since this implementation might be omitted from the library, or the
+ * AES opcode unavailable on the current CPU, a pointer to this class
+ * instance should be obtained through `br_aes_x86ni_ctr_get_vtable()`.
+ */
+extern const br_block_ctr_class br_aes_x86ni_ctr_vtable;
+
+/**
+ * \brief Context initialisation (key schedule) for AES CBC encryption
+ * (`aes_x86ni` implementation).
+ *
+ * \param ctx   context to initialise.
+ * \param key   secret key.
+ * \param len   secret key length (in bytes).
+ */
+void br_aes_x86ni_cbcenc_init(br_aes_x86ni_cbcenc_keys *ctx,
+	const void *key, size_t len);
+
+/**
+ * \brief Context initialisation (key schedule) for AES CBC decryption
+ * (`aes_x86ni` implementation).
+ *
+ * \param ctx   context to initialise.
+ * \param key   secret key.
+ * \param len   secret key length (in bytes).
+ */
+void br_aes_x86ni_cbcdec_init(br_aes_x86ni_cbcdec_keys *ctx,
+	const void *key, size_t len);
+
+/**
+ * \brief Context initialisation (key schedule) for AES CTR encryption
+ * and decryption (`aes_x86ni` implementation).
+ *
+ * \param ctx   context to initialise.
+ * \param key   secret key.
+ * \param len   secret key length (in bytes).
+ */
+void br_aes_x86ni_ctr_init(br_aes_x86ni_ctr_keys *ctx,
+	const void *key, size_t len);
+
+/**
+ * \brief CBC encryption with AES (`aes_x86ni` implementation).
+ *
+ * \param ctx    context (already initialised).
+ * \param iv     IV (updated).
+ * \param data   data to encrypt (updated).
+ * \param len    data length (in bytes, MUST be multiple of 16).
+ */
+void br_aes_x86ni_cbcenc_run(const br_aes_x86ni_cbcenc_keys *ctx, void *iv,
+	void *data, size_t len);
+
+/**
+ * \brief CBC decryption with AES (`aes_x86ni` implementation).
+ *
+ * \param ctx    context (already initialised).
+ * \param iv     IV (updated).
+ * \param data   data to decrypt (updated).
+ * \param len    data length (in bytes, MUST be multiple of 16).
+ */
+void br_aes_x86ni_cbcdec_run(const br_aes_x86ni_cbcdec_keys *ctx, void *iv,
+	void *data, size_t len);
+
+/**
+ * \brief CTR encryption and decryption with AES (`aes_x86ni` implementation).
+ *
+ * \param ctx    context (already initialised).
+ * \param iv     IV (constant, 12 bytes).
+ * \param cc     initial block counter value.
+ * \param data   data to decrypt (updated).
+ * \param len    data length (in bytes).
+ * \return  new block counter value.
+ */
+uint32_t br_aes_x86ni_ctr_run(const br_aes_x86ni_ctr_keys *ctx,
+	const void *iv, uint32_t cc, void *data, size_t len);
+
+/**
+ * \brief Obtain the `aes_x86ni` AES-CBC (encryption) implementation, if
+ * available.
+ *
+ * This function returns a pointer to `br_aes_x86ni_cbcenc_vtable`, if
+ * that implementation was compiled in the library _and_ the x86 AES
+ * opcodes are available on the currently running CPU. If either of
+ * these conditions is not met, then this function returns `NULL`.
+ *
+ * \return  the `aes_x868ni` AES-CBC (encryption) implementation, or `NULL`.
+ */
+const br_block_cbcenc_class *br_aes_x86ni_cbcenc_get_vtable(void);
+
+/**
+ * \brief Obtain the `aes_x86ni` AES-CBC (decryption) implementation, if
+ * available.
+ *
+ * This function returns a pointer to `br_aes_x86ni_cbcdec_vtable`, if
+ * that implementation was compiled in the library _and_ the x86 AES
+ * opcodes are available on the currently running CPU. If either of
+ * these conditions is not met, then this function returns `NULL`.
+ *
+ * \return  the `aes_x868ni` AES-CBC (decryption) implementation, or `NULL`.
+ */
+const br_block_cbcdec_class *br_aes_x86ni_cbcdec_get_vtable(void);
+
+/**
+ * \brief Obtain the `aes_x86ni` AES-CTR implementation, if available.
+ *
+ * This function returns a pointer to `br_aes_x86ni_ctr_vtable`, if
+ * that implementation was compiled in the library _and_ the x86 AES
+ * opcodes are available on the currently running CPU. If either of
+ * these conditions is not met, then this function returns `NULL`.
+ *
+ * \return  the `aes_x868ni` AES-CTR implementation, or `NULL`.
+ */
+const br_block_ctr_class *br_aes_x86ni_ctr_get_vtable(void);
+
 /**
  * \brief Aggregate structure large enough to be used as context for
  * subkeys (CBC encryption) for all AES implementations.
@@ -1004,6 +1223,7 @@ typedef union {
 	br_aes_small_cbcenc_keys c_small;
 	br_aes_ct_cbcenc_keys c_ct;
 	br_aes_ct64_cbcenc_keys c_ct64;
+	br_aes_x86ni_cbcenc_keys c_x86ni;
 } br_aes_gen_cbcenc_keys;
 
 /**
@@ -1016,6 +1236,7 @@ typedef union {
 	br_aes_small_cbcdec_keys c_small;
 	br_aes_ct_cbcdec_keys c_ct;
 	br_aes_ct64_cbcdec_keys c_ct64;
+	br_aes_x86ni_cbcdec_keys c_x86ni;
 } br_aes_gen_cbcdec_keys;
 
 /**
@@ -1028,6 +1249,7 @@ typedef union {
 	br_aes_small_ctr_keys c_small;
 	br_aes_ct_ctr_keys c_ct;
 	br_aes_ct64_ctr_keys c_ct64;
+	br_aes_x86ni_ctr_keys c_x86ni;
 } br_aes_gen_ctr_keys;
 
 /*

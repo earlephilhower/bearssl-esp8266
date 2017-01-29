@@ -516,6 +516,46 @@ uint32_t br_rsa_i15_pkcs1_sign(const unsigned char *hash_oid,
 	const br_rsa_private_key *sk, unsigned char *x);
 
 /**
+ * \brief Get "default" RSA implementation (public-key operations).
+ *
+ * This returns the preferred implementation of RSA (public-key operations)
+ * on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_public br_rsa_public_get_default(void);
+
+/**
+ * \brief Get "default" RSA implementation (private-key operations).
+ *
+ * This returns the preferred implementation of RSA (private-key operations)
+ * on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_private br_rsa_private_get_default(void);
+
+/**
+ * \brief Get "default" RSA implementation (PKCS#1 signature verification).
+ *
+ * This returns the preferred implementation of RSA (signature verification)
+ * on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_pkcs1_vrfy br_rsa_pkcs1_vrfy_get_default(void);
+
+/**
+ * \brief Get "default" RSA implementation (PKCS#1 signature generation).
+ *
+ * This returns the preferred implementation of RSA (signature generation)
+ * on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_pkcs1_sign br_rsa_pkcs1_sign_get_default(void);
+
+/**
  * \brief RSA decryption helper, for SSL/TLS.
  *
  * This function performs the RSA decryption for a RSA-based key exchange

@@ -591,7 +591,7 @@ test_HMAC_CT(const br_hash_class *digest_class,
 
 	br_hmac_key_init(&kc, digest_class, key, key_len);
 
-	for (u = 0; u < 130; u ++) {
+	for (u = 0; u < 2; u ++) {
 		for (v = 0; v < 130; v ++) {
 			size_t min_len, max_len;
 			size_t w;
@@ -3157,7 +3157,6 @@ test_AES_generic(char *name,
 			data_len = hextobin(plain, KAT_AES_CTR[u + 2]);
 			hextobin(cipher, KAT_AES_CTR[u + 3]);
 			vc->init(xc, key, key_len);
-
 			memcpy(buf, plain, data_len);
 			vc->run(xc, iv, 1, buf, data_len);
 			check_equals("KAT CTR AES (1)", buf, cipher, data_len);
@@ -3269,6 +3268,33 @@ test_AES_ct64(void)
 		&br_aes_ct64_cbcdec_vtable,
 		&br_aes_ct64_ctr_vtable,
 		1, 1);
+}
+
+static void
+test_AES_x86ni(void)
+{
+	const br_block_cbcenc_class *x_cbcenc;
+	const br_block_cbcdec_class *x_cbcdec;
+	const br_block_ctr_class *x_ctr;
+	int hcbcenc, hcbcdec, hctr;
+
+	x_cbcenc = br_aes_x86ni_cbcenc_get_vtable();
+	x_cbcdec = br_aes_x86ni_cbcdec_get_vtable();
+	x_ctr = br_aes_x86ni_ctr_get_vtable();
+	hcbcenc = (x_cbcenc != NULL);
+	hcbcdec = (x_cbcdec != NULL);
+	hctr = (x_ctr != NULL);
+	if (hcbcenc != hctr || hcbcdec != hctr) {
+		fprintf(stderr, "AES_x86ni availability mismatch (%d/%d/%d)\n",
+			hcbcenc, hcbcdec, hctr);
+		exit(EXIT_FAILURE);
+	}
+	if (hctr) {
+		test_AES_generic("AES_x86ni",
+			x_cbcenc, x_cbcdec, x_ctr, 1, 1);
+	} else {
+		printf("Test AES_x86ni: UNAVAILABLE\n");
+	}
 }
 
 /*
@@ -4672,6 +4698,19 @@ test_GHASH_ctmul64(void)
 }
 
 static void
+test_GHASH_pclmul(void)
+{
+	br_ghash gh;
+
+	gh = br_ghash_pclmul_get();
+	if (gh == 0) {
+		printf("Test GHASH_pclmul: UNAVAILABLE\n");
+	} else {
+		test_GHASH("GHASH_pclmul", gh);
+	}
+}
+
+static void
 test_EC_inner(const char *sk, const char *sU,
 	const br_ec_impl *impl, int curve)
 {
@@ -5559,6 +5598,7 @@ static const struct {
 	STU(AES_small),
 	STU(AES_ct),
 	STU(AES_ct64),
+	STU(AES_x86ni),
 	STU(DES_tab),
 	STU(DES_ct),
 	STU(ChaCha20_ct),
@@ -5571,6 +5611,7 @@ static const struct {
 	STU(GHASH_ctmul),
 	STU(GHASH_ctmul32),
 	STU(GHASH_ctmul64),
+	STU(GHASH_pclmul),
 	STU(EC_prime_i15),
 	STU(EC_prime_i31),
 	STU(EC_p256_m15),

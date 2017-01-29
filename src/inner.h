@@ -105,6 +105,55 @@
 #endif
 #endif
 
+/*
+ * Set BR_LOMUL on platforms where it makes sense.
+ */
+#ifndef BR_LOMUL
+#if BR_ARMEL_CORTEX_GCC
+#define BR_LOMUL   1
+#endif
+#endif
+
+/*
+ * Determine whether x86 AES instructions are understood by the compiler.
+ */
+#ifndef BR_AES_X86NI
+
+#if (__i386__ || __x86_64__) \
+	&& ((__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) \
+	    || (__clang_major__ > 3 \
+	        || (__clang_major__ == 3 && __clang_minor__ >= 7)))
+#define BR_AES_X86NI   1
+#elif (_M_IX86 || _M_X64) && (_MSC_VER >= 1700)
+#define BR_AES_X86NI   1
+#endif
+#endif
+
+/*
+ * If we use x86 AES instruction, determine the compiler brand.
+ */
+#if BR_AES_X86NI
+#ifndef BR_AES_X86NI_GCC
+#if __GNUC__
+#define BR_AES_X86NI_GCC   1
+#endif
+#endif
+#ifndef BR_AES_X86NI_MSC
+#if _MSC_VER >= 1700
+#define BR_AES_X86NI_MSC   1
+#endif
+#endif
+#endif
+
+/*
+ * A macro to tag a function with a "target" attribute (for GCC and Clang).
+ */
+#if BR_AES_X86NI_GCC
+#define BR_TARGET(x)   __attribute__((target(x)))
+#else
+#define BR_TARGET(x)
+#endif
+
 /* ==================================================================== */
 /*
  * Encoding/decoding functions.
@@ -1077,6 +1126,10 @@ void br_i31_mulacc(uint32_t *d, const uint32_t *a, const uint32_t *b);
 
 /* ==================================================================== */
 
+/*
+ * FIXME: document "i15" functions.
+ */
+
 static inline void
 br_i15_zero(uint16_t *x, uint16_t bit_len)
 {
@@ -1423,6 +1476,27 @@ unsigned br_aes_ct64_keysched(uint64_t *comp_skey,
  */
 void br_aes_ct64_skey_expand(uint64_t *skey,
 	unsigned num_rounds, const uint64_t *comp_skey);
+
+/*
+ * Test support for AES-NI opcodes.
+ */
+int br_aes_x86ni_supported(void);
+
+/*
+ * AES key schedule, using x86 AES-NI instructions. This yields the
+ * subkeys in the encryption direction. Number of rounds is returned.
+ * Key size MUST be 16, 24 or 32 bytes; otherwise, 0 is returned.
+ */
+unsigned br_aes_x86ni_keysched_enc(unsigned char *skni,
+	const void *key, size_t len);
+
+/*
+ * AES key schedule, using x86 AES-NI instructions. This yields the
+ * subkeys in the decryption direction. Number of rounds is returned.
+ * Key size MUST be 16, 24 or 32 bytes; otherwise, 0 is returned.
+ */
+unsigned br_aes_x86ni_keysched_dec(unsigned char *skni,
+	const void *key, size_t len);
 
 /* ==================================================================== */
 /*

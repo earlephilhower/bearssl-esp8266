@@ -1531,9 +1531,9 @@ run_test_case(test_case *tc)
 			br_x509_minimal_set_hash(&ctx, id, hash_impls[u].impl);
 		}
 	}
-	br_x509_minimal_set_rsa(&ctx, br_rsa_i31_pkcs1_vrfy);
+	br_x509_minimal_set_rsa(&ctx, br_rsa_pkcs1_vrfy_get_default());
 	br_x509_minimal_set_ecdsa(&ctx,
-		&br_ec_prime_i31, br_ecdsa_i31_vrfy_asn1);
+		br_ec_get_default(), br_ecdsa_vrfy_asn1_get_default());
 
 	/*
 	 * Set the validation date.
@@ -1819,9 +1819,9 @@ test_name_extraction(void)
 		id = hash_impls[u].id;
 		br_x509_minimal_set_hash(&ctx, id, hash_impls[u].impl);
 	}
-	br_x509_minimal_set_rsa(&ctx, br_rsa_i31_pkcs1_vrfy);
+	br_x509_minimal_set_rsa(&ctx, br_rsa_pkcs1_vrfy_get_default());
 	br_x509_minimal_set_ecdsa(&ctx,
-		&br_ec_prime_i31, br_ecdsa_i31_vrfy_asn1);
+		br_ec_get_default(), br_ecdsa_vrfy_asn1_get_default());
 	string_to_time(DEFAULT_TIME, &days, &seconds);
 	br_x509_minimal_set_time(&ctx, days, seconds);
 

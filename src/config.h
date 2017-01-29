@@ -42,6 +42,16 @@
  */
 
 /*
+ * When BR_LOMUL is enabled, then multiplications of 32-bit values whose
+ * result are truncated to the low 32 bits are assumed to be
+ * substantially more efficient than 32-bit multiplications that yield
+ * 64-bit results. This is typically the case on low-end ARM Cortex M
+ * systems (M0, M0+, M1, and arguably M3 and M4 as well).
+ *
+#define BR_LOMUL   1
+ */
+
+/*
  * When BR_SLOW_MUL is enabled, multiplications are assumed to be
  * substantially slow with regards to other integer operations, thus
  * making it worth to make more operations for a given task if it allows
@@ -125,6 +135,31 @@
  * former takes precedence.
  *
 #define BR_USE_WIN32_TIME   1
+ */
+
+/*
+ * When BR_ARMEL_CORTEXM_GCC is enabled, some operations are replaced with
+ * inline assembly which is shorter and/or faster. This should be used
+ * only when all of the following are true:
+ *   - target architecture is ARM in Thumb mode
+ *   - target endianness is little-endian
+ *   - compiler is GCC (or GCC-compatible for inline assembly syntax)
+ *
+ * This is meant for the low-end cores (Cortex M0, M0+, M1, M3).
+ * Note: if BR_LOMUL is not explicitly enabled or disabled, then
+ * enabling BR_ARMEL_CORTEXM_GCC also enables BR_LOMUL.
+ *
+#define BR_ARMEL_CORTEXM_GCC   1
+ */
+
+/*
+ * When BR_AES_X86NI is enabled, the AES implementation using the x86 "NI"
+ * instructions (dedicated AES opcodes) will be compiled. If this is not
+ * enabled explicitly, then that AES implementation will be compiled only
+ * if a compatible compiler is detected. If set explicitly to 0, the
+ * implementation will not be compiled at all.
+ *
+#define BR_AES_X86NI   1
  */
 
 #endif

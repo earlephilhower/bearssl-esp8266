@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+ * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the
@@ -26,45 +26,46 @@
 
 /* see bearssl_ssl.h */
 void
-br_ssl_server_init_minv2g(br_ssl_server_context *cc,
-	const br_x509_certificate *chain, size_t chain_len,
-	const br_ec_private_key *sk)
+br_ssl_engine_set_default_aes_gcm(br_ssl_engine_context *cc)
 {
-	static const uint16_t suites[] = {
-		BR_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
-	};
+#if BR_AES_X86NI
+	const br_block_ctr_class *ictr;
+	br_ghash ighash;
+#endif
 
-	/*
-	 * Reset server context and set supported versions to TLS-1.2 (only).
-	 */
-	br_ssl_server_zero(cc);
-	br_ssl_engine_set_versions(&cc->eng, BR_TLS12, BR_TLS12);
-
-	/*
-	 * Set suites.
-	 */
-	br_ssl_engine_set_suites(&cc->eng, suites,
-		(sizeof suites) / (sizeof suites[0]));
-
-	/*
-	 * Set the "server policy": handler for the certificate chain
-	 * and private key operations.
-	 */
-	br_ssl_server_set_single_ec(cc, chain, chain_len, sk,
-		BR_KEYTYPE_KEYX, BR_KEYTYPE_EC, &br_ec_all_m15, 0);
-
-	/*
-	 * Set supported hash functions.
-	 */
-	br_ssl_engine_set_hash(&cc->eng, br_sha256_ID, &br_sha256_vtable);
-
-	/*
-	 * Set the PRF implementations.
-	 */
-	br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
-
-	/*
-	 * Symmetric encryption.
-	 */
-	br_ssl_engine_set_default_aes_gcm(&cc->eng);
+	br_ssl_engine_set_gcm(cc,
+		&br_sslrec_in_gcm_vtable,
+		&br_sslrec_out_gcm_vtable);
+#if BR_AES_X86NI
+	ictr = br_aes_x86ni_ctr_get_vtable();
+	if (ictr != NULL) {
+		br_ssl_engine_set_aes_ctr(cc, ictr);
+	} else {
+#if BR_64
+		br_ssl_engine_set_aes_ctr(cc, &br_aes_ct64_ctr_vtable);
+#else
+		br_ssl_engine_set_aes_ctr(cc, &br_aes_ct_ctr_vtable);
+#endif
+	}
+#else
+#if BR_64
+	br_ssl_engine_set_aes_ctr(cc, &br_aes_ct64_ctr_vtable);
+#else
+	br_ssl_engine_set_aes_ctr(cc, &br_aes_ct_ctr_vtable);
+#endif
+#endif
+#if BR_AES_X86NI
+	ighash = br_ghash_pclmul_get();
+	if (ighash != 0) {
+		br_ssl_engine_set_ghash(cc, ighash);
+		return;
+	}
+#endif
+#if BR_LOMUL
+	br_ssl_engine_set_ghash(cc, &br_ghash_ctmul32);
+#elif BR_64
+	br_ssl_engine_set_ghash(cc, &br_ghash_ctmul64);
+#else
+	br_ssl_engine_set_ghash(cc, &br_ghash_ctmul);
+#endif
 }

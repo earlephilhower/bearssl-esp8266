@@ -88,7 +88,12 @@ test_speed_ ## fname(void) \
 	memset(key, 'T', sizeof key); \
 	memset(buf, 'P', sizeof buf); \
 	memset(iv, 'X', sizeof iv); \
-	vt = &br_ ## cname ## _cbc ## dir ## _vtable; \
+	vt = br_ ## cname ## _cbc ## dir ## _get_vtable(); \
+	if (vt == NULL) { \
+		printf("%-30s UNAVAILABLE\n", #Name); \
+		fflush(stdout); \
+		return; \
+	} \
 	for (i = 0; i < 10; i ++) { \
 		vt->init(&ec.vtable, key, sizeof key); \
 		vt->run(&ec.vtable, iv, buf, sizeof buf); \
@@ -132,7 +137,12 @@ test_speed_ ## fname(void) \
 	memset(key, 'T', sizeof key); \
 	memset(buf, 'P', sizeof buf); \
 	memset(iv, 'X', sizeof iv); \
-	vt = &br_ ## cname ## _ctr_vtable; \
+	vt = br_ ## cname ## _ctr_get_vtable(); \
+	if (vt == NULL) { \
+		printf("%-30s UNAVAILABLE\n", #Name); \
+		fflush(stdout); \
+		return; \
+	} \
 	for (i = 0; i < 10; i ++) { \
 		vt->init(&ec.vtable, key, sizeof key); \
 		vt->run(&ec.vtable, iv, 1, buf, sizeof buf); \
@@ -206,6 +216,23 @@ SPEED_HASH(SHA-1, sha1)
 SPEED_HASH(SHA-256, sha256)
 SPEED_HASH(SHA-512, sha512)
 
+/*
+ * There are no vtable selection functions for the portable implementations,
+ * so we define some custom macros.
+ */
+#define br_aes_big_cbcenc_get_vtable()     (&br_aes_big_cbcenc_vtable)
+#define br_aes_big_cbcdec_get_vtable()     (&br_aes_big_cbcdec_vtable)
+#define br_aes_big_ctr_get_vtable()        (&br_aes_big_ctr_vtable)
+#define br_aes_small_cbcenc_get_vtable()   (&br_aes_small_cbcenc_vtable)
+#define br_aes_small_cbcdec_get_vtable()   (&br_aes_small_cbcdec_vtable)
+#define br_aes_small_ctr_get_vtable()      (&br_aes_small_ctr_vtable)
+#define br_aes_ct_cbcenc_get_vtable()      (&br_aes_ct_cbcenc_vtable)
+#define br_aes_ct_cbcdec_get_vtable()      (&br_aes_ct_cbcdec_vtable)
+#define br_aes_ct_ctr_get_vtable()         (&br_aes_ct_ctr_vtable)
+#define br_aes_ct64_cbcenc_get_vtable()    (&br_aes_ct64_cbcenc_vtable)
+#define br_aes_ct64_cbcdec_get_vtable()    (&br_aes_ct64_cbcdec_vtable)
+#define br_aes_ct64_ctr_get_vtable()       (&br_aes_ct64_ctr_vtable)
+
 #define SPEED_AES(iname) \
 SPEED_BLOCKCIPHER_CBC(AES-128 CBC encrypt (iname), aes128_ ## iname ## _cbcenc, aes_ ## iname, 16, enc) \
 SPEED_BLOCKCIPHER_CBC(AES-128 CBC decrypt (iname), aes128_ ## iname ## _cbcdec, aes_ ## iname, 16, dec) \
@@ -221,6 +248,12 @@ SPEED_AES(big)
 SPEED_AES(small)
 SPEED_AES(ct)
 SPEED_AES(ct64)
+SPEED_AES(x86ni)
+
+#define br_des_tab_cbcenc_get_vtable()     (&br_des_tab_cbcenc_vtable)
+#define br_des_tab_cbcdec_get_vtable()     (&br_des_tab_cbcdec_vtable)
+#define br_des_ct_cbcenc_get_vtable()      (&br_des_ct_cbcenc_vtable)
+#define br_des_ct_cbcdec_get_vtable()      (&br_des_ct_cbcdec_vtable)
 
 #define SPEED_DES(iname) \
 SPEED_BLOCKCIPHER_CBC(DES CBC encrypt (iname), des_ ## iname ## _cbcenc, des_ ## iname, 8, enc) \
@@ -285,6 +318,20 @@ static void
 test_speed_ghash_ctmul64(void)
 {
 	test_speed_ghash_inner("GHASH (ctmul64)", &br_ghash_ctmul64);
+}
+
+static void
+test_speed_ghash_pclmul(void)
+{
+	br_ghash gh;
+
+	gh = br_ghash_pclmul_get();
+	if (gh == 0) {
+		printf("%-30s UNAVAILABLE\n", "GHASH (pclmul)");
+		fflush(stdout);
+	} else {
+		test_speed_ghash_inner("GHASH (pclmul)", gh);
+	}
 }
 
 static uint32_t
@@ -1158,6 +1205,16 @@ static const struct {
 	STU(aes192_ct64_ctr),
 	STU(aes256_ct64_ctr),
 
+	STU(aes128_x86ni_cbcenc),
+	STU(aes128_x86ni_cbcdec),
+	STU(aes192_x86ni_cbcenc),
+	STU(aes192_x86ni_cbcdec),
+	STU(aes256_x86ni_cbcenc),
+	STU(aes256_x86ni_cbcdec),
+	STU(aes128_x86ni_ctr),
+	STU(aes192_x86ni_ctr),
+	STU(aes256_x86ni_ctr),
+
 	STU(des_tab_cbcenc),
 	STU(des_tab_cbcdec),
 	STU(3des_tab_cbcenc),
@@ -1173,6 +1230,7 @@ static const struct {
 	STU(ghash_ctmul),
 	STU(ghash_ctmul32),
 	STU(ghash_ctmul64),
+	STU(ghash_pclmul),
 
 	STU(poly1305_ctmul),
 	STU(poly1305_ctmul32),

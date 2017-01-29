@@ -262,6 +262,57 @@ run_ssl_engine(br_ssl_engine_context *cc, unsigned long fd, unsigned flags)
 	verbose = (flags & RUN_ENGINE_VERBOSE) != 0;
 	trace = (flags & RUN_ENGINE_TRACE) != 0;
 
+	/*
+	 * Print algorithm details.
+	 */
+	if (verbose) {
+		fprintf(stderr, "Algorithms:\n");
+		if (cc->iaes_cbcenc != 0) {
+			fprintf(stderr, "   AES/CBC (enc): %s\n",
+				get_algo_name(cc->iaes_cbcenc, 0));
+		}
+		if (cc->iaes_cbcdec != 0) {
+			fprintf(stderr, "   AES/CBC (dec): %s\n",
+				get_algo_name(cc->iaes_cbcdec, 0));
+		}
+		if (cc->iaes_ctr != 0) {
+			fprintf(stderr, "   AES/CTR:       %s\n",
+				get_algo_name(cc->iaes_cbcdec, 0));
+		}
+		if (cc->ides_cbcenc != 0) {
+			fprintf(stderr, "   DES/CBC (enc): %s\n",
+				get_algo_name(cc->ides_cbcenc, 0));
+		}
+		if (cc->ides_cbcdec != 0) {
+			fprintf(stderr, "   DES/CBC (dec): %s\n",
+				get_algo_name(cc->ides_cbcdec, 0));
+		}
+		if (cc->ighash != 0) {
+			fprintf(stderr, "   GHASH (GCM):   %s\n",
+				get_algo_name(cc->ighash, 0));
+		}
+		if (cc->ichacha != 0) {
+			fprintf(stderr, "   ChaCha20:      %s\n",
+				get_algo_name(cc->ichacha, 0));
+		}
+		if (cc->ipoly != 0) {
+			fprintf(stderr, "   Poly1305:      %s\n",
+				get_algo_name(cc->ipoly, 0));
+		}
+		if (cc->iec != 0) {
+			fprintf(stderr, "   EC:            %s\n",
+				get_algo_name(cc->iec, 0));
+		}
+		if (cc->iecdsa != 0) {
+			fprintf(stderr, "   ECDSA:         %s\n",
+				get_algo_name(cc->iecdsa, 0));
+		}
+		if (cc->irsavrfy != 0) {
+			fprintf(stderr, "   RSA (vrfy):    %s\n",
+				get_algo_name(cc->irsavrfy, 0));
+		}
+	}
+
 #ifdef _WIN32
 	fd_event = WSA_INVALID_EVENT;
 	can_send = 0;

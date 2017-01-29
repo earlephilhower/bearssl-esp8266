@@ -125,13 +125,13 @@ br_ssl_client_init_full(br_ssl_client_context *cc,
 	 */
 	br_ssl_engine_set_suites(&cc->eng, suites,
 		(sizeof suites) / (sizeof suites[0]));
-	br_ssl_client_set_rsapub(cc, &br_rsa_i31_public);
-	br_ssl_engine_set_rsavrfy(&cc->eng, &br_rsa_i31_pkcs1_vrfy);
-	br_ssl_engine_set_ec(&cc->eng, &br_ec_all_m15);
-	br_ssl_engine_set_ecdsa(&cc->eng, &br_ecdsa_i31_vrfy_asn1);
-	br_x509_minimal_set_rsa(xc, &br_rsa_i31_pkcs1_vrfy);
+	br_ssl_client_set_default_rsapub(cc);
+	br_ssl_engine_set_default_rsavrfy(&cc->eng);
+	br_ssl_engine_set_default_ecdsa(&cc->eng);
+	br_x509_minimal_set_rsa(xc, br_ssl_engine_get_rsavrfy(&cc->eng));
 	br_x509_minimal_set_ecdsa(xc,
-		&br_ec_all_m15, &br_ecdsa_i31_vrfy_asn1);
+		br_ssl_engine_get_ec(&cc->eng),
+		br_ssl_engine_get_ecdsa(&cc->eng));
 
 	/*
 	 * Set supported hash functions, for the SSL engine and for the
@@ -158,47 +158,11 @@ br_ssl_client_init_full(br_ssl_client_context *cc,
 	br_ssl_engine_set_prf_sha384(&cc->eng, &br_tls12_sha384_prf);
 
 	/*
-	 * Symmetric encryption. We use the "constant-time"
-	 * implementations, which are the safest.
-	 *
-	 * On architectures detected as "64-bit", use the 64-bit
-	 * versions (aes_ct64, ghash_ctmul64).
+	 * Symmetric encryption. We use the "default" implementations
+	 * (fastest among constant-time implementations).
 	 */
-#if BR_64
-	br_ssl_engine_set_aes_cbc(&cc->eng,
-		&br_aes_ct64_cbcenc_vtable,
-		&br_aes_ct64_cbcdec_vtable);
-	br_ssl_engine_set_aes_ctr(&cc->eng,
-		&br_aes_ct64_ctr_vtable);
-	br_ssl_engine_set_ghash(&cc->eng,
-		&br_ghash_ctmul64);
-#else
-	br_ssl_engine_set_aes_cbc(&cc->eng,
-		&br_aes_ct_cbcenc_vtable,
-		&br_aes_ct_cbcdec_vtable);
-	br_ssl_engine_set_aes_ctr(&cc->eng,
-		&br_aes_ct_ctr_vtable);
-	br_ssl_engine_set_ghash(&cc->eng,
-		&br_ghash_ctmul);
-#endif
-	br_ssl_engine_set_des_cbc(&cc->eng,
-		&br_des_ct_cbcenc_vtable,
-		&br_des_ct_cbcdec_vtable);
-	br_ssl_engine_set_chacha20(&cc->eng,
-		&br_chacha20_ct_run);
-	br_ssl_engine_set_poly1305(&cc->eng,
-		&br_poly1305_ctmul_run);
-
-	/*
-	 * Set the SSL record engines (CBC, GCM).
-	 */
-	br_ssl_engine_set_cbc(&cc->eng,
-		&br_sslrec_in_cbc_vtable,
-		&br_sslrec_out_cbc_vtable);
-	br_ssl_engine_set_gcm(&cc->eng,
-		&br_sslrec_in_gcm_vtable,
-		&br_sslrec_out_gcm_vtable);
-	br_ssl_engine_set_chapol(&cc->eng,
-		&br_sslrec_in_chapol_vtable,
-		&br_sslrec_out_chapol_vtable);
+	br_ssl_engine_set_default_aes_cbc(&cc->eng);
+	br_ssl_engine_set_default_aes_gcm(&cc->eng);
+	br_ssl_engine_set_default_des_cbc(&cc->eng);
+	br_ssl_engine_set_default_chapol(&cc->eng);
 }

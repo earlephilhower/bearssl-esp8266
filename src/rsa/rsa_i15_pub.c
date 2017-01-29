@@ -28,7 +28,7 @@
  * As a strict minimum, we need four buffers that can hold a
  * modular integer.
  */
-#define TLEN   (4 * (1 + ((BR_MAX_RSA_SIZE + 14) / 15)))
+#define TLEN   (4 * (2 + ((BR_MAX_RSA_SIZE + 14) / 15)))
 
 /* see bearssl_rsa.h */
 uint32_t
@@ -37,7 +37,7 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 {
 	const unsigned char *n;
 	size_t nlen;
-	uint16_t tmp[TLEN];
+	uint16_t tmp[1 + TLEN];
 	uint16_t *m, *a, *t;
 	size_t fwlen;
 	long z;
@@ -63,15 +63,25 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 		z -= 15;
 		fwlen ++;
 	}
+	/*
+	 * Round up length to an even number.
+	 */
+	fwlen += (fwlen & 1);
 
 	/*
 	 * The modulus gets decoded into m[].
 	 * The value to exponentiate goes into a[].
 	 * The temporaries for modular exponentiations are in t[].
+	 *
+	 * We want the first value word of each integer to be aligned
+	 * on a 32-bit boundary.
 	 */
 	m = tmp;
-	a = tmp + fwlen;
-	t = tmp + 2 * fwlen;
+	if (((uintptr_t)m & 2) == 0) {
+		m ++;
+	}
+	a = m + fwlen;
+	t = m + 2 * fwlen;
 
 	/*
 	 * Decode the modulus.

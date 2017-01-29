@@ -513,6 +513,27 @@ extern const br_ec_impl br_ec_c25519_m31;
 extern const br_ec_impl br_ec_all_m15;
 
 /**
+ * \brief Aggregate EC implementation "m31".
+ *
+ * This implementation is a wrapper for:
+ *
+ *   - `br_ec_c25519_m31` for Curve25519
+ *   - `br_ec_p256_m31` for NIST P-256
+ *   - `br_ec_prime_i31` for other curves (NIST P-384 and NIST-P512)
+ */
+extern const br_ec_impl br_ec_all_m31;
+
+/**
+ * \brief Get the "default" EC implementation for the current system.
+ *
+ * This returns a pointer to the preferred implementation on the
+ * current system.
+ *
+ * \return  the default EC implementation.
+ */
+const br_ec_impl *br_ec_get_default(void);
+
+/**
  * \brief Convert a signature from "raw" to "asn1".
  *
  * Conversion is done "in place" and the new length is returned.
@@ -731,5 +752,45 @@ uint32_t br_ecdsa_i15_vrfy_asn1(const br_ec_impl *impl,
 uint32_t br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	const void *hash, size_t hash_len,
 	const br_ec_public_key *pk, const void *sig, size_t sig_len);
+
+/**
+ * \brief Get "default" ECDSA implementation (signer, asn1 format).
+ *
+ * This returns the preferred implementation of ECDSA signature generation
+ * ("asn1" output format) on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_ecdsa_sign br_ecdsa_sign_asn1_get_default(void);
+
+/**
+ * \brief Get "default" ECDSA implementation (signer, raw format).
+ *
+ * This returns the preferred implementation of ECDSA signature generation
+ * ("raw" output format) on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_ecdsa_sign br_ecdsa_sign_raw_get_default(void);
+
+/**
+ * \brief Get "default" ECDSA implementation (verifier, asn1 format).
+ *
+ * This returns the preferred implementation of ECDSA signature verification
+ * ("asn1" output format) on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_ecdsa_vrfy br_ecdsa_vrfy_asn1_get_default(void);
+
+/**
+ * \brief Get "default" ECDSA implementation (verifier, raw format).
+ *
+ * This returns the preferred implementation of ECDSA signature verification
+ * ("raw" output format) on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_ecdsa_vrfy br_ecdsa_vrfy_raw_get_default(void);
 
 #endif

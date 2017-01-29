@@ -24,7 +24,7 @@
 
 #include "inner.h"
 
-#define U      (1 + ((BR_MAX_RSA_FACTOR + 14) / 15))
+#define U      (2 + ((BR_MAX_RSA_FACTOR + 14) / 15))
 #define TLEN   (8 * U)
 
 /* obsolete
@@ -54,7 +54,7 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	size_t fwlen;
 	uint16_t p0i, q0i;
 	size_t xlen;
-	uint16_t tmp[TLEN];
+	uint16_t tmp[1 + TLEN];
 	long z;
 	uint16_t *mp, *mq, *s1, *s2, *t1, *t2, *t3;
 	uint32_t r;
@@ -86,6 +86,10 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 		z -= 15;
 		fwlen ++;
 	}
+	/*
+	 * Round up the word length to an even number.
+	 */
+	fwlen += (fwlen & 1);
 
 	/*
 	 * We need to fit at least 6 values in the stack buffer.
@@ -100,34 +104,41 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	xlen = (sk->n_bitlen + 7) >> 3;
 
 	/*
-	 * Decode q.
+	 * Ensure 32-bit alignment for value words.
 	 */
 	mq = tmp;
+	if (((uintptr_t)mq & 2) == 0) {
+		mq ++;
+	}
+
+	/*
+	 * Decode q.
+	 */
 	br_i15_decode(mq, q, qlen);
 
 	/*
 	 * Compute s2 = x^dq mod q.
 	 */
 	q0i = br_i15_ninv15(mq[1]);
-	s2 = tmp + fwlen;
+	s2 = mq + fwlen;
 	br_i15_decode_reduce(s2, x, xlen, mq);
 	r = br_i15_modpow_opt(s2, sk->dq, sk->dqlen, mq, q0i,
-		tmp + 2 * fwlen, TLEN - 2 * fwlen);
+		mq + 2 * fwlen, TLEN - 2 * fwlen);
 
 	/*
 	 * Decode p.
 	 */
-	mp = tmp + 2 * fwlen;
+	mp = mq + 2 * fwlen;
 	br_i15_decode(mp, p, plen);
 
 	/*
 	 * Compute s1 = x^dq mod q.
 	 */
 	p0i = br_i15_ninv15(mp[1]);
-	s1 = tmp + 3 * fwlen;
+	s1 = mq + 3 * fwlen;
 	br_i15_decode_reduce(s1, x, xlen, mp);
 	r &= br_i15_modpow_opt(s1, sk->dp, sk->dplen, mp, p0i,
-		tmp + 4 * fwlen, TLEN - 4 * fwlen);
+		mq + 4 * fwlen, TLEN - 4 * fwlen);
 
 	/*
 	 * Compute:
@@ -142,8 +153,8 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * inverse of q modulo p), we also tolerate improperly large
 	 * values for this parameter.
 	 */
-	t1 = tmp + 4 * fwlen;
-	t2 = tmp + 5 * fwlen;
+	t1 = mq + 4 * fwlen;
+	t2 = mq + 5 * fwlen;
 	br_i15_reduce(t2, s2, mp);
 	br_i15_add(s1, mp, br_i15_sub(s1, t2, 1));
 	br_i15_to_monty(s1, mp);

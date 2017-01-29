@@ -53,7 +53,7 @@ LDDLLOUT = -o
 
 # Static linker.
 LD = gcc
-LDFLAGS =
+LDFLAGS = 
 LDOUT = -o 
 
 # C# compiler; we assume usage of Mono.

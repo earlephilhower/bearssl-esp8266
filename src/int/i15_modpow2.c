@@ -41,6 +41,7 @@ br_i15_modpow_opt(uint16_t *x,
 	 */
 	mwlen = (m[0] + 31) >> 4;
 	mlen = mwlen * sizeof m[0];
+	mwlen += (mwlen & 1);
 	t1 = tmp;
 	t2 = tmp + mwlen;
 
@@ -86,7 +87,7 @@ br_i15_modpow_opt(uint16_t *x,
 	 * one word-sized shift.
 	 */
 	br_i15_zero(x, m[0]);
-	x[mwlen - 1] = 1;
+	x[(m[0] + 15) >> 4] = 1;
 	br_i15_muladd_small(x, 0, m);
 
 	/*

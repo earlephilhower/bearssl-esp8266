@@ -341,14 +341,16 @@ static uint32_t
 cc_do_keyx(const br_ssl_client_certificate_class **pctx,
 	unsigned char *data, size_t *len)
 {
+	const br_ec_impl *iec;
 	ccert_context *zc;
 	size_t xoff, xlen;
 	uint32_t r;
 
 	zc = (ccert_context *)pctx;
-	r = br_ec_all_m15.mul(data, *len, zc->sk->key.ec.x,
+	iec = br_ec_get_default();
+	r = iec->mul(data, *len, zc->sk->key.ec.x,
 		zc->sk->key.ec.xlen, zc->sk->key.ec.curve);
-	xoff = br_ec_all_m15.xoff(zc->sk->key.ec.curve, &xlen);
+	xoff = iec->xoff(zc->sk->key.ec.curve, &xlen);
 	memmove(data, data + xoff, xlen);
 	*len = xlen;
 	return r;
@@ -390,8 +392,8 @@ cc_do_sign(const br_ssl_client_certificate_class **pctx,
 			}
 			return 0;
 		}
-		x = br_rsa_i31_pkcs1_sign(hash_oid, hv, hv_len,
-			&zc->sk->key.rsa, data);
+		x = br_rsa_pkcs1_sign_get_default()(
+			hash_oid, hv, hv_len, &zc->sk->key.rsa, data);
 		if (!x) {
 			if (zc->verbose) {
 				fprintf(stderr, "ERROR: RSA-sign failure\n");
@@ -418,8 +420,8 @@ cc_do_sign(const br_ssl_client_certificate_class **pctx,
 			}
 			return 0;
 		}
-		sig_len = br_ecdsa_i31_sign_asn1(&br_ec_all_m15,
-			hc, hv, &zc->sk->key.ec, data);
+		sig_len = br_ecdsa_sign_asn1_get_default()(
+			br_ec_get_default(), hc, hv, &zc->sk->key.ec, data);
 		if (sig_len == 0) {
 			if (zc->verbose) {
 				fprintf(stderr, "ERROR: ECDSA-sign failure\n");
@@ -946,54 +948,29 @@ do_client(int argc, char *argv[])
 		}
 		/* TODO: algorithm implementation selection */
 		if ((req & REQ_AESCBC) != 0) {
-			br_ssl_engine_set_aes_cbc(&cc.eng,
-				&br_aes_ct_cbcenc_vtable,
-				&br_aes_ct_cbcdec_vtable);
-			br_ssl_engine_set_cbc(&cc.eng,
-				&br_sslrec_in_cbc_vtable,
-				&br_sslrec_out_cbc_vtable);
+			br_ssl_engine_set_default_aes_cbc(&cc.eng);
 		}
 		if ((req & REQ_AESGCM) != 0) {
-			br_ssl_engine_set_aes_ctr(&cc.eng,
-				&br_aes_ct_ctr_vtable);
-			br_ssl_engine_set_ghash(&cc.eng,
-				&br_ghash_ctmul);
-			br_ssl_engine_set_gcm(&cc.eng,
-				&br_sslrec_in_gcm_vtable,
-				&br_sslrec_out_gcm_vtable);
+			br_ssl_engine_set_default_aes_gcm(&cc.eng);
 		}
 		if ((req & REQ_CHAPOL) != 0) {
-			br_ssl_engine_set_chacha20(&cc.eng,
-				&br_chacha20_ct_run);
-			br_ssl_engine_set_poly1305(&cc.eng,
-				&br_poly1305_ctmul_run);
-			br_ssl_engine_set_chapol(&cc.eng,
-				&br_sslrec_in_chapol_vtable,
-				&br_sslrec_out_chapol_vtable);
+			br_ssl_engine_set_default_chapol(&cc.eng);
 		}
 		if ((req & REQ_3DESCBC) != 0) {
-			br_ssl_engine_set_des_cbc(&cc.eng,
-				&br_des_ct_cbcenc_vtable,
-				&br_des_ct_cbcdec_vtable);
-			br_ssl_engine_set_cbc(&cc.eng,
-				&br_sslrec_in_cbc_vtable,
-				&br_sslrec_out_cbc_vtable);
+			br_ssl_engine_set_default_des_cbc(&cc.eng);
 		}
 		if ((req & REQ_RSAKEYX) != 0) {
-			br_ssl_client_set_rsapub(&cc, &br_rsa_i31_public);
+			br_ssl_client_set_default_rsapub(&cc);
 		}
 		if ((req & REQ_ECDHE_RSA) != 0) {
-			br_ssl_engine_set_ec(&cc.eng, &br_ec_all_m15);
-			br_ssl_engine_set_rsavrfy(&cc.eng,
-				&br_rsa_i31_pkcs1_vrfy);
+			br_ssl_engine_set_default_ec(&cc.eng);
+			br_ssl_engine_set_default_rsavrfy(&cc.eng);
 		}
 		if ((req & REQ_ECDHE_ECDSA) != 0) {
-			br_ssl_engine_set_ec(&cc.eng, &br_ec_all_m15);
-			br_ssl_engine_set_ecdsa(&cc.eng,
-				&br_ecdsa_i31_vrfy_asn1);
+			br_ssl_engine_set_default_ecdsa(&cc.eng);
 		}
 		if ((req & REQ_ECDH) != 0) {
-			br_ssl_engine_set_ec(&cc.eng, &br_ec_all_m15);
+			br_ssl_engine_set_default_ec(&cc.eng);
 		}
 	}
 	if (fallback) {
@@ -1025,9 +1002,9 @@ do_client(int argc, char *argv[])
 				&br_tls12_sha384_prf);
 		}
 	}
-	br_x509_minimal_set_rsa(&xc, &br_rsa_i31_pkcs1_vrfy);
+	br_x509_minimal_set_rsa(&xc, br_rsa_pkcs1_vrfy_get_default());
 	br_x509_minimal_set_ecdsa(&xc,
-		&br_ec_all_m15, &br_ecdsa_i31_vrfy_asn1);
+		br_ec_get_default(), br_ecdsa_vrfy_asn1_get_default());
 
 	/*
 	 * If there is no provided trust anchor, then certificate validation

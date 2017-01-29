@@ -472,6 +472,18 @@ const br_hash_class *get_hash_impl(int id);
 const char *find_error_name(int err, const char **comment);
 
 /*
+ * Find the symbolic name for an algorithm implementation. Provided
+ * pointer should be a pointer to a vtable or to a function, where
+ * appropriate. If not recognised, then the string "UNKNOWN" is returned.
+ *
+ * If 'long_name' is non-zero, then the returned name recalls the
+ * algorithm type as well; otherwise, only the core implementation name
+ * is returned (e.g. the long name could be 'aes_big_cbcenc' while the
+ * short name is 'big').
+ */
+const char *get_algo_name(const void *algo, int long_name);
+
+/*
  * Run a SSL engine, with a socket connected to the peer, and using
  * stdin/stdout to exchange application data.
  *

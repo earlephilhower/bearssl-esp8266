@@ -10,7 +10,7 @@ BUILD = samd20
 
 # C compiler, linker, and static library builder.
 CC = arm-none-eabi-gcc
-CFLAGS = -W -Wall -Os -mthumb -ffunction-sections -fdata-sections -mcpu=cortex-m0plus
+CFLAGS = -W -Wall -Os -mthumb -ffunction-sections -fdata-sections -mcpu=cortex-m0plus -DBR_ARMEL_CORTEXM_GCC
 LD = arm-none-eabi-gcc
 AR = arm-none-eabi-ar
 

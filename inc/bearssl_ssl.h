@@ -1322,6 +1322,18 @@ br_ssl_engine_set_aes_cbc(br_ssl_engine_context *cc,
 }
 
 /**
+ * \brief Set the "default" AES/CBC implementations.
+ *
+ * This function configures in the engine the AES implementations that
+ * should provide best runtime performance on the local system, while
+ * still being safe (in particular, constant-time). It also sets the
+ * handlers for CBC records.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_aes_cbc(br_ssl_engine_context *cc);
+
+/**
  * \brief Set the AES/CTR implementation.
  *
  * \param cc     SSL engine context.
@@ -1333,6 +1345,18 @@ br_ssl_engine_set_aes_ctr(br_ssl_engine_context *cc,
 {
 	cc->iaes_ctr = impl;
 }
+
+/**
+ * \brief Set the "default" implementations for AES/GCM (AES/CTR + GHASH).
+ *
+ * This function configures in the engine the AES/CTR and GHASH
+ * implementation that should provide best runtime performance on the local
+ * system, while still being safe (in particular, constant-time). It also
+ * sets the handlers for GCM records.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_aes_gcm(br_ssl_engine_context *cc);
 
 /**
  * \brief Set the DES/CBC implementations.
@@ -1349,6 +1373,18 @@ br_ssl_engine_set_des_cbc(br_ssl_engine_context *cc,
 	cc->ides_cbcenc = impl_enc;
 	cc->ides_cbcdec = impl_dec;
 }
+
+/**
+ * \brief Set the "default" DES/CBC implementations.
+ *
+ * This function configures in the engine the DES implementations that
+ * should provide best runtime performance on the local system, while
+ * still being safe (in particular, constant-time). It also sets the
+ * handlers for CBC records.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_des_cbc(br_ssl_engine_context *cc);
 
 /**
  * \brief Set the GHASH implementation (used in GCM mode).
@@ -1387,6 +1423,18 @@ br_ssl_engine_set_poly1305(br_ssl_engine_context *cc,
 {
 	cc->ipoly = ipoly;
 }
+
+/**
+ * \brief Set the "default" ChaCha20 and Poly1305 implementations.
+ *
+ * This function configures in the engine the ChaCha20 and Poly1305
+ * implementations that should provide best runtime performance on the
+ * local system, while still being safe (in particular, constant-time).
+ * It also sets the handlers for ChaCha20+Poly1305 records.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_chapol(br_ssl_engine_context *cc);
 
 /**
  * \brief Set the record encryption and decryption engines for CBC + HMAC.
@@ -1453,6 +1501,29 @@ br_ssl_engine_set_ec(br_ssl_engine_context *cc, const br_ec_impl *iec)
 }
 
 /**
+ * \brief Set the "default" EC implementation.
+ *
+ * This function sets the elliptic curve implementation for ECDH and
+ * ECDHE cipher suites, and for ECDSA support. It selects the fastest
+ * implementation on the current system.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_ec(br_ssl_engine_context *cc);
+
+/**
+ * \brief Get the EC implementation configured in the provided engine.
+ *
+ * \param cc   SSL engine context.
+ * \return  the EC implementation.
+ */
+static inline const br_ec_impl *
+br_ssl_engine_get_ec(br_ssl_engine_context *cc)
+{
+	return cc->iec;
+}
+
+/**
  * \brief Set the RSA signature verification implementation.
  *
  * On the client, this is used to verify the server's signature on its
@@ -1467,6 +1538,29 @@ static inline void
 br_ssl_engine_set_rsavrfy(br_ssl_engine_context *cc, br_rsa_pkcs1_vrfy irsavrfy)
 {
 	cc->irsavrfy = irsavrfy;
+}
+
+/**
+ * \brief Set the "default" RSA implementation (signature verification).
+ *
+ * This function sets the RSA implementation (signature verification)
+ * to the fastest implementation available on the current platform.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_rsavrfy(br_ssl_engine_context *cc);
+
+/**
+ * \brief Get the RSA implementation (signature verification) configured
+ * in the provided engine.
+ *
+ * \param cc   SSL engine context.
+ * \return  the RSA signature verification implementation.
+ */
+static inline br_rsa_pkcs1_vrfy
+br_ssl_engine_get_rsavrfy(br_ssl_engine_context *cc)
+{
+	return cc->irsavrfy;
 }
 
 /*
@@ -1488,6 +1582,31 @@ static inline void
 br_ssl_engine_set_ecdsa(br_ssl_engine_context *cc, br_ecdsa_vrfy iecdsa)
 {
 	cc->iecdsa = iecdsa;
+}
+
+/**
+ * \brief Set the "default" ECDSA implementation (signature verification).
+ *
+ * This function sets the ECDSA implementation (signature verification)
+ * to the fastest implementation available on the current platform. This
+ * call also sets the elliptic curve implementation itself, there again
+ * to the fastest EC implementation available.
+ *
+ * \param cc   SSL engine context.
+ */
+void br_ssl_engine_set_default_ecdsa(br_ssl_engine_context *cc);
+
+/**
+ * \brief Get the ECDSA implementation (signature verification) configured
+ * in the provided engine.
+ *
+ * \param cc   SSL engine context.
+ * \return  the ECDSA signature verification implementation.
+ */
+static inline br_ecdsa_vrfy
+br_ssl_engine_get_ecdsa(br_ssl_engine_context *cc)
+{
+	return cc->iecdsa;
 }
 
 /**
@@ -2458,6 +2577,17 @@ br_ssl_client_set_rsapub(br_ssl_client_context *cc, br_rsa_public irsapub)
 }
 
 /**
+ * \brief Set the "default" RSA implementation for public-key operations.
+ *
+ * This sets the RSA implementation in the client context (for encrypting
+ * the pre-master secret, in `TLS_RSA_*` cipher suites) to the fastest
+ * available on the current platform.
+ *
+ * \param cc   client context.
+ */
+void br_ssl_client_set_default_rsapub(br_ssl_client_context *cc);
+
+/**
  * \brief Set the minimum ClientHello length (RFC 7685 padding).
  *
  * If this value is set and the ClientHello would be shorter, then
@@ -3165,8 +3295,9 @@ struct br_ssl_server_context_ {
  *      3 = TLS 1.2 with SHA-384
  * -- character 3: encryption
  *      a = AES/CBC
- *      g = AES/GCM
  *      d = 3DES/CBC
+ *      g = AES/GCM
+ *      c = ChaCha20+Poly1305
  */
 
 /**

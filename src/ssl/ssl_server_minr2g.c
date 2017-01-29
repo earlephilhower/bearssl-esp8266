@@ -64,28 +64,7 @@ br_ssl_server_init_minr2g(br_ssl_server_context *cc,
 	br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
 
 	/*
-	 * Symmetric encryption. We use the "constant-time"
-	 * implementations, which are the safest.
-	 *
-	 * On architectures detected as "64-bit", use the 64-bit
-	 * versions (aes_ct64, ghash_ctmul64).
+	 * Symmetric encryption.
 	 */
-#if BR_64
-	br_ssl_engine_set_aes_ctr(&cc->eng,
-		&br_aes_ct64_ctr_vtable);
-	br_ssl_engine_set_ghash(&cc->eng,
-		&br_ghash_ctmul64);
-#else
-	br_ssl_engine_set_aes_ctr(&cc->eng,
-		&br_aes_ct_ctr_vtable);
-	br_ssl_engine_set_ghash(&cc->eng,
-		&br_ghash_ctmul);
-#endif
-
-	/*
-	 * Set the SSL record engines (CBC, GCM).
-	 */
-	br_ssl_engine_set_gcm(&cc->eng,
-		&br_sslrec_in_gcm_vtable,
-		&br_sslrec_out_gcm_vtable);
+	br_ssl_engine_set_default_aes_gcm(&cc->eng);
 }

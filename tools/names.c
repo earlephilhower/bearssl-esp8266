@@ -271,7 +271,7 @@ const cipher_suite cipher_suites[] = {
 	{ NULL, 0, 0, NULL }
 };
 
-static struct {
+static const struct {
 	int id;
 	const char *name;
 } curves[] = {
@@ -337,6 +337,108 @@ static struct {
 	  "Curve448" },
 	{ 0, 0 }
 };
+
+static const struct {
+	const char *long_name;
+	const char *short_name;
+	const void *impl;
+} algo_names[] = {
+	/* Block ciphers */
+	{ "aes_big_cbcenc",    "big",         &br_aes_big_cbcenc_vtable },
+	{ "aes_big_cbcdec",    "big",         &br_aes_big_cbcdec_vtable },
+	{ "aes_big_ctr",       "big",         &br_aes_big_ctr_vtable },
+	{ "aes_small_cbcenc",  "small",       &br_aes_small_cbcenc_vtable },
+	{ "aes_small_cbcdec",  "small",       &br_aes_small_cbcdec_vtable },
+	{ "aes_small_ctr",     "small",       &br_aes_small_ctr_vtable },
+	{ "aes_ct_cbcenc",     "ct",          &br_aes_ct_cbcenc_vtable },
+	{ "aes_ct_cbcdec",     "ct",          &br_aes_ct_cbcdec_vtable },
+	{ "aes_ct_ctr",        "ct",          &br_aes_ct_ctr_vtable },
+	{ "aes_ct64_cbcenc",   "ct64",        &br_aes_ct64_cbcenc_vtable },
+	{ "aes_ct64_cbcdec",   "ct64",        &br_aes_ct64_cbcdec_vtable },
+	{ "aes_ct64_ctr",      "ct64",        &br_aes_ct64_ctr_vtable },
+
+	{ "des_tab_cbcenc",    "tab",         &br_des_tab_cbcenc_vtable },
+	{ "des_tab_cbcdec",    "tab",         &br_des_tab_cbcdec_vtable },
+	{ "des_ct_cbcenc",     "ct",          &br_des_ct_cbcenc_vtable },
+	{ "des_ct_cbcdec",     "ct",          &br_des_ct_cbcdec_vtable },
+
+	{ "chacha20_ct",       "ct",          &br_chacha20_ct_run },
+
+	{ "ghash_ctmul",       "ctmul",       &br_ghash_ctmul },
+	{ "ghash_ctmul32",     "ctmul32",     &br_ghash_ctmul32 },
+	{ "ghash_ctmul64",     "ctmul64",     &br_ghash_ctmul64 },
+
+	{ "poly1305_ctmul",    "ctmul",       &br_poly1305_ctmul_run },
+	{ "poly1305_ctmul32",  "ctmul32",     &br_poly1305_ctmul32_run },
+
+	{ "ec_all_m15",        "all_m15",     &br_ec_all_m15 },
+	{ "ec_all_m31",        "all_m31",     &br_ec_all_m31 },
+	{ "ec_c25519_i15",     "c25519_i15",  &br_ec_c25519_i15 },
+	{ "ec_c25519_i31",     "c25519_i31",  &br_ec_c25519_i31 },
+	{ "ec_c25519_m15",     "c25519_m15",  &br_ec_c25519_m15 },
+	{ "ec_c25519_m31",     "c25519_m31",  &br_ec_c25519_m31 },
+	{ "ec_p256_m15",       "p256_m15",    &br_ec_p256_m15 },
+	{ "ec_p256_m31",       "p256_m31",    &br_ec_p256_m31 },
+	{ "ec_prime_i15",      "prime_i15",   &br_ec_prime_i15 },
+	{ "ec_prime_i31",      "prime_i31",   &br_ec_prime_i31 },
+
+	{ "ecdsa_i15_sign_asn1",  "i15_asn1",  &br_ecdsa_i15_sign_asn1 },
+	{ "ecdsa_i15_sign_raw",   "i15_raw",   &br_ecdsa_i15_sign_raw },
+	{ "ecdsa_i31_sign_asn1",  "i31_asn1",  &br_ecdsa_i31_sign_asn1 },
+	{ "ecdsa_i31_sign_raw",   "i31_raw",   &br_ecdsa_i31_sign_raw },
+	{ "ecdsa_i15_vrfy_asn1",  "i15_asn1",  &br_ecdsa_i15_vrfy_asn1 },
+	{ "ecdsa_i15_vrfy_raw",   "i15_raw",   &br_ecdsa_i15_vrfy_raw },
+	{ "ecdsa_i31_vrfy_asn1",  "i31_asn1",  &br_ecdsa_i31_vrfy_asn1 },
+	{ "ecdsa_i31_vrfy_raw",   "i31_raw",   &br_ecdsa_i31_vrfy_raw },
+
+	{ "rsa_i15_pkcs1_sign",   "i15",       &br_rsa_i15_pkcs1_sign },
+	{ "rsa_i31_pkcs1_sign",   "i31",       &br_rsa_i31_pkcs1_sign },
+	{ "rsa_i32_pkcs1_sign",   "i32",       &br_rsa_i32_pkcs1_sign },
+	{ "rsa_i15_pkcs1_vrfy",   "i15",       &br_rsa_i15_pkcs1_vrfy },
+	{ "rsa_i31_pkcs1_vrfy",   "i31",       &br_rsa_i31_pkcs1_vrfy },
+	{ "rsa_i32_pkcs1_vrfy",   "i32",       &br_rsa_i32_pkcs1_vrfy },
+
+	{ 0, 0, 0 }
+};
+
+static const struct {
+	const char *long_name;
+	const char *short_name;
+	const void *(*get)(void);
+} algo_names_dyn[] = {
+	{ "aes_x86ni_cbcenc",  "x86ni",
+		(const void *(*)(void))&br_aes_x86ni_cbcenc_get_vtable },
+	{ "aes_x86ni_cbcdec",  "x86ni",
+		(const void *(*)(void))&br_aes_x86ni_cbcdec_get_vtable },
+	{ "aes_x86ni_ctr",     "x86ni",
+		(const void *(*)(void))&br_aes_x86ni_ctr_get_vtable },
+	{ "ghash_pclmul",      "pclmul",
+		(const void *(*)(void))&br_ghash_pclmul_get },
+	{ 0, 0, 0, }
+};
+
+/* see brssl.h */
+const char *
+get_algo_name(const void *impl, int long_name)
+{
+	size_t u;
+
+	for (u = 0; algo_names[u].long_name; u ++) {
+		if (impl == algo_names[u].impl) {
+			return long_name
+				? algo_names[u].long_name
+				: algo_names[u].short_name;
+		}
+	}
+	for (u = 0; algo_names_dyn[u].long_name; u ++) {
+		if (impl == algo_names_dyn[u].get()) {
+			return long_name
+				? algo_names_dyn[u].long_name
+				: algo_names_dyn[u].short_name;
+		}
+	}
+	return "UNKNOWN";
+}
 
 /* see brssl.h */
 const char *

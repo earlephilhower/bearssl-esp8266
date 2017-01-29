@@ -65,18 +65,7 @@ br_ssl_server_init_mine2c(br_ssl_server_context *cc,
 	br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
 
 	/*
-	 * Symmetric encryption. We use the "constant-time"
-	 * implementations, which are the safest.
+	 * Symmetric encryption.
 	 */
-	br_ssl_engine_set_chacha20(&cc->eng,
-		&br_chacha20_ct_run);
-	br_ssl_engine_set_poly1305(&cc->eng,
-		&br_poly1305_ctmul_run);
-
-	/*
-	 * Set the SSL record engines.
-	 */
-	br_ssl_engine_set_chapol(&cc->eng,
-		&br_sslrec_in_chapol_vtable,
-		&br_sslrec_out_chapol_vtable);
+	br_ssl_engine_set_default_chapol(&cc->eng);
 }
