@@ -28,7 +28,7 @@
 uint32_t
 br_divrem(uint32_t hi, uint32_t lo, uint32_t d, uint32_t *r)
 {
-	// TODO: optimize this
+	/* TODO: optimize this */
 	uint32_t q;
 	uint32_t ch, cf;
 	int k;

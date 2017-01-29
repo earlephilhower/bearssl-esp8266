@@ -166,7 +166,7 @@ example_client_profile(br_ssl_client_context *cc
 		(sizeof suites) / (sizeof suites[0]));
 
 	/*
-	 * Public-key algorithm imeplementations.
+	 * Public-key algorithm implementations.
 	 *
 	 * -- RSA public core ("rsapub") is needed for "RSA" key exchange
 	 *    (cipher suites whose name starts with TLS_RSA).
@@ -180,6 +180,17 @@ example_client_profile(br_ssl_client_context *cc
 	 *
 	 * -- ECDSA signature verification is needed for "ECDHE_ECDSA"
 	 *    cipher suites (but not for ECDHE_RSA, ECDH_ECDSA or ECDH_RSA).
+	 *
+	 * Normaly, you use the "default" implementations, obtained
+	 * through relevant function calls. These functions return
+	 * implementations that are deemed "best" for the current
+	 * platform, where "best" means "fastest within constant-time
+	 * implementations". Selecting the default implementation is a
+	 * mixture of compile-time and runtime checks.
+	 *
+	 * Nevertheless, specific implementations may be selected
+	 * explicitly, e.g. to use code which is slower but with a
+	 * smaller footprint.
 	 *
 	 * The RSA code comes in three variants, called "i15", "i31" and
 	 * "i32". The "i31" code is somewhat faster than the "i32" code.
@@ -216,10 +227,15 @@ example_client_profile(br_ssl_client_context *cc
 	 * implementations directly will result in smaller code, but
 	 * support for fewer curves and possibly lower performance.
 	 */
+	br_ssl_client_set_default_rsapub(cc);
+	br_ssl_engine_set_default_rsavrfy(&cc->eng);
+	br_ssl_engine_set_default_ecdsa(&cc->eng);
+	/* Alternate: set implementations explicitly.
 	br_ssl_client_set_rsapub(cc, &br_rsa_i31_public);
 	br_ssl_client_set_rsavrfy(cc, &br_rsa_i31_pkcs1_vrfy);
 	br_ssl_engine_set_ec(&cc->eng, &br_ec_all_m31);
-	br_ssl_client_set_ecdsa(cc, &br_ecdsa_i31_vrfy_asn1);
+	br_ssl_engine_set_ecdsa(&cc->eng, &br_ecdsa_i31_vrfy_asn1);
+	*/
 
 	/*
 	 * Record handler:
@@ -279,7 +295,12 @@ example_client_profile(br_ssl_client_context *cc
 	 *                but it is not constant-time.
 	 *
 	 *    aes_x86ni   Very fast implementation that uses the AES-NI
-	 *                opcodes on recent x86 CPU.
+	 *                opcodes on recent x86 CPU. But it may not be
+	 *                compiled in the library if the compiler or
+	 *                architecture is not supported; and the CPU
+	 *                may also not support the opcodes. Selection
+	 *                functions are provided to test for availability
+	 *                of the code and the opcodes.
 	 *
 	 * Whether having constant-time implementations is absolutely
 	 * required for security depends on the context (in particular
