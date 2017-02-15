@@ -162,4 +162,14 @@
 #define BR_AES_X86NI   1
  */
 
+/*
+ * When BR_POWER8 is enabled, the AES implementation using the POWER ISA
+ * 2.07 opcodes (available on POWER8 processors and later) is compiled.
+ * If this is not enabled explicitly, then that implementation will be
+ * compiled only if a compatible compiler is detected, _and_ the target
+ * architecture is POWER8 or later.
+ *
+#define BR_POWER8   1
+ */
+
 #endif

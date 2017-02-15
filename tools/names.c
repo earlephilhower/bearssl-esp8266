@@ -406,6 +406,12 @@ static const struct {
 	const char *short_name;
 	const void *(*get)(void);
 } algo_names_dyn[] = {
+	{ "aes_pwr8_cbcenc",   "pwr8",
+		(const void *(*)(void))&br_aes_pwr8_cbcenc_get_vtable },
+	{ "aes_pwr8_cbcdec",   "pwr8",
+		(const void *(*)(void))&br_aes_pwr8_cbcdec_get_vtable },
+	{ "aes_pwr8_ctr",      "pwr8",
+		(const void *(*)(void))&br_aes_pwr8_ctr_get_vtable },
 	{ "aes_x86ni_cbcenc",  "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_cbcenc_get_vtable },
 	{ "aes_x86ni_cbcdec",  "x86ni",
@@ -414,6 +420,8 @@ static const struct {
 		(const void *(*)(void))&br_aes_x86ni_ctr_get_vtable },
 	{ "ghash_pclmul",      "pclmul",
 		(const void *(*)(void))&br_ghash_pclmul_get },
+	{ "ghash_pwr8",        "pwr8",
+		(const void *(*)(void))&br_ghash_pwr8_get },
 	{ 0, 0, 0, }
 };
 

@@ -3297,6 +3297,33 @@ test_AES_x86ni(void)
 	}
 }
 
+static void
+test_AES_pwr8(void)
+{
+	const br_block_cbcenc_class *x_cbcenc;
+	const br_block_cbcdec_class *x_cbcdec;
+	const br_block_ctr_class *x_ctr;
+	int hcbcenc, hcbcdec, hctr;
+
+	x_cbcenc = br_aes_pwr8_cbcenc_get_vtable();
+	x_cbcdec = br_aes_pwr8_cbcdec_get_vtable();
+	x_ctr = br_aes_pwr8_ctr_get_vtable();
+	hcbcenc = (x_cbcenc != NULL);
+	hcbcdec = (x_cbcdec != NULL);
+	hctr = (x_ctr != NULL);
+	if (hcbcenc != hctr || hcbcdec != hctr) {
+		fprintf(stderr, "AES_pwr8 availability mismatch (%d/%d/%d)\n",
+			hcbcenc, hcbcdec, hctr);
+		exit(EXIT_FAILURE);
+	}
+	if (hctr) {
+		test_AES_generic("AES_pwr8",
+			x_cbcenc, x_cbcdec, x_ctr, 1, 1);
+	} else {
+		printf("Test AES_pwr8: UNAVAILABLE\n");
+	}
+}
+
 /*
  * DES known-answer tests. Order: plaintext, key, ciphertext.
  * (mostly from NIST SP 800-20).
@@ -4675,6 +4702,31 @@ test_GHASH(const char *name, br_ghash gh)
 		check_equals("KAT GHASH", y, ref, sizeof ref);
 	}
 
+	for (u = 0; u <= 1024; u ++) {
+		unsigned char key[32], iv[12];
+		unsigned char buf[1024 + 32];
+		unsigned char y0[16], y1[16];
+		char tmp[100];
+
+		memset(key, 0, sizeof key);
+		memset(iv, 0, sizeof iv);
+		br_enc32be(key, u);
+		memset(buf, 0, sizeof buf);
+		br_chacha20_ct_run(key, iv, 1, buf, sizeof buf);
+
+		memcpy(y0, buf, 16);
+		br_ghash_ctmul32(y0, buf + 16, buf + 32, u);
+		memcpy(y1, buf, 16);
+		gh(y1, buf + 16, buf + 32, u);
+		sprintf(tmp, "XREF %s (len = %u)", name, (unsigned)u);
+		check_equals(tmp, y0, y1, 16);
+
+		if ((u & 31) == 0) {
+			printf(".");
+			fflush(stdout);
+		}
+	}
+
 	printf("done.\n");
 	fflush(stdout);
 }
@@ -4707,6 +4759,19 @@ test_GHASH_pclmul(void)
 		printf("Test GHASH_pclmul: UNAVAILABLE\n");
 	} else {
 		test_GHASH("GHASH_pclmul", gh);
+	}
+}
+
+static void
+test_GHASH_pwr8(void)
+{
+	br_ghash gh;
+
+	gh = br_ghash_pwr8_get();
+	if (gh == 0) {
+		printf("Test GHASH_pwr8: UNAVAILABLE\n");
+	} else {
+		test_GHASH("GHASH_pwr8", gh);
 	}
 }
 
@@ -5598,6 +5663,7 @@ static const struct {
 	STU(AES_small),
 	STU(AES_ct),
 	STU(AES_ct64),
+	STU(AES_pwr8),
 	STU(AES_x86ni),
 	STU(DES_tab),
 	STU(DES_ct),
@@ -5612,6 +5678,7 @@ static const struct {
 	STU(GHASH_ctmul32),
 	STU(GHASH_ctmul64),
 	STU(GHASH_pclmul),
+	STU(GHASH_pwr8),
 	STU(EC_prime_i15),
 	STU(EC_prime_i31),
 	STU(EC_p256_m15),

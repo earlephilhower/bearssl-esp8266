@@ -154,6 +154,49 @@
 #define BR_TARGET(x)
 #endif
 
+/*
+ * POWER8 crypto support. We rely on compiler macros for the
+ * architecture, since we do not have a reliable, simple way to detect
+ * the required support at runtime (we could try running an opcode, and
+ * trapping the exception or signal on illegal instruction, but this
+ * induces some non-trivial OS dependencies that we would prefer to
+ * avoid if possible).
+ */
+#ifndef BR_POWER8
+#if __GNUC__ && ((_ARCH_PWR8 || _ARCH_PPC) && __CRYPTO__)
+#define BR_POWER8   1
+#endif
+#endif
+
+/*
+ * Detect endinanness on POWER8.
+ */
+#if BR_POWER8
+#if defined BR_POWER8_LE
+#undef BR_POWER8_BE
+#if BR_POWER8_LE
+#define BR_POWER8_BE   0
+#else
+#define BR_POWER8_BE   1
+#endif
+#elif defined BR_POWER8_BE
+#undef BR_POWER8_LE
+#if BR_POWER8_BE
+#define BR_POWER8_LE   0
+#else
+#define BR_POWER8_LE   1
+#endif
+#else
+#if __LITTLE_ENDIAN__
+#define BR_POWER8_LE   1
+#define BR_POWER8_BE   0
+#else
+#define BR_POWER8_LE   0
+#define BR_POWER8_BE   1
+#endif
+#endif
+#endif
+
 /* ==================================================================== */
 /*
  * Encoding/decoding functions.
@@ -1498,6 +1541,19 @@ unsigned br_aes_x86ni_keysched_enc(unsigned char *skni,
 unsigned br_aes_x86ni_keysched_dec(unsigned char *skni,
 	const void *key, size_t len);
 
+/*
+ * Test support for AES POWER8 opcodes.
+ */
+int br_aes_pwr8_supported(void);
+
+/*
+ * AES key schedule, using POWER8 instructions. This yields the
+ * subkeys in the encryption direction. Number of rounds is returned.
+ * Key size MUST be 16, 24 or 32 bytes; otherwise, 0 is returned.
+ */
+unsigned br_aes_pwr8_keysched(unsigned char *skni,
+	const void *key, size_t len);
+
 /* ==================================================================== */
 /*
  * RSA.
@@ -1772,6 +1828,87 @@ void br_ssl_hs_server_run(void *ctx);
  * functions returns 0.
  */
 int br_ssl_choose_hash(unsigned bf);
+
+/* ==================================================================== */
+
+/*
+ * PowerPC / POWER assembly stuff. The special BR_POWER_ASM_MACROS macro
+ * must be defined before including this file; this is done by source
+ * files that use some inline assembly for PowerPC / POWER machines.
+ */
+
+#if BR_POWER_ASM_MACROS
+
+#define lxvw4x(xt, ra, rb)        lxvw4x_(xt, ra, rb)
+#define stxvw4x(xt, ra, rb)       stxvw4x_(xt, ra, rb)
+
+#define bdnz(foo)                 bdnz_(foo)
+#define beq(foo)                  beq_(foo)
+
+#define li(rx, value)             li_(rx, value)
+#define addi(rx, ra, imm)         addi_(rx, ra, imm)
+#define cmpldi(rx, imm)           cmpldi_(rx, imm)
+#define mtctr(rx)                 mtctr_(rx)
+#define vspltb(vrt, vrb, uim)     vspltb_(vrt, vrb, uim)
+#define vspltw(vrt, vrb, uim)     vspltw_(vrt, vrb, uim)
+#define vspltisb(vrt, imm)        vspltisb_(vrt, imm)
+#define vspltisw(vrt, imm)        vspltisw_(vrt, imm)
+#define vrlw(vrt, vra, vrb)       vrlw_(vrt, vra, vrb)
+#define vsbox(vrt, vra)           vsbox_(vrt, vra)
+#define vxor(vrt, vra, vrb)       vxor_(vrt, vra, vrb)
+#define vand(vrt, vra, vrb)       vand_(vrt, vra, vrb)
+#define vsro(vrt, vra, vrb)       vsro_(vrt, vra, vrb)
+#define vsl(vrt, vra, vrb)        vsl_(vrt, vra, vrb)
+#define vsldoi(vt, va, vb, sh)    vsldoi_(vt, va, vb, sh)
+#define vsr(vrt, vra, vrb)        vsr_(vrt, vra, vrb)
+#define vadduwm(vrt, vra, vrb)    vadduwm_(vrt, vra, vrb)
+#define vsububm(vrt, vra, vrb)    vsububm_(vrt, vra, vrb)
+#define vsubuwm(vrt, vra, vrb)    vsubuwm_(vrt, vra, vrb)
+#define vsrw(vrt, vra, vrb)       vsrw_(vrt, vra, vrb)
+#define vcipher(vt, va, vb)       vcipher_(vt, va, vb)
+#define vcipherlast(vt, va, vb)   vcipherlast_(vt, va, vb)
+#define vncipher(vt, va, vb)      vncipher_(vt, va, vb)
+#define vncipherlast(vt, va, vb)  vncipherlast_(vt, va, vb)
+#define vperm(vt, va, vb, vc)     vperm_(vt, va, vb, vc)
+#define vpmsumd(vt, va, vb)       vpmsumd_(vt, va, vb)
+#define xxpermdi(vt, va, vb, d)   xxpermdi_(vt, va, vb, d)
+
+#define lxvw4x_(xt, ra, rb)       "\tlxvw4x\t" #xt "," #ra "," #rb "\n"
+#define stxvw4x_(xt, ra, rb)      "\tstxvw4x\t" #xt "," #ra "," #rb "\n"
+
+#define label(foo)                #foo "%=:\n"
+#define bdnz_(foo)                "\tbdnz\t" #foo "%=\n"
+#define beq_(foo)                 "\tbeq\t" #foo "%=\n"
+
+#define li_(rx, value)            "\tli\t" #rx "," #value "\n"
+#define addi_(rx, ra, imm)        "\taddi\t" #rx "," #ra "," #imm "\n"
+#define cmpldi_(rx, imm)          "\tcmpldi\t" #rx "," #imm "\n"
+#define mtctr_(rx)                "\tmtctr\t" #rx "\n"
+#define vspltb_(vrt, vrb, uim)    "\tvspltb\t" #vrt "," #vrb "," #uim "\n"
+#define vspltw_(vrt, vrb, uim)    "\tvspltw\t" #vrt "," #vrb "," #uim "\n"
+#define vspltisb_(vrt, imm)       "\tvspltisb\t" #vrt "," #imm "\n"
+#define vspltisw_(vrt, imm)       "\tvspltisw\t" #vrt "," #imm "\n"
+#define vrlw_(vrt, vra, vrb)      "\tvrlw\t" #vrt "," #vra "," #vrb "\n"
+#define vsbox_(vrt, vra)          "\tvsbox\t" #vrt "," #vra "\n"
+#define vxor_(vrt, vra, vrb)      "\tvxor\t" #vrt "," #vra "," #vrb "\n"
+#define vand_(vrt, vra, vrb)      "\tvand\t" #vrt "," #vra "," #vrb "\n"
+#define vsro_(vrt, vra, vrb)      "\tvsro\t" #vrt "," #vra "," #vrb "\n"
+#define vsl_(vrt, vra, vrb)       "\tvsl\t" #vrt "," #vra "," #vrb "\n"
+#define vsldoi_(vt, va, vb, sh)   "\tvsldoi\t" #vt "," #va "," #vb "," #sh "\n"
+#define vsr_(vrt, vra, vrb)       "\tvsr\t" #vrt "," #vra "," #vrb "\n"
+#define vadduwm_(vrt, vra, vrb)   "\tvadduwm\t" #vrt "," #vra "," #vrb "\n"
+#define vsububm_(vrt, vra, vrb)   "\tvsububm\t" #vrt "," #vra "," #vrb "\n"
+#define vsubuwm_(vrt, vra, vrb)   "\tvsubuwm\t" #vrt "," #vra "," #vrb "\n"
+#define vsrw_(vrt, vra, vrb)      "\tvsrw\t" #vrt "," #vra "," #vrb "\n"
+#define vcipher_(vt, va, vb)      "\tvcipher\t" #vt "," #va "," #vb "\n"
+#define vcipherlast_(vt, va, vb)  "\tvcipherlast\t" #vt "," #va "," #vb "\n"
+#define vncipher_(vt, va, vb)     "\tvncipher\t" #vt "," #va "," #vb "\n"
+#define vncipherlast_(vt, va, vb) "\tvncipherlast\t" #vt "," #va "," #vb "\n"
+#define vperm_(vt, va, vb, vc)    "\tvperm\t" #vt "," #va "," #vb "," #vc "\n"
+#define vpmsumd_(vt, va, vb)      "\tvpmsumd\t" #vt "," #va "," #vb "\n"
+#define xxpermdi_(vt, va, vb, d)  "\txxpermdi\t" #vt "," #va "," #vb "," #d "\n"
+
+#endif
 
 /* ==================================================================== */
 

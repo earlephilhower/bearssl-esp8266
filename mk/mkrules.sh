@@ -100,6 +100,7 @@ coresrc=" \
 	src/hash/ghash_ctmul32.c \
 	src/hash/ghash_ctmul64.c \
 	src/hash/ghash_pclmul.c \
+	src/hash/ghash_pwr8.c \
 	src/hash/md5.c \
 	src/hash/md5sha1.c \
 	src/hash/multihash.c \
@@ -235,6 +236,10 @@ coresrc=" \
 	src/symcipher/aes_ct_ctr.c \
 	src/symcipher/aes_ct_dec.c \
 	src/symcipher/aes_ct_enc.c \
+	src/symcipher/aes_pwr8.c \
+	src/symcipher/aes_pwr8_cbcdec.c \
+	src/symcipher/aes_pwr8_cbcenc.c \
+	src/symcipher/aes_pwr8_ctr.c \
 	src/symcipher/aes_small_cbcdec.c \
 	src/symcipher/aes_small_cbcenc.c \
 	src/symcipher/aes_small_ctr.c \

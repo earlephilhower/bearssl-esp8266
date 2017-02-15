@@ -249,6 +249,7 @@ SPEED_AES(small)
 SPEED_AES(ct)
 SPEED_AES(ct64)
 SPEED_AES(x86ni)
+SPEED_AES(pwr8)
 
 #define br_des_tab_cbcenc_get_vtable()     (&br_des_tab_cbcenc_vtable)
 #define br_des_tab_cbcdec_get_vtable()     (&br_des_tab_cbcdec_vtable)
@@ -331,6 +332,20 @@ test_speed_ghash_pclmul(void)
 		fflush(stdout);
 	} else {
 		test_speed_ghash_inner("GHASH (pclmul)", gh);
+	}
+}
+
+static void
+test_speed_ghash_pwr8(void)
+{
+	br_ghash gh;
+
+	gh = br_ghash_pwr8_get();
+	if (gh == 0) {
+		printf("%-30s UNAVAILABLE\n", "GHASH (pwr8)");
+		fflush(stdout);
+	} else {
+		test_speed_ghash_inner("GHASH (pwr8)", gh);
 	}
 }
 
@@ -1215,6 +1230,16 @@ static const struct {
 	STU(aes192_x86ni_ctr),
 	STU(aes256_x86ni_ctr),
 
+	STU(aes128_pwr8_cbcenc),
+	STU(aes128_pwr8_cbcdec),
+	STU(aes192_pwr8_cbcenc),
+	STU(aes192_pwr8_cbcdec),
+	STU(aes256_pwr8_cbcenc),
+	STU(aes256_pwr8_cbcdec),
+	STU(aes128_pwr8_ctr),
+	STU(aes192_pwr8_ctr),
+	STU(aes256_pwr8_ctr),
+
 	STU(des_tab_cbcenc),
 	STU(des_tab_cbcdec),
 	STU(3des_tab_cbcenc),
@@ -1231,6 +1256,7 @@ static const struct {
 	STU(ghash_ctmul32),
 	STU(ghash_ctmul64),
 	STU(ghash_pclmul),
+	STU(ghash_pwr8),
 
 	STU(poly1305_ctmul),
 	STU(poly1305_ctmul32),
