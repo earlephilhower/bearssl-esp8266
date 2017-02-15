@@ -42,164 +42,266 @@
 #include <intrin.h>
 #endif
 
+/*
+ * GHASH is defined over elements of GF(2^128) with "full little-endian"
+ * representation: leftmost byte is least significant, and, within each
+ * byte, leftmost _bit_ is least significant. The natural ordering in
+ * x86 is "mixed little-endian": bytes are ordered from least to most
+ * significant, but bits within a byte are in most-to-least significant
+ * order. Going to full little-endian representation would require
+ * reversing bits within each byte, which is doable but expensive.
+ *
+ * Instead, we go to full big-endian representation, by swapping bytes
+ * around, which is done with a single _mm_shuffle_epi8() opcode (it
+ * comes with SSSE3; all CPU that offer pclmulqdq also have SSSE3). We
+ * can use a full big-endian representation because in a carryless
+ * multiplication, we have a nice bit reversal property:
+ *
+ *    rev_128(x) * rev_128(y) = rev_255(x * y)
+ *
+ * So by using full big-endian, we still get the right result, except
+ * that it is right-shifted by 1 bit. The left-shift is relatively
+ * inexpensive, and it can be mutualised.
+ *
+ *
+ * Since SSE2 opcodes do not have facilities for shitfting full 128-bit
+ * values with bit precision, we have to break down values into 64-bit
+ * chunks. We number chunks from 0 to 3 in left to right order.
+ */
+
+/*
+ * From a 128-bit value kw, compute kx as the XOR of the two 64-bit
+ * halves of kw (into the right half of kx; left half is unspecified).
+ */
+#define BK(kw, kx)   do { \
+		kx = _mm_xor_si128(kw, _mm_shuffle_epi32(kw, 0x0E)); \
+	} while (0)
+
+/*
+ * Combine two 64-bit values (k0:k1) into a 128-bit (kw) value and
+ * the XOR of the two values (kx).
+ */
+#define PBK(k0, k1, kw, kx)   do { \
+		kw = _mm_unpacklo_epi64(k1, k0); \
+		kx = _mm_xor_si128(k0, k1); \
+	} while (0)
+
+/*
+ * Left-shift by 1 bit a 256-bit value (in four 64-bit words).
+ */
+#define SL_256(x0, x1, x2, x3)   do { \
+		x0 = _mm_or_si128( \
+			_mm_slli_epi64(x0, 1), \
+			_mm_srli_epi64(x1, 63)); \
+		x1 = _mm_or_si128( \
+			_mm_slli_epi64(x1, 1), \
+			_mm_srli_epi64(x2, 63)); \
+		x2 = _mm_or_si128( \
+			_mm_slli_epi64(x2, 1), \
+			_mm_srli_epi64(x3, 63)); \
+		x3 = _mm_slli_epi64(x3, 1); \
+	} while (0)
+
+/*
+ * Perform reduction in GF(2^128). The 256-bit value is in x0..x3;
+ * result is written in x0..x1.
+ */
+#define REDUCE_F128(x0, x1, x2, x3)   do { \
+		x1 = _mm_xor_si128( \
+			x1, \
+			_mm_xor_si128( \
+				_mm_xor_si128( \
+					x3, \
+					_mm_srli_epi64(x3, 1)), \
+				_mm_xor_si128( \
+					_mm_srli_epi64(x3, 2), \
+					_mm_srli_epi64(x3, 7)))); \
+		x2 = _mm_xor_si128( \
+			_mm_xor_si128( \
+				x2, \
+				_mm_slli_epi64(x3, 63)), \
+			_mm_xor_si128( \
+				_mm_slli_epi64(x3, 62), \
+				_mm_slli_epi64(x3, 57))); \
+		x0 = _mm_xor_si128( \
+			x0, \
+			_mm_xor_si128( \
+				_mm_xor_si128( \
+					x2, \
+					_mm_srli_epi64(x2, 1)), \
+				_mm_xor_si128( \
+					_mm_srli_epi64(x2, 2), \
+					_mm_srli_epi64(x2, 7)))); \
+		x1 = _mm_xor_si128( \
+			_mm_xor_si128( \
+				x1, \
+				_mm_slli_epi64(x2, 63)), \
+			_mm_xor_si128( \
+				_mm_slli_epi64(x2, 62), \
+				_mm_slli_epi64(x2, 57))); \
+	} while (0)
+
+/*
+ * Square value kw into (dw,dx).
+ */
+#define SQUARE_F128(kw, dw, dx)   do { \
+		__m128i z0, z1, z2, z3; \
+		z1 = _mm_clmulepi64_si128(kw, kw, 0x11); \
+		z3 = _mm_clmulepi64_si128(kw, kw, 0x00); \
+		z0 = _mm_shuffle_epi32(z1, 0x0E); \
+		z2 = _mm_shuffle_epi32(z3, 0x0E); \
+		SL_256(z0, z1, z2, z3); \
+		REDUCE_F128(z0, z1, z2, z3); \
+		PBK(z0, z1, dw, dx); \
+	} while (0)
+
 /* see bearssl_hash.h */
 BR_TARGET("ssse3,pclmul")
 void
 br_ghash_pclmul(void *y, const void *h, const void *data, size_t len)
 {
-	/*
-	 * TODO: loop below processes one 16-bit word at a time. We
-	 * could parallelize, using:
-	 *   ((y+x0)*h+x1)*h = (y+x0)*(h^2) + x1*h
-	 * i.e. precompute h^2, then handle two words at a time, mostly
-	 * in parallel (this may extend to more words as well...).
-	 */
-
-	const unsigned char *buf;
-	__m128i yx, hx;
-	__m128i h0, h1, h2;
+	const unsigned char *buf1, *buf2;
+	unsigned char tmp[64];
+	size_t num4, num1;
+	__m128i yw, h1w, h1x;
 	__m128i byteswap_index;
 
-	byteswap_index = _mm_set_epi8(
-		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-	yx = _mm_loadu_si128(y);
-	hx = _mm_loadu_si128(h);
-	yx = _mm_shuffle_epi8(yx, byteswap_index);
-	hx = _mm_shuffle_epi8(hx, byteswap_index);
-
 	/*
-	 * We byte-swap y and h for full big-endian interpretation
-	 * (see below).
+	 * We split data into two chunks. First chunk starts at buf1
+	 * and contains num4 blocks of 64-byte values. Second chunk
+	 * starts at buf2 and contains num1 blocks of 16-byte values.
+	 * We want the first chunk to be as large as possible.
 	 */
-
-	h0 = hx;
-	h1 = _mm_shuffle_epi32(hx, 0x0E);
-	h2 = _mm_xor_si128(h0, h1);
-
-	buf = data;
-	while (len > 0) {
-		__m128i x;
-		__m128i t0, t1, t2, v0, v1, v2, v3;
-		__m128i y0, y1, y2;
-
-		/*
-		 * Load next 128-bit word. If there are not enough bytes
-		 * for the next word, we pad it with zeros (as per the
-		 * API for this function; it's also what is useful for
-		 * implementation of GCM).
-		 */
-		if (len >= 16) {
-			x = _mm_loadu_si128((const void *)buf);
-			buf += 16;
-			len -= 16;
-		} else {
-			unsigned char tmp[16];
-
-			memcpy(tmp, buf, len);
-			memset(tmp + len, 0, (sizeof tmp) - len);
-			x = _mm_loadu_si128((void *)tmp);
-			len = 0;
-		}
-
-		/*
-		 * Specification of GCM is basically "full little-endian",
-		 * i.e. leftmost bit is most significant; but decoding
-		 * performed by _mm_loadu_si128 is "mixed endian" (leftmost
-		 * _byte_ is least significant, but within each byte, the
-		 * leftmost _bit_ is most significant). We could reverse
-		 * bits in each byte; however, it is more efficient to
-		 * swap the bytes and thus emulate full big-endian
-		 * decoding.
-		 *
-		 * Big-endian works here because multiplication in
-		 * GF[2](X) is "carry-less", thereby allowing reversal:
-		 * if rev_n(x) consists in reversing the order of bits
-		 * in x, then:
-		 *   rev_128(A)*rev_128(B) = rev_255(A*B)
-		 * so we can compute A*B by using rev_128(A) and rev_128(B),
-		 * and an extra shift at the end (because 255 != 256). Bit
-		 * reversal is exactly what happens when converting from
-		 * full little-endian to full big-endian.
-		 */
-		x = _mm_shuffle_epi8(x, byteswap_index);
-		yx = _mm_xor_si128(yx, x);
-
-		/*
-		 * We want the product to be broken down into four
-		 * 64-bit values, because there is no SSE* opcode that
-		 * can do a shift on a 128-bit value.
-		 */
-		y0 = yx;
-		y1 = _mm_shuffle_epi32(yx, 0x0E);
-		y2 = _mm_xor_si128(y0, y1);
-		t0 = _mm_clmulepi64_si128(y0, h0, 0x00);
-		t1 = _mm_clmulepi64_si128(yx, hx, 0x11);
-		t2 = _mm_clmulepi64_si128(y2, h2, 0x00);
-		t2 = _mm_xor_si128(t2, _mm_xor_si128(t0, t1));
-		v0 = t0;
-		v1 = _mm_xor_si128(_mm_shuffle_epi32(t0, 0x0E), t2);
-		v2 = _mm_xor_si128(t1, _mm_shuffle_epi32(t2, 0x0E));
-		v3 = _mm_shuffle_epi32(t1, 0x0E);
-
-		/*
-		 * Do the corrective 1-bit shift (255->256).
-		 */
-		v3 = _mm_or_si128(
-			_mm_slli_epi64(v3, 1),
-			_mm_srli_epi64(v2, 63));
-		v2 = _mm_or_si128(
-			_mm_slli_epi64(v2, 1),
-			_mm_srli_epi64(v1, 63));
-		v1 = _mm_or_si128(
-			_mm_slli_epi64(v1, 1),
-			_mm_srli_epi64(v0, 63));
-		v0 = _mm_slli_epi64(v0, 1);
-
-		/*
-		 * Perform polynomial reduction into GF(2^128).
-		 */
-		v2 = _mm_xor_si128(
-			v2,
-			_mm_xor_si128(
-				_mm_xor_si128(
-					v0,
-					_mm_srli_epi64(v0, 1)),
-				_mm_xor_si128(
-					_mm_srli_epi64(v0, 2),
-					_mm_srli_epi64(v0, 7))));
-		v1 = _mm_xor_si128(
-			_mm_xor_si128(
-				v1,
-				_mm_slli_epi64(v0, 63)),
-			_mm_xor_si128(
-				_mm_slli_epi64(v0, 62),
-				_mm_slli_epi64(v0, 57)));
-		v3 = _mm_xor_si128(
-			v3,
-			_mm_xor_si128(
-				_mm_xor_si128(
-					v1,
-					_mm_srli_epi64(v1, 1)),
-				_mm_xor_si128(
-					_mm_srli_epi64(v1, 2),
-					_mm_srli_epi64(v1, 7))));
-		v2 = _mm_xor_si128(
-			_mm_xor_si128(
-				v2,
-				_mm_slli_epi64(v1, 63)),
-			_mm_xor_si128(
-				_mm_slli_epi64(v1, 62),
-				_mm_slli_epi64(v1, 57)));
-
-		/*
-		 * We reduced toward the high words (v2 and v3), which
-		 * are the new value for y.
-		 */
-		yx = _mm_unpacklo_epi64(v2, v3);
+	buf1 = data;
+	num4 = len >> 6;
+	len &= 63;
+	buf2 = buf1 + (num4 << 6);
+	num1 = (len + 15) >> 4;
+	if ((len & 15) != 0) {
+		memcpy(tmp, buf2, len);
+		memset(tmp + len, 0, (num1 << 4) - len);
+		buf2 = tmp;
 	}
 
-	yx = _mm_shuffle_epi8(yx, byteswap_index);
-	_mm_storeu_si128(y, yx);
+	/*
+	 * Constant value to perform endian conversion.
+	 */
+	byteswap_index = _mm_set_epi8(
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+	/*
+	 * Load y and h.
+	 */
+	yw = _mm_loadu_si128(y);
+	h1w = _mm_loadu_si128(h);
+	yw = _mm_shuffle_epi8(yw, byteswap_index);
+	h1w = _mm_shuffle_epi8(h1w, byteswap_index);
+	BK(h1w, h1x);
+
+	if (num4 > 0) {
+		__m128i h2w, h2x, h3w, h3x, h4w, h4x;
+		__m128i t0, t1, t2, t3;
+
+		/*
+		 * Compute h2 = h^2.
+		 */
+		SQUARE_F128(h1w, h2w, h2x);
+
+		/*
+		 * Compute h3 = h^3 = h*(h^2).
+		 */
+		t1 = _mm_clmulepi64_si128(h1w, h2w, 0x11);
+		t3 = _mm_clmulepi64_si128(h1w, h2w, 0x00);
+		t2 = _mm_xor_si128(_mm_clmulepi64_si128(h1x, h2x, 0x00),
+			_mm_xor_si128(t1, t3));
+		t0 = _mm_shuffle_epi32(t1, 0x0E);
+		t1 = _mm_xor_si128(t1, _mm_shuffle_epi32(t2, 0x0E));
+		t2 = _mm_xor_si128(t2, _mm_shuffle_epi32(t3, 0x0E));
+		SL_256(t0, t1, t2, t3);
+		REDUCE_F128(t0, t1, t2, t3);
+		PBK(t0, t1, h3w, h3x);
+
+		/*
+		 * Compute h4 = h^4 = (h^2)^2.
+		 */
+		SQUARE_F128(h2w, h4w, h4x);
+
+		while (num4 -- > 0) {
+			__m128i aw0, aw1, aw2, aw3;
+			__m128i ax0, ax1, ax2, ax3;
+
+			aw0 = _mm_loadu_si128((void *)(buf1 +  0));
+			aw1 = _mm_loadu_si128((void *)(buf1 + 16));
+			aw2 = _mm_loadu_si128((void *)(buf1 + 32));
+			aw3 = _mm_loadu_si128((void *)(buf1 + 48));
+			aw0 = _mm_shuffle_epi8(aw0, byteswap_index);
+			aw1 = _mm_shuffle_epi8(aw1, byteswap_index);
+			aw2 = _mm_shuffle_epi8(aw2, byteswap_index);
+			aw3 = _mm_shuffle_epi8(aw3, byteswap_index);
+			buf1 += 64;
+
+			aw0 = _mm_xor_si128(aw0, yw);
+			BK(aw1, ax1);
+			BK(aw2, ax2);
+			BK(aw3, ax3);
+			BK(aw0, ax0);
+
+			t1 = _mm_xor_si128(
+				_mm_xor_si128(
+					_mm_clmulepi64_si128(aw0, h4w, 0x11),
+					_mm_clmulepi64_si128(aw1, h3w, 0x11)),
+				_mm_xor_si128(
+					_mm_clmulepi64_si128(aw2, h2w, 0x11),
+					_mm_clmulepi64_si128(aw3, h1w, 0x11)));
+			t3 = _mm_xor_si128(
+				_mm_xor_si128(
+					_mm_clmulepi64_si128(aw0, h4w, 0x00),
+					_mm_clmulepi64_si128(aw1, h3w, 0x00)),
+				_mm_xor_si128(
+					_mm_clmulepi64_si128(aw2, h2w, 0x00),
+					_mm_clmulepi64_si128(aw3, h1w, 0x00)));
+			t2 = _mm_xor_si128(
+				_mm_xor_si128(
+					_mm_clmulepi64_si128(ax0, h4x, 0x00),
+					_mm_clmulepi64_si128(ax1, h3x, 0x00)),
+				_mm_xor_si128(
+					_mm_clmulepi64_si128(ax2, h2x, 0x00),
+					_mm_clmulepi64_si128(ax3, h1x, 0x00)));
+			t2 = _mm_xor_si128(t2, _mm_xor_si128(t1, t3));
+			t0 = _mm_shuffle_epi32(t1, 0x0E);
+			t1 = _mm_xor_si128(t1, _mm_shuffle_epi32(t2, 0x0E));
+			t2 = _mm_xor_si128(t2, _mm_shuffle_epi32(t3, 0x0E));
+			SL_256(t0, t1, t2, t3);
+			REDUCE_F128(t0, t1, t2, t3);
+			yw = _mm_unpacklo_epi64(t1, t0);
+		}
+	}
+
+	while (num1 -- > 0) {
+		__m128i aw, ax;
+		__m128i t0, t1, t2, t3;
+
+		aw = _mm_loadu_si128((void *)buf2);
+		aw = _mm_shuffle_epi8(aw, byteswap_index);
+		buf2 += 16;
+
+		aw = _mm_xor_si128(aw, yw);
+		BK(aw, ax);
+
+		t1 = _mm_clmulepi64_si128(aw, h1w, 0x11);
+		t3 = _mm_clmulepi64_si128(aw, h1w, 0x00);
+		t2 = _mm_clmulepi64_si128(ax, h1x, 0x00);
+		t2 = _mm_xor_si128(t2, _mm_xor_si128(t1, t3));
+		t0 = _mm_shuffle_epi32(t1, 0x0E);
+		t1 = _mm_xor_si128(t1, _mm_shuffle_epi32(t2, 0x0E));
+		t2 = _mm_xor_si128(t2, _mm_shuffle_epi32(t3, 0x0E));
+		SL_256(t0, t1, t2, t3);
+		REDUCE_F128(t0, t1, t2, t3);
+		yw = _mm_unpacklo_epi64(t1, t0);
+	}
+
+	yw = _mm_shuffle_epi8(yw, byteswap_index);
+	_mm_storeu_si128(y, yw);
 }
 
 /*
