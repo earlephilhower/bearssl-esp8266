@@ -27,6 +27,9 @@
 #if BR_AES_X86NI
 
 #if BR_AES_X86NI_GCC
+#if BR_AES_X86NI_GCC_OLD
+#pragma GCC target("sse2,sse4.1,aes,pclmul")
+#endif
 #include <wmmintrin.h>
 #endif
 

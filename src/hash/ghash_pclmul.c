@@ -32,10 +32,16 @@
 #if BR_AES_X86NI
 
 #if BR_AES_X86NI_GCC
-/* #pragma GCC target "sse2,ssse3,pclmul" */
+#if BR_AES_X86NI_GCC_OLD
+#pragma GCC push_options
+#pragma GCC target("sse2,ssse3,pclmul")
+#endif
 #include <tmmintrin.h>
 #include <wmmintrin.h>
 #include <cpuid.h>
+#if BR_AES_X86NI_GCC_OLD
+#pragma GCC pop_options
+#endif
 #endif
 
 #if BR_AES_X86NI_MSC

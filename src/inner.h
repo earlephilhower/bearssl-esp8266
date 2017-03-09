@@ -155,6 +155,18 @@
 #endif
 
 /*
+ * GCC versions from 4.4 to 4.8 (inclusive) must use a special #pragma
+ * to activate extra opcodes before including the relevant intrinsic
+ * headers. But these don't work with Clang (which does not need them
+ * either).
+ */
+#if BR_AES_X86NI_GCC && !defined BR_AES_X86NI_GCC_OLD
+#if __GNUC__ == 4 && __GNUC_MINOR__ >= 4 && __GNUC_MINOR__ <= 8 && !__clang__
+#define BR_AES_X86NI_GCC_OLD   1
+#endif
+#endif
+
+/*
  * POWER8 crypto support. We rely on compiler macros for the
  * architecture, since we do not have a reliable, simple way to detect
  * the required support at runtime (we could try running an opcode, and

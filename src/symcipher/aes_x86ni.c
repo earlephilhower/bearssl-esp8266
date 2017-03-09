@@ -32,8 +32,15 @@
 #if BR_AES_X86NI
 
 #if BR_AES_X86NI_GCC
+#if BR_AES_X86NI_GCC_OLD
+#pragma GCC push_options
+#pragma GCC target("sse2,sse4.1,aes,pclmul")
+#endif
 #include <wmmintrin.h>
 #include <cpuid.h>
+#if BR_AES_X86NI_GCC_OLD
+#pragma GCC pop_options
+#endif
 #endif
 
 #if BR_AES_X86NI_MSC
@@ -70,6 +77,14 @@ br_aes_x86ni_supported(void)
 
 #undef MASK
 }
+
+/*
+ * Per-function attributes appear unreliable on old GCC, so we use the
+ * pragma for all remaining functions in this file.
+ */
+#if BR_AES_X86NI_GCC_OLD
+#pragma GCC target("sse2,sse4.1,aes,pclmul")
+#endif
 
 BR_TARGET("sse2,aes")
 static inline __m128i
