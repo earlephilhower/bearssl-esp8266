@@ -118,7 +118,6 @@
  * Determine whether x86 AES instructions are understood by the compiler.
  */
 #ifndef BR_AES_X86NI
-
 #if (__i386__ || __x86_64__) \
 	&& ((__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) \
 	    || (__clang_major__ > 3 \
@@ -220,58 +219,124 @@
 #endif
 #endif
 
+/*
+ * Detect support for unaligned accesses with known endianness.
+ *
+ *  x86 (both 32-bit and 64-bit) is little-endian and allows unaligned
+ *  accesses.
+ *
+ *  POWER/PowerPC allows unaligned accesses when big-endian. POWER8 and
+ *  later also allow unaligned accesses when little-endian.
+ */
+#if !defined BR_LE_UNALIGNED && !defined BR_BE_UNALIGNED
+
+#if __i386 || __i386__ || __x86_64__ || _M_IX86 || _M_X64
+#define BR_LE_UNALIGNED   1
+#elif BR_POWER8_BE
+#define BR_BE_UNALIGNED   1
+#elif BR_POWER8_LE
+#define BR_LE_UNALIGNED   1
+#elif (__powerpc__ || __powerpc64__ || _M_PPC || _ARCH_PPC || _ARCH_PPC64) \\
+	&& __BIG_ENDIAN__
+#define BR_BE_UNALIGNED   1
+#endif
+
+#endif
+
 /* ==================================================================== */
 /*
  * Encoding/decoding functions.
  *
  * 32-bit and 64-bit decoding, both little-endian and big-endian, is
- * implemented with the inline functions below. These functions are
- * generic: they don't depend on the architecture natural endianness,
- * and they can handle unaligned accesses. Optimized versions for some
- * specific architectures may be implemented at a later time.
+ * implemented with the inline functions below.
+ *
+ * When allowed by some compile-time options (autodetected or provided),
+ * optimised code is used, to perform direct memory access when the
+ * underlying architecture supports it, both for endianness and
+ * alignment. This, however, may trigger strict aliasing issues; the
+ * code below uses unions to perform (supposedly) safe type punning.
+ * Since the C aliasing rules are relatively complex and were amended,
+ * or at least re-explained with different phrasing, in all successive
+ * versions of the C standard, it is always a bit risky to bet that any
+ * specific version of a C compiler got it right, for some notion of
+ * "right".
  */
+
+typedef union {
+	uint16_t u;
+	unsigned char b[sizeof(uint16_t)];
+} br_union_u16;
+
+typedef union {
+	uint32_t u;
+	unsigned char b[sizeof(uint32_t)];
+} br_union_u32;
+
+typedef union {
+	uint64_t u;
+	unsigned char b[sizeof(uint64_t)];
+} br_union_u64;
 
 static inline void
 br_enc16le(void *dst, unsigned x)
 {
+#if BR_LE_UNALIGNED
+	((br_union_u16 *)dst)->u = x;
+#else
 	unsigned char *buf;
 
 	buf = dst;
 	buf[0] = (unsigned char)x;
 	buf[1] = (unsigned char)(x >> 8);
+#endif
 }
 
 static inline void
 br_enc16be(void *dst, unsigned x)
 {
+#if BR_BE_UNALIGNED
+	((br_union_u16 *)dst)->u = x;
+#else
 	unsigned char *buf;
 
 	buf = dst;
 	buf[0] = (unsigned char)(x >> 8);
 	buf[1] = (unsigned char)x;
+#endif
 }
 
 static inline unsigned
 br_dec16le(const void *src)
 {
+#if BR_LE_UNALIGNED
+	return ((const br_union_u16 *)src)->u;
+#else
 	const unsigned char *buf;
 
 	buf = src;
 	return (unsigned)buf[0] | ((unsigned)buf[1] << 8);
+#endif
 }
 
 static inline unsigned
 br_dec16be(const void *src)
 {
+#if BR_BE_UNALIGNED
+	return ((const br_union_u16 *)src)->u;
+#else
 	const unsigned char *buf;
 
 	buf = src;
 	return ((unsigned)buf[0] << 8) | (unsigned)buf[1];
+#endif
 }
 
 static inline void
 br_enc32le(void *dst, uint32_t x)
 {
+#if BR_LE_UNALIGNED
+	((br_union_u32 *)dst)->u = x;
+#else
 	unsigned char *buf;
 
 	buf = dst;
@@ -279,11 +344,15 @@ br_enc32le(void *dst, uint32_t x)
 	buf[1] = (unsigned char)(x >> 8);
 	buf[2] = (unsigned char)(x >> 16);
 	buf[3] = (unsigned char)(x >> 24);
+#endif
 }
 
 static inline void
 br_enc32be(void *dst, uint32_t x)
 {
+#if BR_BE_UNALIGNED
+	((br_union_u32 *)dst)->u = x;
+#else
 	unsigned char *buf;
 
 	buf = dst;
@@ -291,11 +360,15 @@ br_enc32be(void *dst, uint32_t x)
 	buf[1] = (unsigned char)(x >> 16);
 	buf[2] = (unsigned char)(x >> 8);
 	buf[3] = (unsigned char)x;
+#endif
 }
 
 static inline uint32_t
 br_dec32le(const void *src)
 {
+#if BR_LE_UNALIGNED
+	return ((const br_union_u32 *)src)->u;
+#else
 	const unsigned char *buf;
 
 	buf = src;
@@ -303,11 +376,15 @@ br_dec32le(const void *src)
 		| ((uint32_t)buf[1] << 8)
 		| ((uint32_t)buf[2] << 16)
 		| ((uint32_t)buf[3] << 24);
+#endif
 }
 
 static inline uint32_t
 br_dec32be(const void *src)
 {
+#if BR_BE_UNALIGNED
+	return ((const br_union_u32 *)src)->u;
+#else
 	const unsigned char *buf;
 
 	buf = src;
@@ -315,46 +392,63 @@ br_dec32be(const void *src)
 		| ((uint32_t)buf[1] << 16)
 		| ((uint32_t)buf[2] << 8)
 		| (uint32_t)buf[3];
+#endif
 }
 
 static inline void
 br_enc64le(void *dst, uint64_t x)
 {
+#if BR_LE_UNALIGNED
+	((br_union_u64 *)dst)->u = x;
+#else
 	unsigned char *buf;
 
 	buf = dst;
 	br_enc32le(buf, (uint32_t)x);
 	br_enc32le(buf + 4, (uint32_t)(x >> 32));
+#endif
 }
 
 static inline void
 br_enc64be(void *dst, uint64_t x)
 {
+#if BR_BE_UNALIGNED
+	((br_union_u64 *)dst)->u = x;
+#else
 	unsigned char *buf;
 
 	buf = dst;
 	br_enc32be(buf, (uint32_t)(x >> 32));
 	br_enc32be(buf + 4, (uint32_t)x);
+#endif
 }
 
 static inline uint64_t
 br_dec64le(const void *src)
 {
+#if BR_LE_UNALIGNED
+	return ((const br_union_u64 *)src)->u;
+#else
 	const unsigned char *buf;
 
 	buf = src;
 	return (uint64_t)br_dec32le(buf)
 		| ((uint64_t)br_dec32le(buf + 4) << 32);
+#endif
 }
 
 static inline uint64_t
 br_dec64be(const void *src)
 {
+#if BR_BE_UNALIGNED
+	return ((const br_union_u64 *)src)->u;
+#else
 	const unsigned char *buf;
 
 	buf = src;
 	return ((uint64_t)br_dec32be(buf) << 32)
 		| (uint64_t)br_dec32be(buf + 4);
+#endif
 }
 
 /*
