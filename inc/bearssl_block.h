@@ -1768,4 +1768,38 @@ void br_poly1305_i15_run(const void *key, const void *iv,
 	void *data, size_t len, const void *aad, size_t aad_len,
 	void *tag, br_chacha20_run ichacha, int encrypt);
 
+/**
+ * \brief ChaCha20+Poly1305 AEAD implementation (ctmulq).
+ *
+ * This implementation uses 64-bit multiplications (result over 128 bits).
+ * It is available only on platforms that offer such a primitive (in
+ * practice, 64-bit architectures). Use `br_poly1305_ctmulq_get()` to
+ * dynamically obtain a pointer to that function, or 0 if not supported.
+ *
+ * \see br_poly1305_run
+ *
+ * \param key       secret key (32 bytes).
+ * \param iv        nonce (12 bytes).
+ * \param data      data to encrypt or decrypt.
+ * \param len       data length (in bytes).
+ * \param aad       additional authenticated data.
+ * \param aad_len   length of additional authenticated data (in bytes).
+ * \param tag       output buffer for the authentication tag.
+ * \param ichacha   implementation of ChaCha20.
+ * \param encrypt   non-zero for encryption, zero for decryption.
+ */
+void br_poly1305_ctmulq_run(const void *key, const void *iv,
+	void *data, size_t len, const void *aad, size_t aad_len,
+	void *tag, br_chacha20_run ichacha, int encrypt);
+
+/**
+ * \brief Get the ChaCha20+Poly1305 "ctmulq" implementation, if available.
+ *
+ * This function returns a pointer to the `br_poly1305_ctmulq_run()`
+ * function if supported on the current platform; otherwise, it returns 0.
+ *
+ * \return  the ctmulq ChaCha20+Poly1305 implementation, or 0.
+ */
+br_poly1305_run br_poly1305_ctmulq_get(void);
+
 #endif

@@ -172,4 +172,21 @@
 #define BR_POWER8   1
  */
 
+/*
+ * When BR_INT128 is enabled, then code using the 'unsigned __int64'
+ * and 'unsigned __int128' types will be used to leverage 64x64->128
+ * unsigned multiplications. This should work with GCC and compatible
+ * compilers on 64-bit architectures.
+ *
+#define BR_INT128   1
+ */
+
+/*
+ * When BR_UMUL128 is enabled, then code using the '_umul128()' and
+ * '_addcarry_u64()' intrinsics will be used to implement 64x64->128
+ * unsigned multiplications. This should work on Visual C on x64 systems.
+ *
+#define BR_UMUL128   1
+ */
+
 #endif

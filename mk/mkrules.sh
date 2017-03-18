@@ -259,6 +259,7 @@ coresrc=" \
 	src/symcipher/des_tab_cbcenc.c \
 	src/symcipher/poly1305_ctmul.c \
 	src/symcipher/poly1305_ctmul32.c \
+	src/symcipher/poly1305_ctmulq.c \
 	src/symcipher/poly1305_i15.c \
 	src/x509/skey_decoder.c \
 	src/x509/x509_decoder.c \

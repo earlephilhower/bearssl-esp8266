@@ -28,10 +28,21 @@
 void
 br_ssl_engine_set_default_chapol(br_ssl_engine_context *cc)
 {
+#if BR_INT128 || BR_UMUL128
+	br_poly1305_run bp;
+#endif
+
 	br_ssl_engine_set_chapol(cc,
 		&br_sslrec_in_chapol_vtable,
 		&br_sslrec_out_chapol_vtable);
 	br_ssl_engine_set_chacha20(cc, &br_chacha20_ct_run);
+#if BR_INT128 || BR_UMUL128
+	bp = br_poly1305_ctmulq_get();
+	if (bp) {
+		br_ssl_engine_set_poly1305(cc, bp);
+		return;
+	}
+#endif
 #if BR_LOMUL
 	br_ssl_engine_set_poly1305(cc, &br_poly1305_ctmul32_run);
 #else

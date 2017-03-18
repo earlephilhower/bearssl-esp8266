@@ -4190,24 +4190,12 @@ test_Poly1305_inner(const char *name, br_poly1305_run ipoly,
 		memcpy(data, plain, len);
 		ipoly(key, nonce, data, len,
 			aad, aad_len, tmp, br_chacha20_ct_run, 1);
-		if (memcmp(data, cipher, len) != 0) {
-			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (1)\n");
-			exit(EXIT_FAILURE);
-		}
-		if (memcmp(tmp, tag, 16) != 0) {
-			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (2)\n");
-			exit(EXIT_FAILURE);
-		}
+		check_equals("ChaCha20+Poly1305 KAT (1)", data, cipher, len);
+		check_equals("ChaCha20+Poly1305 KAT (2)", tmp, tag, 16);
 		ipoly(key, nonce, data, len,
 			aad, aad_len, tmp, br_chacha20_ct_run, 0);
-		if (memcmp(data, plain, len) != 0) {
-			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (3)\n");
-			exit(EXIT_FAILURE);
-		}
-		if (memcmp(tmp, tag, 16) != 0) {
-			fprintf(stderr, "ChaCha20+Poly1305 KAT failed (4)\n");
-			exit(EXIT_FAILURE);
-		}
+		check_equals("ChaCha20+Poly1305 KAT (3)", data, plain, len);
+		check_equals("ChaCha20+Poly1305 KAT (4)", tmp, tag, 16);
 
 		printf(".");
 		fflush(stdout);
@@ -4271,6 +4259,20 @@ test_Poly1305_i15(void)
 {
 	test_Poly1305_inner("Poly1305_i15", &br_poly1305_i15_run,
 		&br_poly1305_ctmul_run);
+}
+
+static void
+test_Poly1305_ctmulq(void)
+{
+	br_poly1305_run bp;
+
+	bp = br_poly1305_ctmulq_get();
+	if (bp == 0) {
+		printf("Test Poly1305_ctmulq: UNAVAILABLE\n");
+	} else {
+		test_Poly1305_inner("Poly1305_ctmulq", bp,
+			&br_poly1305_ctmul_run);
+	}
 }
 
 /*
@@ -5670,6 +5672,7 @@ static const struct {
 	STU(ChaCha20_ct),
 	STU(Poly1305_ctmul),
 	STU(Poly1305_ctmul32),
+	STU(Poly1305_ctmulq),
 	STU(Poly1305_i15),
 	STU(RSA_i15),
 	STU(RSA_i31),

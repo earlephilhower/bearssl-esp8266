@@ -422,6 +422,8 @@ static const struct {
 		(const void *(*)(void))&br_ghash_pclmul_get },
 	{ "ghash_pwr8",        "pwr8",
 		(const void *(*)(void))&br_ghash_pwr8_get },
+	{ "poly1305_ctmulq",   "ctmulq",
+		(const void *(*)(void))&br_poly1305_ctmulq_get },
 	{ 0, 0, 0, }
 };
 

@@ -209,6 +209,17 @@
 #endif
 #endif
 
+/*
+ * Detect support for 128-bit integers.
+ */
+#if !defined BR_INT128 && !defined BR_UMUL128
+#ifdef __SIZEOF_INT128__
+#define BR_INT128    1
+#elif _M_X64
+#define BR_UMUL128   1
+#endif
+#endif
+
 /* ==================================================================== */
 /*
  * Encoding/decoding functions.

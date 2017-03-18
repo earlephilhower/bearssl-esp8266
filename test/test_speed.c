@@ -417,6 +417,19 @@ test_speed_poly1305_ctmul32(void)
 }
 
 static void
+test_speed_poly1305_ctmulq(void)
+{
+	br_poly1305_run bp;
+
+	bp = br_poly1305_ctmulq_get();
+	if (bp == 0) {
+		printf("%-30s UNAVAILABLE\n", "Poly1305 (ctmulq)");
+	} else {
+		test_speed_poly1305_inner("Poly1305 (ctmulq)", bp);
+	}
+}
+
+static void
 test_speed_poly1305_i15(void)
 {
 	test_speed_poly1305_inner("Poly1305 (i15)", &br_poly1305_i15_run);
@@ -1260,6 +1273,7 @@ static const struct {
 
 	STU(poly1305_ctmul),
 	STU(poly1305_ctmul32),
+	STU(poly1305_ctmulq),
 	STU(poly1305_i15),
 
 	STU(rsa_i15),
