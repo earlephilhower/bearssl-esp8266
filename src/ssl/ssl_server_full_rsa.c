@@ -97,12 +97,8 @@ br_ssl_server_init_full_rsa(br_ssl_server_context *cc,
 	 */
 	br_ssl_server_set_single_rsa(cc, chain, chain_len, sk,
 		BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN,
-#if BR_LOMUL
-		br_rsa_i15_private, br_rsa_i15_pkcs1_sign
-#else
-		br_rsa_i31_private, br_rsa_i31_pkcs1_sign
-#endif
-	);
+		br_rsa_private_get_default(),
+		br_rsa_pkcs1_sign_get_default());
 
 	/*
 	 * Set supported hash functions.

@@ -4504,6 +4504,34 @@ test_RSA_i32(void)
 		&br_rsa_i32_pkcs1_sign, &br_rsa_i32_pkcs1_vrfy);
 }
 
+static void
+test_RSA_i62(void)
+{
+	br_rsa_public pub;
+	br_rsa_private priv;
+	br_rsa_pkcs1_sign sign;
+	br_rsa_pkcs1_vrfy vrfy;
+
+	pub = br_rsa_i62_public_get();
+	priv = br_rsa_i62_private_get();
+	sign = br_rsa_i62_pkcs1_sign_get();
+	vrfy = br_rsa_i62_pkcs1_vrfy_get();
+	if (pub) {
+		if (!priv || !sign || !vrfy) {
+			fprintf(stderr, "Inconsistent i62 availability\n");
+			exit(EXIT_FAILURE);
+		}
+		test_RSA_core("RSA i62 core", pub, priv);
+		test_RSA_sign("RSA i62 sign", priv, sign, vrfy);
+	} else {
+		if (priv || sign || vrfy) {
+			fprintf(stderr, "Inconsistent i62 availability\n");
+			exit(EXIT_FAILURE);
+		}
+		printf("Test RSA i62: UNAVAILABLE\n");
+	}
+}
+
 #if 0
 static void
 test_RSA_signatures(void)
@@ -5605,6 +5633,108 @@ test_ECDSA_i15(void)
 	fflush(stdout);
 }
 
+static void
+test_modpow_i31(void)
+{
+	br_hmac_drbg_context hc;
+	int k;
+
+	printf("Test ModPow/i31: ");
+
+	br_hmac_drbg_init(&hc, &br_sha256_vtable, "seed modpow", 11);
+	for (k = 10; k <= 500; k ++) {
+		size_t blen;
+		unsigned char bm[128], bx[128], bx1[128], bx2[128];
+		unsigned char be[128];
+		unsigned mask;
+		uint32_t x1[35], m1[35];
+		uint16_t x2[70], m2[70];
+		uint32_t tmp1[1000];
+		uint16_t tmp2[2000];
+
+		blen = (k + 7) >> 3;
+		br_hmac_drbg_generate(&hc, bm, blen);
+		br_hmac_drbg_generate(&hc, bx, blen);
+		br_hmac_drbg_generate(&hc, be, blen);
+		bm[blen - 1] |= 0x01;
+		mask = 0xFF >> ((int)(blen << 3) - k);
+		bm[0] &= mask;
+		bm[0] |= (mask - (mask >> 1));
+		bx[0] &= (mask >> 1);
+
+		br_i31_decode(m1, bm, blen);
+		br_i31_decode_mod(x1, bx, blen, m1);
+		br_i31_modpow_opt(x1, be, blen, m1, br_i31_ninv31(m1[1]),
+			tmp1, (sizeof tmp1) / (sizeof tmp1[0]));
+		br_i31_encode(bx1, blen, x1);
+
+		br_i15_decode(m2, bm, blen);
+		br_i15_decode_mod(x2, bx, blen, m2);
+		br_i15_modpow_opt(x2, be, blen, m2, br_i15_ninv15(m2[1]),
+			tmp2, (sizeof tmp2) / (sizeof tmp2[0]));
+		br_i15_encode(bx2, blen, x2);
+
+		check_equals("ModPow i31/i15", bx1, bx2, blen);
+
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
+static void
+test_modpow_i62(void)
+{
+	br_hmac_drbg_context hc;
+	int k;
+
+	printf("Test ModPow/i62: ");
+
+	br_hmac_drbg_init(&hc, &br_sha256_vtable, "seed modpow", 11);
+	for (k = 10; k <= 500; k ++) {
+		size_t blen;
+		unsigned char bm[128], bx[128], bx1[128], bx2[128];
+		unsigned char be[128];
+		unsigned mask;
+		uint32_t x1[35], m1[35];
+		uint16_t x2[70], m2[70];
+		uint64_t tmp1[500];
+		uint16_t tmp2[2000];
+
+		blen = (k + 7) >> 3;
+		br_hmac_drbg_generate(&hc, bm, blen);
+		br_hmac_drbg_generate(&hc, bx, blen);
+		br_hmac_drbg_generate(&hc, be, blen);
+		bm[blen - 1] |= 0x01;
+		mask = 0xFF >> ((int)(blen << 3) - k);
+		bm[0] &= mask;
+		bm[0] |= (mask - (mask >> 1));
+		bx[0] &= (mask >> 1);
+
+		br_i31_decode(m1, bm, blen);
+		br_i31_decode_mod(x1, bx, blen, m1);
+		br_i62_modpow_opt(x1, be, blen, m1, br_i31_ninv31(m1[1]),
+			tmp1, (sizeof tmp1) / (sizeof tmp1[0]));
+		br_i31_encode(bx1, blen, x1);
+
+		br_i15_decode(m2, bm, blen);
+		br_i15_decode_mod(x2, bx, blen, m2);
+		br_i15_modpow_opt(x2, be, blen, m2, br_i15_ninv15(m2[1]),
+			tmp2, (sizeof tmp2) / (sizeof tmp2[0]));
+		br_i15_encode(bx2, blen, x2);
+
+		check_equals("ModPow i62/i15", bx1, bx2, blen);
+
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
 static int
 eq_name(const char *s1, const char *s2)
 {
@@ -5677,6 +5807,7 @@ static const struct {
 	STU(RSA_i15),
 	STU(RSA_i31),
 	STU(RSA_i32),
+	STU(RSA_i62),
 	STU(GHASH_ctmul),
 	STU(GHASH_ctmul32),
 	STU(GHASH_ctmul64),
@@ -5692,6 +5823,8 @@ static const struct {
 	STU(EC_c25519_m31),
 	STU(ECDSA_i15),
 	STU(ECDSA_i31),
+	STU(modpow_i31),
+	STU(modpow_i62),
 	{ 0, 0 }
 };
 

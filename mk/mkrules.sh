@@ -134,6 +134,7 @@ coresrc=" \
 	src/int/i31_fmont.c \
 	src/int/i31_iszero.c \
 	src/int/i31_modpow.c \
+	src/int/i31_modpow2.c \
 	src/int/i31_montmul.c \
 	src/int/i31_mulacc.c \
 	src/int/i31_muladd.c \
@@ -159,6 +160,7 @@ coresrc=" \
 	src/int/i32_reduce.c \
 	src/int/i32_sub.c \
 	src/int/i32_tmont.c \
+	src/int/i62_modpow2.c \
 	src/mac/hmac.c \
 	src/mac/hmac_ct.c \
 	src/rand/hmac_drbg.c \
@@ -178,6 +180,10 @@ coresrc=" \
 	src/rsa/rsa_i32_pkcs1_vrfy.c \
 	src/rsa/rsa_i32_priv.c \
 	src/rsa/rsa_i32_pub.c \
+	src/rsa/rsa_i62_pkcs1_sign.c \
+	src/rsa/rsa_i62_pkcs1_vrfy.c \
+	src/rsa/rsa_i62_priv.c \
+	src/rsa/rsa_i62_pub.c \
 	src/rsa/rsa_pkcs1_sig_pad.c \
 	src/rsa/rsa_pkcs1_sig_unpad.c \
 	src/rsa/rsa_ssl_decrypt.c \

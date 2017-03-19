@@ -406,24 +406,28 @@ static const struct {
 	const char *short_name;
 	const void *(*get)(void);
 } algo_names_dyn[] = {
-	{ "aes_pwr8_cbcenc",   "pwr8",
+	{ "aes_pwr8_cbcenc",      "pwr8",
 		(const void *(*)(void))&br_aes_pwr8_cbcenc_get_vtable },
-	{ "aes_pwr8_cbcdec",   "pwr8",
+	{ "aes_pwr8_cbcdec",      "pwr8",
 		(const void *(*)(void))&br_aes_pwr8_cbcdec_get_vtable },
-	{ "aes_pwr8_ctr",      "pwr8",
+	{ "aes_pwr8_ctr",         "pwr8",
 		(const void *(*)(void))&br_aes_pwr8_ctr_get_vtable },
-	{ "aes_x86ni_cbcenc",  "x86ni",
+	{ "aes_x86ni_cbcenc",     "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_cbcenc_get_vtable },
-	{ "aes_x86ni_cbcdec",  "x86ni",
+	{ "aes_x86ni_cbcdec",     "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_cbcdec_get_vtable },
-	{ "aes_x86ni_ctr",     "x86ni",
+	{ "aes_x86ni_ctr",        "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_ctr_get_vtable },
-	{ "ghash_pclmul",      "pclmul",
+	{ "ghash_pclmul",         "pclmul",
 		(const void *(*)(void))&br_ghash_pclmul_get },
-	{ "ghash_pwr8",        "pwr8",
+	{ "ghash_pwr8",           "pwr8",
 		(const void *(*)(void))&br_ghash_pwr8_get },
-	{ "poly1305_ctmulq",   "ctmulq",
+	{ "poly1305_ctmulq",      "ctmulq",
 		(const void *(*)(void))&br_poly1305_ctmulq_get },
+	{ "rsa_i62_pkcs1_sign",   "i62",
+		(const void *(*)(void))&br_rsa_i62_pkcs1_sign_get },
+	{ "rsa_i62_pkcs1_vrfy",   "i62",
+		(const void *(*)(void))&br_rsa_i62_pkcs1_vrfy_get },
 	{ 0, 0, 0, }
 };
 

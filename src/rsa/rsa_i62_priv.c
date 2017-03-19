@@ -24,19 +24,21 @@
 
 #include "inner.h"
 
+#if BR_INT128 || BR_UMUL128
+
 #define U      (2 + ((BR_MAX_RSA_FACTOR + 30) / 31))
-#define TLEN   (8 * U)
+#define TLEN   (4 * U)  /* TLEN is counted in 64-bit words */
 
 /* see bearssl_rsa.h */
 uint32_t
-br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
+br_rsa_i62_private(unsigned char *x, const br_rsa_private_key *sk)
 {
 	const unsigned char *p, *q;
 	size_t plen, qlen;
 	size_t fwlen;
 	uint32_t p0i, q0i;
 	size_t xlen;
-	uint32_t tmp[1 + TLEN];
+	uint64_t tmp[TLEN];
 	long z;
 	uint32_t *mp, *mq, *s1, *s2, *t1, *t2, *t3;
 	uint32_t r;
@@ -70,9 +72,9 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	}
 
 	/*
-	 * Round up the word length to an even number.
+	 * Convert size to 62-bit words.
 	 */
-	fwlen += (fwlen & 1);
+	fwlen = (fwlen + 1) >> 1;
 
 	/*
 	 * We need to fit at least 6 values in the stack buffer.
@@ -89,32 +91,32 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	/*
 	 * Decode q.
 	 */
-	mq = tmp;
+	mq = (uint32_t *)tmp;
 	br_i31_decode(mq, q, qlen);
 
 	/*
 	 * Compute s2 = x^dq mod q.
 	 */
 	q0i = br_i31_ninv31(mq[1]);
-	s2 = mq + fwlen;
+	s2 = (uint32_t *)(tmp + fwlen);
 	br_i31_decode_reduce(s2, x, xlen, mq);
-	r = br_i31_modpow_opt(s2, sk->dq, sk->dqlen, mq, q0i,
-		mq + 2 * fwlen, TLEN - 2 * fwlen);
+	r = br_i62_modpow_opt(s2, sk->dq, sk->dqlen, mq, q0i,
+		tmp + 2 * fwlen, TLEN - 2 * fwlen);
 
 	/*
 	 * Decode p.
 	 */
-	mp = mq + 2 * fwlen;
+	mp = (uint32_t *)(tmp + 2 * fwlen);
 	br_i31_decode(mp, p, plen);
 
 	/*
 	 * Compute s1 = x^dp mod p.
 	 */
 	p0i = br_i31_ninv31(mp[1]);
-	s1 = mq + 3 * fwlen;
+	s1 = (uint32_t *)(tmp + 3 * fwlen);
 	br_i31_decode_reduce(s1, x, xlen, mp);
-	r &= br_i31_modpow_opt(s1, sk->dp, sk->dplen, mp, p0i,
-		mq + 4 * fwlen, TLEN - 4 * fwlen);
+	r &= br_i62_modpow_opt(s1, sk->dp, sk->dplen, mp, p0i,
+		tmp + 4 * fwlen, TLEN - 4 * fwlen);
 
 	/*
 	 * Compute:
@@ -129,8 +131,8 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * inverse of q modulo p), we also tolerate improperly large
 	 * values for this parameter.
 	 */
-	t1 = mq + 4 * fwlen;
-	t2 = mq + 5 * fwlen;
+	t1 = (uint32_t *)(tmp + 4 * fwlen);
+	t2 = (uint32_t *)(tmp + 5 * fwlen);
 	br_i31_reduce(t2, s2, mp);
 	br_i31_add(s1, mp, br_i31_sub(s1, t2, 1));
 	br_i31_to_monty(s1, mp);
@@ -164,3 +166,21 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	 */
 	return p0i & q0i & r;
 }
+
+/* see bearssl_rsa.h */
+br_rsa_private
+br_rsa_i62_private_get(void)
+{
+	return &br_rsa_i62_private;
+}
+
+#else
+
+/* see bearssl_rsa.h */
+br_rsa_private
+br_rsa_i62_private_get(void)
+{
+	return 0;
+}
+
+#endif

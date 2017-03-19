@@ -133,6 +133,11 @@
  *     carry propagation easier) for a similar code footprint, but uses
  *     very slightly larger stack buffers (about 4% bigger).
  *
+ *   - The **i62** implementation is similar to the i31 implementation,
+ *     except that it internally leverages the 64x64->128 multiplication
+ *     opcode. This implementation is available only on architectures
+ *     where such an opcode exists. It is much faster than i31.
+ *
  *   - The **i15** implementation uses 16-bit integers, each containing
  *     15 bits worth of integer data. Multiplication results fit on
  *     32 bits, so this won't use the "widening" multiplication routine
@@ -450,6 +455,118 @@ uint32_t br_rsa_i31_private(unsigned char *x,
 uint32_t br_rsa_i31_pkcs1_sign(const unsigned char *hash_oid,
 	const unsigned char *hash, size_t hash_len,
 	const br_rsa_private_key *sk, unsigned char *x);
+
+/*
+ * RSA "i62" engine. Similar to i31, but internal multiplication use
+ * 64x64->128 multiplications. This is available only on architecture
+ * that offer such an opcode.
+ */
+
+/**
+ * \brief RSA public key engine "i62".
+ *
+ * This function is defined only on architecture that offer a 64x64->128
+ * opcode. Use `br_rsa_i62_public_get()` to dynamically obtain a pointer
+ * to that functiom.
+ *
+ * \see br_rsa_public
+ *
+ * \param x      operand to exponentiate.
+ * \param xlen   length of the operand (in bytes).
+ * \param pk     RSA public key.
+ * \return  1 on success, 0 on error.
+ */
+uint32_t br_rsa_i62_public(unsigned char *x, size_t xlen,
+	const br_rsa_public_key *pk);
+
+/**
+ * \brief RSA signature verification engine "i62".
+ *
+ * This function is defined only on architecture that offer a 64x64->128
+ * opcode. Use `br_rsa_i62_pkcs1_vrfy_get()` to dynamically obtain a pointer
+ * to that functiom.
+ *
+ * \see br_rsa_pkcs1_vrfy
+ *
+ * \param x          signature buffer.
+ * \param xlen       signature length (in bytes).
+ * \param hash_oid   encoded hash algorithm OID (or `NULL`).
+ * \param hash_len   expected hash value length (in bytes).
+ * \param pk         RSA public key.
+ * \param hash_out   output buffer for the hash value.
+ * \return  1 on success, 0 on error.
+ */
+uint32_t br_rsa_i62_pkcs1_vrfy(const unsigned char *x, size_t xlen,
+	const unsigned char *hash_oid, size_t hash_len,
+	const br_rsa_public_key *pk, unsigned char *hash_out);
+
+/**
+ * \brief RSA private key engine "i62".
+ *
+ * This function is defined only on architecture that offer a 64x64->128
+ * opcode. Use `br_rsa_i62_private_get()` to dynamically obtain a pointer
+ * to that functiom.
+ *
+ * \see br_rsa_private
+ *
+ * \param x    operand to exponentiate.
+ * \param sk   RSA private key.
+ * \return  1 on success, 0 on error.
+ */
+uint32_t br_rsa_i62_private(unsigned char *x,
+	const br_rsa_private_key *sk);
+
+/**
+ * \brief RSA signature generation engine "i62".
+ *
+ * This function is defined only on architecture that offer a 64x64->128
+ * opcode. Use `br_rsa_i62_pkcs1_sign_get()` to dynamically obtain a pointer
+ * to that functiom.
+ *
+ * \see br_rsa_pkcs1_sign
+ *
+ * \param hash_oid   encoded hash algorithm OID (or `NULL`).
+ * \param hash       hash value.
+ * \param hash_len   hash value length (in bytes).
+ * \param sk         RSA private key.
+ * \param x          output buffer for the hash value.
+ * \return  1 on success, 0 on error.
+ */
+uint32_t br_rsa_i62_pkcs1_sign(const unsigned char *hash_oid,
+	const unsigned char *hash, size_t hash_len,
+	const br_rsa_private_key *sk, unsigned char *x);
+
+/**
+ * \brief Get the RSA "i62" implementation (public key operations),
+ * if available.
+ *
+ * \return  the implementation, or 0.
+ */
+br_rsa_public br_rsa_i62_public_get(void);
+
+/**
+ * \brief Get the RSA "i62" implementation (PKCS#1 signature verification),
+ * if available.
+ *
+ * \return  the implementation, or 0.
+ */
+br_rsa_pkcs1_vrfy br_rsa_i62_pkcs1_vrfy_get(void);
+
+/**
+ * \brief Get the RSA "i62" implementation (private key operations),
+ * if available.
+ *
+ * \return  the implementation, or 0.
+ */
+br_rsa_private br_rsa_i62_private_get(void);
+
+/**
+ * \brief Get the RSA "i62" implementation (PKCS#1 signature generation),
+ * if available.
+ *
+ * \return  the implementation, or 0.
+ */
+br_rsa_pkcs1_sign br_rsa_i62_pkcs1_sign_get(void);
 
 /*
  * RSA "i15" engine. Integers are represented as 15-bit integers, so

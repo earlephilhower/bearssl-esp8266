@@ -24,21 +24,23 @@
 
 #include "inner.h"
 
+#if BR_INT128 || BR_UMUL128
+
 /*
  * As a strict minimum, we need four buffers that can hold a
- * modular integer.
+ * modular integer. But TLEN is expressed in 64-bit words.
  */
-#define TLEN   (4 * (2 + ((BR_MAX_RSA_SIZE + 30) / 31)))
+#define TLEN   (2 * (2 + ((BR_MAX_RSA_SIZE + 30) / 31)))
 
 /* see bearssl_rsa.h */
 uint32_t
-br_rsa_i31_public(unsigned char *x, size_t xlen,
+br_rsa_i62_public(unsigned char *x, size_t xlen,
 	const br_rsa_public_key *pk)
 {
 	const unsigned char *n;
 	size_t nlen;
-	uint32_t tmp[1 + TLEN];
-	uint32_t *m, *a, *t;
+	uint64_t tmp[TLEN];
+	uint32_t *m, *a;
 	size_t fwlen;
 	long z;
 	uint32_t m0i, r;
@@ -63,18 +65,16 @@ br_rsa_i31_public(unsigned char *x, size_t xlen,
 		fwlen ++;
 	}
 	/*
-	 * Round up length to an even number.
+	 * Convert fwlen to a count in 62-bit words.
 	 */
-	fwlen += (fwlen & 1);
+	fwlen = (fwlen + 1) >> 1;
 
 	/*
 	 * The modulus gets decoded into m[].
 	 * The value to exponentiate goes into a[].
-	 * The temporaries for modular exponentiation are in t[].
 	 */
-	m = tmp;
-	a = m + fwlen;
-	t = m + 2 * fwlen;
+	m = (uint32_t *)tmp;
+	a = (uint32_t *)(tmp + fwlen);
 
 	/*
 	 * Decode the modulus.
@@ -96,7 +96,8 @@ br_rsa_i31_public(unsigned char *x, size_t xlen,
 	/*
 	 * Compute the modular exponentiation.
 	 */
-	br_i31_modpow_opt(a, pk->e, pk->elen, m, m0i, t, TLEN - 2 * fwlen);
+	br_i62_modpow_opt(a, pk->e, pk->elen, m, m0i,
+		tmp + 2 * fwlen, TLEN - 2 * fwlen);
 
 	/*
 	 * Encode the result.
@@ -104,3 +105,21 @@ br_rsa_i31_public(unsigned char *x, size_t xlen,
 	br_i31_encode(x, xlen, a);
 	return r;
 }
+
+/* see bearssl_rsa.h */
+br_rsa_public
+br_rsa_i62_public_get(void)
+{
+	return &br_rsa_i62_public;
+}
+
+#else
+
+/* see bearssl_rsa.h */
+br_rsa_public
+br_rsa_i62_public_get(void)
+{
+	return 0;
+}
+
+#endif

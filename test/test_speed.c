@@ -667,6 +667,21 @@ test_speed_rsa_i32(void)
 }
 
 static void
+test_speed_rsa_i62(void)
+{
+	br_rsa_public pub;
+	br_rsa_private priv;
+
+	pub = br_rsa_i62_public_get();
+	priv = br_rsa_i62_private_get();
+	if (pub) {
+		test_speed_rsa_inner("RSA i62", pub, priv);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "RSA i62");
+	}
+}
+
+static void
 test_speed_ec_inner_1(const char *name,
 	const br_ec_impl *impl, const br_ec_curve_def *cd)
 {
@@ -1279,6 +1294,7 @@ static const struct {
 	STU(rsa_i15),
 	STU(rsa_i31),
 	STU(rsa_i32),
+	STU(rsa_i62),
 	STU(ec_prime_i15),
 	STU(ec_prime_i31),
 	STU(ec_p256_m15),

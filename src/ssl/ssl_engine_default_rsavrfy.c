@@ -28,9 +28,5 @@
 void
 br_ssl_engine_set_default_rsavrfy(br_ssl_engine_context *cc)
 {
-#if BR_LOMUL
-	br_ssl_engine_set_rsavrfy(cc, &br_rsa_i15_pkcs1_vrfy);
-#else
-	br_ssl_engine_set_rsavrfy(cc, &br_rsa_i31_pkcs1_vrfy);
-#endif
+	br_ssl_engine_set_rsavrfy(cc, br_rsa_pkcs1_vrfy_get_default());
 }
