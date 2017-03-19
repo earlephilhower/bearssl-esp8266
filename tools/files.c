@@ -171,6 +171,7 @@ decode_pem(const void *src, size_t len, size_t *num)
 	const unsigned char *buf;
 	bvector bv = VEC_INIT;
 	int inobj;
+	int extra_nl;
 
 	*num = 0;
 	br_pem_decoder_init(&pc);
@@ -179,6 +180,7 @@ decode_pem(const void *src, size_t len, size_t *num)
 	po.name = NULL;
 	po.data = NULL;
 	po.data_len = 0;
+	extra_nl = 1;
 	while (len > 0) {
 		size_t tlen;
 
@@ -213,6 +215,19 @@ decode_pem(const void *src, size_t len, size_t *num)
 				"ERROR: invalid PEM encoding\n");
 			VEC_CLEAREXT(pem_list, &free_pem_object_contents);
 			return NULL;
+		}
+
+		/*
+		 * We add an extra newline at the end, in order to
+		 * support PEM files that lack the newline on their last
+		 * line (this is somwehat invalid, but PEM format is not
+		 * standardised and such files do exist in the wild, so
+		 * we'd better accept them).
+		 */
+		if (len == 0 && extra_nl) {
+			extra_nl = 0;
+			buf = (const unsigned char *)"\n";
+			len = 1;
 		}
 	}
 	if (inobj) {
