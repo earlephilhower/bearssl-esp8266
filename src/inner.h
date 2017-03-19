@@ -236,7 +236,7 @@
 #define BR_BE_UNALIGNED   1
 #elif BR_POWER8_LE
 #define BR_LE_UNALIGNED   1
-#elif (__powerpc__ || __powerpc64__ || _M_PPC || _ARCH_PPC || _ARCH_PPC64) \\
+#elif (__powerpc__ || __powerpc64__ || _M_PPC || _ARCH_PPC || _ARCH_PPC64) \
 	&& __BIG_ENDIAN__
 #define BR_BE_UNALIGNED   1
 #endif
