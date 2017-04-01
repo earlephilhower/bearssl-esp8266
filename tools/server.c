@@ -119,9 +119,16 @@ host_bind(const char *host, const char *port, int verbose)
 		opt = 1;
 		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
 			(void *)&opt, sizeof opt);
+#ifdef IPV6_V6ONLY
+		/*
+		 * We want to make sure that the server socket works for
+		 * both IPv4 and IPv6. But IPV6_V6ONLY is not defined on
+		 * some very old systems.
+		 */
 		opt = 0;
 		setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
 			(void *)&opt, sizeof opt);
+#endif
 		if (bind(fd, sa, sa_len) < 0) {
 			if (verbose) {
 				perror("bind()");
