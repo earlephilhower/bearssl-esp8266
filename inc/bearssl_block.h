@@ -1356,11 +1356,11 @@ uint32_t br_aes_pwr8_ctr_run(const br_aes_pwr8_ctr_keys *ctx,
  * available.
  *
  * This function returns a pointer to `br_aes_pwr8_cbcenc_vtable`, if
- * that implementation was compiled in the library _and_ the x86 AES
- * opcodes are available on the currently running CPU. If either of
- * these conditions is not met, then this function returns `NULL`.
+ * that implementation was compiled in the library _and_ the POWER8
+ * crypto opcodes are available on the currently running CPU. If either
+ * of these conditions is not met, then this function returns `NULL`.
  *
- * \return  the `aes_x868ni` AES-CBC (encryption) implementation, or `NULL`.
+ * \return  the `aes_pwr8` AES-CBC (encryption) implementation, or `NULL`.
  */
 const br_block_cbcenc_class *br_aes_pwr8_cbcenc_get_vtable(void);
 
@@ -1369,23 +1369,23 @@ const br_block_cbcenc_class *br_aes_pwr8_cbcenc_get_vtable(void);
  * available.
  *
  * This function returns a pointer to `br_aes_pwr8_cbcdec_vtable`, if
- * that implementation was compiled in the library _and_ the x86 AES
- * opcodes are available on the currently running CPU. If either of
- * these conditions is not met, then this function returns `NULL`.
+ * that implementation was compiled in the library _and_ the POWER8
+ * crypto opcodes are available on the currently running CPU. If either
+ * of these conditions is not met, then this function returns `NULL`.
  *
- * \return  the `aes_x868ni` AES-CBC (decryption) implementation, or `NULL`.
+ * \return  the `aes_pwr8` AES-CBC (decryption) implementation, or `NULL`.
  */
 const br_block_cbcdec_class *br_aes_pwr8_cbcdec_get_vtable(void);
 
 /**
  * \brief Obtain the `aes_pwr8` AES-CTR implementation, if available.
  *
- * This function returns a pointer to `br_aes_pwr8_ctr_vtable`, if
- * that implementation was compiled in the library _and_ the x86 AES
+ * This function returns a pointer to `br_aes_pwr8_ctr_vtable`, if that
+ * implementation was compiled in the library _and_ the POWER8 crypto
  * opcodes are available on the currently running CPU. If either of
  * these conditions is not met, then this function returns `NULL`.
  *
- * \return  the `aes_x868ni` AES-CTR implementation, or `NULL`.
+ * \return  the `aes_pwr8` AES-CTR implementation, or `NULL`.
  */
 const br_block_ctr_class *br_aes_pwr8_ctr_get_vtable(void);
 
