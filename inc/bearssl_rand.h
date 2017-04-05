@@ -28,6 +28,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file bearssl_rand.h
  *
  * # Pseudo-Random Generators
@@ -248,5 +252,9 @@ br_hmac_drbg_get_hash(const br_hmac_drbg_context *ctx)
 {
 	return ctx->digest_class;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

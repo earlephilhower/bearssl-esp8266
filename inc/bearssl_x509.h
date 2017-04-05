@@ -32,6 +32,10 @@
 #include "bearssl_hash.h"
 #include "bearssl_rsa.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file bearssl_x509.h
  *
  * # X.509 Certificate Chain Processing
@@ -1244,5 +1248,9 @@ br_skey_decoder_get_ec(const br_skey_decoder_context *ctx)
 		return NULL;
 	}
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -28,6 +28,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file bearssl_prf.h
  *
  * # The TLS PRF
@@ -114,5 +118,9 @@ void br_tls12_sha384_prf(void *dst, size_t len,
 typedef void (*br_tls_prf_impl)(void *dst, size_t len,
 	const void *secret, size_t secret_len,
 	const char *label, const void *seed, size_t seed_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

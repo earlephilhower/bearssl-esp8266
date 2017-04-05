@@ -28,6 +28,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file bearssl_rsa.h
  *
  * # RSA
@@ -701,5 +705,9 @@ br_rsa_pkcs1_sign br_rsa_pkcs1_sign_get_default(void);
  */
 uint32_t br_rsa_ssl_decrypt(br_rsa_private core, const br_rsa_private_key *sk,
 	unsigned char *data, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

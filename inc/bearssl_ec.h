@@ -28,6 +28,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file bearssl_ec.h
  *
  * # Elliptic Curves
@@ -792,5 +796,9 @@ br_ecdsa_vrfy br_ecdsa_vrfy_asn1_get_default(void);
  * \return  the default implementation.
  */
 br_ecdsa_vrfy br_ecdsa_vrfy_raw_get_default(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

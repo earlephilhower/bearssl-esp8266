@@ -28,6 +28,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file bearssl_pem.h
  *
  * # PEM Support
@@ -231,5 +235,9 @@ br_pem_decoder_name(br_pem_decoder_context *ctx)
 {
 	return ctx->name;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
