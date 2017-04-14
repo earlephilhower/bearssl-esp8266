@@ -7,3 +7,5 @@ include conf/Unix.mk
 
 BUILD = bclang
 CC = clang
+LD = clang
+LDDLL = clang
