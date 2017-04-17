@@ -35,13 +35,11 @@
 #if BR_AES_X86NI_GCC_OLD
 #pragma GCC push_options
 #pragma GCC target("sse2,ssse3,pclmul")
+#pragma GCC diagnostic ignored "-Wpsabi"
 #endif
 #include <tmmintrin.h>
 #include <wmmintrin.h>
 #include <cpuid.h>
-#if BR_AES_X86NI_GCC_OLD
-#pragma GCC pop_options
-#endif
 #endif
 
 #if BR_AES_X86NI_MSC
@@ -348,6 +346,10 @@ br_ghash_pclmul_get(void)
 {
 	return pclmul_supported() ? &br_ghash_pclmul : 0;
 }
+
+#if BR_AES_X86NI_GCC && BR_AES_X86NI_GCC_OLD
+#pragma GCC pop_options
+#endif
 
 #else
 

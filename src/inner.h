@@ -157,10 +157,12 @@
  * GCC versions from 4.4 to 4.8 (inclusive) must use a special #pragma
  * to activate extra opcodes before including the relevant intrinsic
  * headers. But these don't work with Clang (which does not need them
- * either).
+ * either). We also need that #pragma for GCC 4.9 in order to work
+ * around a compiler bug (it tends to blow up on ghash_pclmul code
+ * otherwise).
  */
 #if BR_AES_X86NI_GCC && !defined BR_AES_X86NI_GCC_OLD
-#if __GNUC__ == 4 && __GNUC_MINOR__ >= 4 && __GNUC_MINOR__ <= 8 && !__clang__
+#if __GNUC__ == 4 && __GNUC_MINOR__ >= 4 && __GNUC_MINOR__ <= 9 && !__clang__
 #define BR_AES_X86NI_GCC_OLD   1
 #endif
 #endif
