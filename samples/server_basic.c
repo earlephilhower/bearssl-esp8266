@@ -204,8 +204,8 @@ accept_client(int server_fd)
 			tmp, sizeof tmp);
 		break;
 	case AF_INET6:
-		name = inet_ntop(AF_INET,
-			&((struct sockaddr_in *)&sa)->sin_addr,
+		name = inet_ntop(AF_INET6,
+			&((struct sockaddr_in6 *)&sa)->sin6_addr,
 			tmp, sizeof tmp);
 		break;
 	}
