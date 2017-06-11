@@ -974,9 +974,13 @@ cc: printOID ( -- ) {
 }
 
 \ Extensions with specific processing.
-OID: basicConstraints    2.5.29.19
-OID: keyUsage            2.5.29.15
-OID: subjectAltName      2.5.29.17
+OID: basicConstraints      2.5.29.19
+OID: keyUsage              2.5.29.15
+OID: subjectAltName        2.5.29.17
+OID: certificatePolicies   2.5.29.32
+
+\ Policy qualifier "pointer to CPS"
+OID: id-qt-cps             1.3.6.1.5.5.7.2.1
 
 \ Extensions which are ignored when encountered, even if critical.
 OID: authorityKeyIdentifier        2.5.29.35
@@ -1049,6 +1053,49 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 
 	\ We don't care about subsequent bytes.
 	skip-close-elt ;
+
+\ Process a Certificate Policies extension.
+\
+\ Since we don't actually support full policies processing, this function
+\ only checks that the extension contents can be safely ignored. Indeed,
+\ we don't validate against a specific set of policies (in RFC 5280
+\ terminology, user-initial-policy-set only contains the special value
+\ any-policy). Moreover, we don't support policy constraints (if a
+\ critical Policy Constraints extension is encountered, the validation
+\ will fail). Therefore, we can safely ignore the contents of this
+\ extension, except if it is critical AND one of the policy OID has a
+\ qualifier which is distinct from id-qt-cps (because id-qt-cps is
+\ specially designated by RFC 5280 has having no mandated action).
+\
+\ This function is called only if the extension is critical.
+: process-certPolicies ( lim -- lim )
+	\ Extension value is a SEQUENCE OF PolicyInformation.
+	read-sequence-open
+	begin dup while
+		\ PolicyInformation ::= SEQUENCE {
+		\    policyIdentifier  OBJECT IDENTIFIER,
+		\    policyQualifiers  SEQUENCE OF PolicyQualifierInfo OPTIONAL
+		\ }
+		read-sequence-open
+		read-OID drop
+		dup if
+			read-sequence-open
+			begin dup while
+				\ PolicyQualifierInfo ::= SEQUENCE {
+				\    policyQualifierId  OBJECT IDENTIFIER,
+				\    qualifier          ANY
+				\ }
+				read-sequence-open
+				read-OID drop id-qt-cps eqOID ifnot
+					ERR_X509_CRITICAL_EXTENSION fail
+				then
+				skip-close-elt
+			repeat
+			close-elt
+		then
+		close-elt
+	repeat
+	close-elt ;
 
 \ Process a Subject Alt Name extension. Returned value is a boolean set
 \ to true if the expected server name was matched against a dNSName in
@@ -1299,6 +1346,18 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 					ee if
 						0 >eename
 						process-SAN >eename
+					else
+						skip-remaining
+					then
+				enduf
+
+				\ We don't implement full processing of
+				\ policies. The call below mostly checks
+				\ that the contents of the Certificate
+				\ Policies extension can be safely ignored.
+				certificatePolicies eqOID uf
+					critical if
+						process-certPolicies
 					else
 						skip-remaining
 					then

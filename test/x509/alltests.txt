@@ -31,6 +31,12 @@ curve = P-521
 q = 040168E669615D1B20F2E753D2C86312F51094D3E5C6CF49E8D73418278CD769FE40A84AD4F34865D59D94D5685B389E0CFD0450754CAE81ED1D4A91D0773F7A002ED701DEF2DBDEFC7554E74CD600693DBDE1A7E09CD9044774C744C7CE575BF8B645FF79FCCE06116F61D44FDAE62D3046F4EB41DECB8219B279A5B8CE2A47F3DF0D463B
 
 [key]
+name = root-new
+type = EC
+curve = P-256
+q = 0465D02336D3ACEB9A000B33A6EECA9745EFD72A0F7C0B138FAAA564E705A3269A479BB5A041DC1D244EA1D2BB9639C79187D3D63CEF79EDD1DC65E80027E75997
+
+[key]
 name = ica1-rsa2048
 type = RSA
 n = B3E86BAF9C1652E3810C50AB25CECC0DC7F21F7F50DF2C5C35D6622E632741A7E453A84B27FA1391A3FA094A2F3B5ECF77B38AC1CD49959C750D6474EFE4D74BB9A19B68D2307148EAF74B14DF3F47A9D8BBEC8F28CCFADFB41F947C96FC080528F9E8F42F2FEE629C8A3AE0855860B60F2D30B4C04154914C1F5FADF119F0C022A67DD83F793459427B5BB541C4647F52CF3C3722A12F7925942441C23FFAC775FB48B50D18A7F454F32E6ED84358C4AB50E805AD91B61E0175B3549CDEA09915FBACF15C974951CCEF58126F736BB33414010F5A9DFAAAD693D3E2EAC3ABBC4EEDCC51A1B8F894B6B42CA8862B1FF6514329525E1389B36A78604E4EC01BA5
@@ -92,6 +98,13 @@ type = CA
 name = root-p521
 DN_file = dn-root.der
 key = root-p521
+type = CA
+
+; Trust anchor: another root with an ECDSA key (in P-256 curve)
+[anchor]
+name = root-new
+DN_file = dn-root-new.der
+key = root-new
 type = CA
 
 ; Intermediate CA 1 as trust anchor.
@@ -658,3 +671,52 @@ keytype = EC
 keyusage = SIGN
 eekey = ee-p256
 status = 0
+
+; EE certificate has a Certificate Policies extension, but it is not
+; critical.
+[chain]
+name = certpol-noncrit
+anchors = root-new
+chain = ee-cp1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE certificate has a critical Certificate Policies extension, but it
+; contains no policy qualifier.
+[chain]
+name = certpol-noqual
+anchors = root-new
+chain = ee-cp2.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE certificate has a critical Certificate Policies extension, and it
+; contains some qualifiers, but they are all id-qt-cps.
+[chain]
+name = certpol-qualcps
+anchors = root-new
+chain = ee-cp3.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE certificate has a critical Certificate Policies extension, and it
+; contains a qualifier distinct from id-qt-cps. This implies rejection
+; of the path.
+[chain]
+name = certpol-qualother
+anchors = root-new
+chain = ee-cp4.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 57
