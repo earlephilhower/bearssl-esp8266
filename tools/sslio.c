@@ -671,7 +671,14 @@ run_ssl_engine(br_ssl_engine_context *cc, unsigned long fd, unsigned flags)
 
 			buf = br_ssl_engine_recvrec_buf(cc, &len);
 			rlen = recv(fd, buf, len, 0);
-			if (rlen <= 0) {
+			if (rlen == 0) {
+				if (verbose) {
+					fprintf(stderr, "socket closed...\n");
+				}
+				retcode = -1;
+				goto engine_exit;
+			}
+			if (rlen < 0) {
 #ifdef _WIN32
 				int err;
 
@@ -688,7 +695,7 @@ run_ssl_engine(br_ssl_engine_context *cc, unsigned long fd, unsigned flags)
 				}
 #endif
 				if (verbose) {
-					fprintf(stderr, "socket closed...\n");
+					fprintf(stderr, "socket broke...\n");
 				}
 				retcode = -1;
 				goto engine_exit;

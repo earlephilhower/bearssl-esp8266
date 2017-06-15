@@ -275,7 +275,9 @@ cc: flush-record ( -- ) {
 	addr-action get8 dup if
 		case
 			1 of 0 do-close endof
-			2 of addr-application_data get8 if 0x10 or then endof
+			2 of addr-application_data get8 1 = if
+				0x10 or
+			then endof
 		endcase
 	else
 		drop
@@ -330,13 +332,18 @@ cc: flush-record ( -- ) {
 \ -- If 'cnr' is zero, then incoming data is discarded until a close_notify
 \    is received.
 \ -- At the end, the context is terminated.
+\
+\ cnr shall be either 0 or -1.
 : do-close ( cnr -- ! )
 	\ 'cnr' is set to non-zero when a close_notify is received from
 	\ the peer.
 	{ cnr }
 
-	\ Get out of application data state.
-	0 addr-application_data set8
+	\ Get out of application data state. If we were accepting
+	\ application data (flag is 1), and we still expect a close_notify
+	\ from the peer (cnr is 0), then we should set the flag to 2.
+	\ In all other cases, flag should be set to 0.
+	addr-application_data get8 cnr not and 1 << addr-application_data set8
 
 	\ Flush existing payload if any.
 	flush-record
@@ -369,6 +376,10 @@ cc: flush-record ( -- ) {
 		has-input? if
 			addr-record_type_in get8 21 = if
 				drop process-alerts
+				\ If we received a close_notify then we
+				\ no longer accept incoming application
+				\ data records.
+				0 addr-application_data set8
 			else
 				discard-input
 			then

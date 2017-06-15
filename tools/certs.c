@@ -128,12 +128,14 @@ read_trust_anchors(anchor_list *dst, const char *fname)
 
 		if (certificate_to_trust_anchor_inner(&ta, &xcs[u]) < 0) {
 			VEC_CLEAREXT(tas, free_ta_contents);
+			free_certificates(xcs, num);
 			return 0;
 		}
 		VEC_ADD(tas, ta);
 	}
 	VEC_ADDMANY(*dst, &VEC_ELT(tas, 0), num);
 	VEC_CLEAR(tas);
+	free_certificates(xcs, num);
 	return num;
 }
 

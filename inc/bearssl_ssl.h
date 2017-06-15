@@ -823,8 +823,11 @@ typedef struct {
 	} out;
 
 	/*
-	 * The "application data" flag. It is set when application data
-	 * can be exchanged, cleared otherwise.
+	 * The "application data" flag. Value:
+	 *   0   handshake is in process, no application data acceptable
+	 *   1   application data can be sent and received
+	 *   2   closing, no application data can be sent, but some
+	 *       can still be received (and discarded)
 	 */
 	unsigned char application_data;
 

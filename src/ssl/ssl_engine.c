@@ -1132,7 +1132,7 @@ br_ssl_engine_flush_record(br_ssl_engine_context *cc)
 unsigned char *
 br_ssl_engine_sendapp_buf(const br_ssl_engine_context *cc, size_t *len)
 {
-	if (!cc->application_data) {
+	if (!(cc->application_data & 1)) {
 		*len = 0;
 		return NULL;
 	}
@@ -1150,7 +1150,7 @@ br_ssl_engine_sendapp_ack(br_ssl_engine_context *cc, size_t len)
 unsigned char *
 br_ssl_engine_recvapp_buf(const br_ssl_engine_context *cc, size_t *len)
 {
-	if (!cc->application_data
+	if (!(cc->application_data & 1)
 		|| cc->record_type_in != BR_SSL_APPLICATION_DATA)
 	{
 		*len = 0;
@@ -1180,7 +1180,7 @@ br_ssl_engine_sendrec_ack(br_ssl_engine_context *cc, size_t len)
 	sendrec_ack(cc, len);
 	if (len != 0 && !has_rec_tosend(cc)
 		&& (cc->record_type_out != BR_SSL_APPLICATION_DATA
-		|| cc->application_data == 0))
+		|| (cc->application_data & 1) == 0))
 	{
 		jump_handshake(cc, 0);
 	}
@@ -1218,9 +1218,20 @@ br_ssl_engine_recvrec_ack(br_ssl_engine_context *cc, size_t len)
 			jump_handshake(cc, 0);
 			break;
 		case BR_SSL_APPLICATION_DATA:
-			if (cc->application_data) {
+			if (cc->application_data == 1) {
 				break;
 			}
+
+			/*
+			 * If we are currently closing, and waiting for
+			 * a close_notify from the peer, then incoming
+			 * application data should be discarded.
+			 */
+			if (cc->application_data == 2) {
+				recvpld_ack(cc, len);
+				break;
+			}
+
 			/* Fall through */
 		default:
 			br_ssl_engine_fail(cc, BR_ERR_UNEXPECTED);
@@ -1282,7 +1293,7 @@ br_ssl_engine_current_state(const br_ssl_engine_context *cc)
 void
 br_ssl_engine_flush(br_ssl_engine_context *cc, int force)
 {
-	if (!br_ssl_engine_closed(cc) && cc->application_data) {
+	if (!br_ssl_engine_closed(cc) && (cc->application_data & 1) != 0) {
 		sendpld_flush(cc, force);
 	}
 }
