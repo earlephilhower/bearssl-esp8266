@@ -814,6 +814,11 @@ cc: save-session ( -- ) {
 	\ we should mark the client as "supporting secure renegotiation".
 	reneg-scsv if 2 addr-reneg set8 then
 
+	\ If, at that point, the 'reneg' value is still 0, then the client
+	\ did not send the extension or the SCSV, so we have to assume
+	\ that secure renegotiation is not supported by that client.
+	addr-reneg get8 ifnot 1 addr-reneg set8 then
+
 	\ Check compression.
 	ok-compression ifnot 40 fail-alert then
 
