@@ -3133,6 +3133,71 @@ test_AES_generic(char *name,
 			check_equals("KAT CBC AES decrypt (2)",
 				buf, plain, data_len);
 		}
+
+		/*
+		 * We want to check proper IV management for CBC:
+		 * encryption and decryption must properly copy the _last_
+		 * encrypted block as new IV, for all sizes.
+		 */
+		for (u = 1; u <= 35; u ++) {
+			br_hmac_drbg_context rng;
+			unsigned char x;
+			size_t key_len, data_len;
+			size_t v;
+
+			br_hmac_drbg_init(&rng, &br_sha256_vtable,
+				"seed for AES/CBC", 16);
+			x = u;
+			br_hmac_drbg_update(&rng, &x, 1);
+			data_len = u << 4;
+			for (key_len = 16; key_len <= 32; key_len += 16) {
+				unsigned char key[32];
+				unsigned char iv[16], iv1[16], iv2[16];
+				unsigned char plain[35 * 16];
+				unsigned char tmp1[sizeof plain];
+				unsigned char tmp2[sizeof plain];
+				br_aes_gen_cbcenc_keys v_ec;
+				br_aes_gen_cbcdec_keys v_dc;
+				const br_block_cbcenc_class **ec;
+				const br_block_cbcdec_class **dc;
+
+				br_hmac_drbg_generate(&rng, key, key_len);
+				br_hmac_drbg_generate(&rng, iv, sizeof iv);
+				br_hmac_drbg_generate(&rng, plain, data_len);
+
+				ec = &v_ec.vtable;
+				ve->init(ec, key, key_len);
+				memcpy(iv1, iv, sizeof iv);
+				memcpy(tmp1, plain, data_len);
+				ve->run(ec, iv1, tmp1, data_len);
+				check_equals("IV CBC AES (1)",
+					tmp1 + data_len - 16, iv1, 16);
+				memcpy(iv2, iv, sizeof iv);
+				memcpy(tmp2, plain, data_len);
+				for (v = 0; v < data_len; v += 16) {
+					ve->run(ec, iv2, tmp2 + v, 16);
+				}
+				check_equals("IV CBC AES (2)",
+					tmp2 + data_len - 16, iv2, 16);
+				check_equals("IV CBC AES (3)",
+					tmp1, tmp2, data_len);
+
+				dc = &v_dc.vtable;
+				vd->init(dc, key, key_len);
+				memcpy(iv1, iv, sizeof iv);
+				vd->run(dc, iv1, tmp1, data_len);
+				check_equals("IV CBC AES (4)", iv1, iv2, 16);
+				check_equals("IV CBC AES (5)",
+					tmp1, plain, data_len);
+				memcpy(iv2, iv, sizeof iv);
+				for (v = 0; v < data_len; v += 16) {
+					vd->run(dc, iv2, tmp2 + v, 16);
+				}
+				check_equals("IV CBC AES (6)", iv1, iv2, 16);
+				check_equals("IV CBC AES (7)",
+					tmp2, plain, data_len);
+			}
+		}
 	}
 
 	if (vc != NULL) {

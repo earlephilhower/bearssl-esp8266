@@ -78,14 +78,16 @@ br_aes_x86ni_cbcdec_run(const br_aes_x86ni_cbcdec_keys *ctx,
 				if (len >= 48) {
 					x2 = _mm_loadu_si128(
 						(void *)(buf + 32));
+					x3 = x2;
 				} else {
 					x2 = x0;
+					x3 = x1;
 				}
 			} else {
 				x1 = x0;
 				x2 = x0;
+				x3 = x0;
 			}
-			x3 = x0;
 		}
 		e0 = x0;
 		e1 = x1;
