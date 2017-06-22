@@ -150,6 +150,7 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	 * Hash state is obtained whenever we reach a full block. This
 	 * is the result we want if and only if u == kz.
 	 */
+	memset(tmp2, 0, sizeof tmp2);
 	for (u = 0; u < km; u ++) {
 		uint32_t v;
 		uint32_t d, e, x0, x1;
