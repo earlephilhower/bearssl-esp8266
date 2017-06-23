@@ -29,7 +29,7 @@
  * in the store block. "Addresses" are really offsets in the block,
  * expressed over 32 bits (so the cache may have size at most 4 GB, which
  * "ought to be enough for everyone"). The "null address" is 0xFFFFFFFF.
- * Note that since the storage block alignment is in no way guaranted, we
+ * Note that since the storage block alignment is in no way guaranteed, we
  * perform only accesses that can handle unaligned data.
  *
  * Two concurrent data structures are maintained:
@@ -40,7 +40,8 @@
  *
  * -- Entries are indexed with a binary tree: all left descendants of a
  * node have a lower session ID (in lexicographic order), while all
- * right descendants have a higher session ID. The tree is balanced.
+ * right descendants have a higher session ID. The tree is heuristically
+ * balanced.
  *
  * Entry format:
  *
@@ -52,7 +53,6 @@
  *   list next           4 bytes (big endian)
  *   tree left child     4 bytes (big endian)
  *   tree right child    4 bytes (big endian)
- *   tree node colour    1 byte (0 = red, 1 = black)
  *
  * We need to keep the tree balanced because an attacker could make
  * handshakes, selecting some specific sessions (by reusing them) to
@@ -63,6 +63,14 @@
  * with a HMAC value computed over the replaced part; the hash function
  * implementation and the key are obtained from the server context upon
  * first save() call.
+ *
+ * Theoretically, an attacker could use the exact timing of the lookup
+ * to infer the current tree topology, and try to revive entries to make
+ * it as unbalanced as possible. However, since the session ID are
+ * chosen randomly by the server, and the attacker cannot see the
+ * indexing values and must thus rely on blind selection, it should be
+ * exponentially difficult for the attacker to maintain a large
+ * imbalance.
  */
 #define SESSION_ID_LEN       32
 #define MASTER_SECRET_LEN    48
@@ -107,6 +115,8 @@ GETSET(right, TREE_RIGHT_OFF)
  * the impact of a collision is low (the handshake won't succeed). This
  * risk is much lower than any transmission error, which would lead to
  * the same consequences.
+ *
+ * Source and destination arrays msut be disjoint.
  */
 static void
 mask_id(br_ssl_session_cache_lru *cc,
@@ -127,8 +137,8 @@ mask_id(br_ssl_session_cache_lru *cc,
  * the node is not found.
  *
  * If addr_link is not NULL, then '*addr_link' is set to the address of the
- * last followed link. If the found node is the root, then '*addr_link' is
- * set to ADDR_NULL.
+ * last followed link. If the found node is the root, or if the tree is
+ * empty, then '*addr_link' is set to ADDR_NULL.
  */
 static uint32_t
 find_node(br_ssl_session_cache_lru *cc, const unsigned char *id,
@@ -170,7 +180,12 @@ find_node(br_ssl_session_cache_lru *cc, const unsigned char *id,
  *  -- Otherwise, the replacement is the leftmost right-descendent.
  *
  * If a node is returned, then '*al' is set to the address of the field
- * that points to that node.
+ * that points to that node. Otherwise (node x has no child), '*al' is
+ * set to ADDR_NULL.
+ *
+ * Note that the replacement node, when found, is always a descendent
+ * of node 'x', so it cannot be the tree root. Thus, '*al' can be set
+ * to ADDR_NULL only when no node is found and ADDR_NULL is returned.
  */
 static uint32_t
 find_replacement_node(br_ssl_session_cache_lru *cc, uint32_t x, uint32_t *al)
@@ -211,6 +226,10 @@ find_replacement_node(br_ssl_session_cache_lru *cc, uint32_t x, uint32_t *al)
 	return ADDR_NULL;
 }
 
+/*
+ * Set the link at address 'alx' to point to node 'x'. If 'alx' is
+ * ADDR_NULL, then this sets the tree root to 'x'.
+ */
 static inline void
 set_link(br_ssl_session_cache_lru *cc, uint32_t alx, uint32_t x)
 {
@@ -221,30 +240,78 @@ set_link(br_ssl_session_cache_lru *cc, uint32_t alx, uint32_t x)
 	}
 }
 
+/*
+ * Remove node 'x' from the tree. This function shall not be called if
+ * node 'x' is not part of the tree.
+ */
 static void
 remove_node(br_ssl_session_cache_lru *cc, uint32_t x)
 {
 	uint32_t alx, y, aly;
 
 	/*
-	 * Find node back and its ancestor link.
+	 * Removal algorithm:
+	 * ------------------
+	 *
+	 * - If we remove the root, then the tree becomes empty.
+	 *
+	 * - If the removed node has no child, then we can simply remove
+	 *   it, with nothing else to do.
+	 *
+	 * - Otherwise, the removed node must be replaced by either its
+	 *   rightmost left-descendent, or its leftmost right-descendent.
+	 *   The replacement node itself must be removed from its current
+	 *   place. By definition, that replacement node has either no
+	 *   child, or at most a single child that will replace it in the
+	 *   tree.
+	 */
+
+	/*
+	 * Find node back and its ancestor link. If the node was the
+	 * root, then alx is set to ADDR_NULL.
 	 */
 	find_node(cc, cc->store + x + SESSION_ID_OFF, &alx);
 
 	/*
-	 * Find replacement node.
+	 * Find replacement node 'y', and 'aly' is set to the address of
+	 * the link to that replacement node. If the removed node has no
+	 * child, then both 'y' and 'aly' are set to ADDR_NULL.
 	 */
 	y = find_replacement_node(cc, x, &aly);
 
-	/*
-	 * Unlink replacement node.
-	 */
-	set_link(cc, aly, ADDR_NULL);
+	if (y != ADDR_NULL) {
+		uint32_t z;
 
-	/*
-	 * Link the replacement node in its new place.
-	 */
-	set_link(cc, alx, y);
+		/*
+		 * The unlinked replacement node may have one child (but
+		 * not two) that takes its place.
+		 */
+		z = get_left(cc, y);
+		if (z == ADDR_NULL) {
+			z = get_right(cc, y);
+		}
+		set_link(cc, aly, z);
+
+		/*
+		 * Link the replacement node in its new place, overwriting
+		 * the current link to the node 'x' (which removes 'x').
+		 */
+		set_link(cc, alx, y);
+
+		/*
+		 * The replacement node adopts the left and right children
+		 * of the removed node. Note that this also works even if
+		 * the replacement node was a direct descendent of the
+		 * removed node, since we unlinked it previously.
+		 */
+		set_left(cc, y, get_left(cc, x));
+		set_right(cc, y, get_right(cc, x));
+	} else {
+		/*
+		 * No replacement, we simply unlink the node 'x'.
+		 */
+		set_link(cc, alx, ADDR_NULL);
+	}
 }
 
 static void
