@@ -1122,6 +1122,22 @@ mul_f256(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	t[14] -= cc << 10;
 	t[7] -= cc << 5;
 	t[0] += cc;
+
+	/*
+	 * If the carry is negative, then after carry propagation, we may
+	 * end up with a value which is negative, and we don't want that.
+	 * Thus, in that case, we add the modulus. Note that the subtraction
+	 * result, when the carry is negative, is always smaller than the
+	 * modulus, so the extra addition will not make the value exceed
+	 * twice the modulus.
+	 */
+	cc >>= 31;
+	t[0] -= cc;
+	t[7] += cc << 5;
+	t[14] += cc << 10;
+	t[17] -= cc << 3;
+	t[19] += cc << 9;
+
 	norm13(d, t, 20);
 }
 
@@ -1195,6 +1211,22 @@ square_f256(uint32_t *d, const uint32_t *a)
 	t[14] -= cc << 10;
 	t[7] -= cc << 5;
 	t[0] += cc;
+
+	/*
+	 * If the carry is negative, then after carry propagation, we may
+	 * end up with a value which is negative, and we don't want that.
+	 * Thus, in that case, we add the modulus. Note that the subtraction
+	 * result, when the carry is negative, is always smaller than the
+	 * modulus, so the extra addition will not make the value exceed
+	 * twice the modulus.
+	 */
+	cc >>= 31;
+	t[0] -= cc;
+	t[7] += cc << 5;
+	t[14] += cc << 10;
+	t[17] -= cc << 3;
+	t[19] += cc << 9;
+
 	norm13(d, t, 20);
 }
 
