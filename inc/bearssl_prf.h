@@ -50,11 +50,32 @@ extern "C" {
  * rely on the SHA-256 based PRF, but some use SHA-384.
  *
  * The PRF always uses as input three parameters: a "secret" (some
- * bytes), a "label" (ASCII string), and a "seed" (again some bytes).
- * An arbitrary output length can be produced.
+ * bytes), a "label" (ASCII string), and a "seed" (again some bytes). An
+ * arbitrary output length can be produced. The "seed" is provided as an
+ * arbitrary number of binary chunks, that gets internally concatenated.
  */
 
-/** \brief PRF implementation for TLS 1.0 and 1.1.
+/**
+ * \brief Type for a seed chunk.
+ *
+ * Each chunk may have an arbitrary length, and may be empty (no byte at
+ * all). If the chunk length is zero, then the pointer to the chunk data
+ * may be `NULL`.
+ */
+typedef struct {
+	/**
+	 * \brief Pointer to the chunk data.
+	 */
+	const void *data;
+
+	/**
+	 * \brief Chunk length (in bytes).
+	 */
+	size_t len;
+} br_tls_prf_seed_chunk;
+
+/**
+ * \brief PRF implementation for TLS 1.0 and 1.1.
  *
  * This PRF is the one specified by TLS 1.0 and 1.1. It internally uses
  * MD5 and SHA-1.
@@ -64,14 +85,15 @@ extern "C" {
  * \param secret       secret value (key) for this computation.
  * \param secret_len   length of "secret" (in bytes).
  * \param label        PRF label (zero-terminated ASCII string).
- * \param seed         seed for this computation (usually non-secret).
- * \param seed_len     length of "seed" (in bytes).
+ * \param seed_num     number of seed chunks.
+ * \param seed         seed chnks for this computation (usually non-secret).
  */
 void br_tls10_prf(void *dst, size_t len,
-	const void *secret, size_t secret_len,
-	const char *label, const void *seed, size_t seed_len);
+	const void *secret, size_t secret_len, const char *label,
+	size_t seed_num, const br_tls_prf_seed_chunk *seed);
 
-/** \brief PRF implementation for TLS 1.2, with SHA-256.
+/**
+ * \brief PRF implementation for TLS 1.2, with SHA-256.
  *
  * This PRF is the one specified by TLS 1.2, when the underlying hash
  * function is SHA-256.
@@ -81,14 +103,15 @@ void br_tls10_prf(void *dst, size_t len,
  * \param secret       secret value (key) for this computation.
  * \param secret_len   length of "secret" (in bytes).
  * \param label        PRF label (zero-terminated ASCII string).
- * \param seed         seed for this computation (usually non-secret).
- * \param seed_len     length of "seed" (in bytes).
+ * \param seed_num     number of seed chunks.
+ * \param seed         seed chnks for this computation (usually non-secret).
  */
 void br_tls12_sha256_prf(void *dst, size_t len,
-	const void *secret, size_t secret_len,
-	const char *label, const void *seed, size_t seed_len);
+	const void *secret, size_t secret_len, const char *label,
+	size_t seed_num, const br_tls_prf_seed_chunk *seed);
 
-/** \brief PRF implementation for TLS 1.2, with SHA-384.
+/**
+ * \brief PRF implementation for TLS 1.2, with SHA-384.
  *
  * This PRF is the one specified by TLS 1.2, when the underlying hash
  * function is SHA-384.
@@ -98,26 +121,27 @@ void br_tls12_sha256_prf(void *dst, size_t len,
  * \param secret       secret value (key) for this computation.
  * \param secret_len   length of "secret" (in bytes).
  * \param label        PRF label (zero-terminated ASCII string).
- * \param seed         seed for this computation (usually non-secret).
- * \param seed_len     length of "seed" (in bytes).
+ * \param seed_num     number of seed chunks.
+ * \param seed         seed chnks for this computation (usually non-secret).
  */
 void br_tls12_sha384_prf(void *dst, size_t len,
-	const void *secret, size_t secret_len,
-	const char *label, const void *seed, size_t seed_len);
+	const void *secret, size_t secret_len, const char *label,
+	size_t seed_num, const br_tls_prf_seed_chunk *seed);
 
-/** \brief A convenient type name for a PRF implementation.
+/** 
+ * brief A convenient type name for a PRF implementation.
  *
  * \param dst          destination buffer.
  * \param len          output length (in bytes).
  * \param secret       secret value (key) for this computation.
  * \param secret_len   length of "secret" (in bytes).
  * \param label        PRF label (zero-terminated ASCII string).
- * \param seed         seed for this computation (usually non-secret).
- * \param seed_len     length of "seed" (in bytes).
+ * \param seed_num     number of seed chunks.
+ * \param seed         seed chnks for this computation (usually non-secret).
  */
 typedef void (*br_tls_prf_impl)(void *dst, size_t len,
-	const void *secret, size_t secret_len,
-	const char *label, const void *seed, size_t seed_len);
+	const void *secret, size_t secret_len, const char *label,
+	size_t seed_num, const br_tls_prf_seed_chunk *seed);
 
 #ifdef __cplusplus
 }

@@ -1250,21 +1250,22 @@ br_ssl_hs_server_run(void *t0ctx)
 
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-	unsigned char seed[48];
-	size_t seed_len;
+	unsigned char tmp[48];
+	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
+	seed.data = tmp;
 	if (ENG->session.version >= BR_TLS12) {
-		seed_len = br_multihash_out(&ENG->mhash, prf_id, seed);
+		seed.len = br_multihash_out(&ENG->mhash, prf_id, tmp);
 	} else {
-		br_multihash_out(&ENG->mhash, br_md5_ID, seed);
-		br_multihash_out(&ENG->mhash, br_sha1_ID, seed + 16);
-		seed_len = 36;
+		br_multihash_out(&ENG->mhash, br_md5_ID, tmp);
+		br_multihash_out(&ENG->mhash, br_sha1_ID, tmp + 16);
+		seed.len = 36;
 	}
 	prf(ENG->pad, 12, ENG->session.master_secret,
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
-		seed, seed_len);
+		1, &seed);
 
 				}
 				break;

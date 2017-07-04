@@ -1335,13 +1335,14 @@ br_ssl_engine_compute_master(br_ssl_engine_context *cc,
 	int prf_id, const void *pms, size_t pms_len)
 {
 	br_tls_prf_impl iprf;
-	unsigned char seed[64];
+	br_tls_prf_seed_chunk seed[2] = {
+		{ cc->client_random, sizeof cc->client_random },
+		{ cc->server_random, sizeof cc->server_random }
+	};
 
 	iprf = br_ssl_engine_get_PRF(cc, prf_id);
-	memcpy(seed, cc->client_random, 32);
-	memcpy(seed + 32, cc->server_random, 32);
 	iprf(cc->session.master_secret, sizeof cc->session.master_secret,
-		pms, pms_len, "master secret", seed, sizeof seed);
+		pms, pms_len, "master secret", 2, seed);
 }
 
 /*
@@ -1352,14 +1353,15 @@ compute_key_block(br_ssl_engine_context *cc, int prf_id,
 	size_t half_len, unsigned char *kb)
 {
 	br_tls_prf_impl iprf;
-	unsigned char seed[64];
+	br_tls_prf_seed_chunk seed[2] = {
+		{ cc->server_random, sizeof cc->server_random },
+		{ cc->client_random, sizeof cc->client_random }
+	};
 
 	iprf = br_ssl_engine_get_PRF(cc, prf_id);
-	memcpy(seed, cc->server_random, 32);
-	memcpy(seed + 32, cc->client_random, 32);
 	iprf(kb, half_len << 1,
 		cc->session.master_secret, sizeof cc->session.master_secret,
-		"key expansion", seed, sizeof seed);
+		"key expansion", 2, seed);
 }
 
 /* see inner.h */

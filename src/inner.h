@@ -509,8 +509,8 @@ void br_sha2small_round(const unsigned char *buf, uint32_t *val);
  */
 void br_tls_phash(void *dst, size_t len,
 	const br_hash_class *dig,
-	const void *secret, size_t secret_len,
-	const char *label, const void *seed, size_t seed_len);
+	const void *secret, size_t secret_len, const char *label,
+	size_t seed_num, const br_tls_prf_seed_chunk *seed);
 
 /*
  * Copy all configured hash implementations from a multihash context

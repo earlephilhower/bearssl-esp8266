@@ -208,6 +208,7 @@ coresrc=" \
 	src/ssl/ssl_hs_client.c \
 	src/ssl/ssl_hs_server.c \
 	src/ssl/ssl_io.c \
+	src/ssl/ssl_keyexport.c \
 	src/ssl/ssl_lru.c \
 	src/ssl/ssl_rec_cbc.c \
 	src/ssl/ssl_rec_chapol.c \
