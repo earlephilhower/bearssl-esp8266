@@ -33,12 +33,17 @@ sr_choose(const br_ssl_server_policy_class **pctx,
 	const br_suite_translated *st;
 	size_t u, st_num;
 	unsigned hash_id;
+	int fh;
 
 	pc = (br_ssl_server_policy_rsa_context *)pctx;
 	st = br_ssl_server_get_client_suites(cc, &st_num);
-	hash_id = br_ssl_choose_hash(br_ssl_server_get_client_hashes(cc));
 	if (cc->eng.session.version < BR_TLS12) {
 		hash_id = 0;
+		fh = 1;
+	} else {
+		hash_id = br_ssl_choose_hash(
+			br_ssl_server_get_client_hashes(cc));
+		fh = (hash_id != 0);
 	}
 	choices->chain = pc->chain;
 	choices->chain_len = pc->chain_len;
@@ -54,9 +59,7 @@ sr_choose(const br_ssl_server_policy_class **pctx,
 			}
 			break;
 		case BR_SSLKEYX_ECDHE_RSA:
-			if ((pc->allowed_usages & BR_KEYTYPE_SIGN) != 0
-				&& hash_id != 0)
-			{
+			if ((pc->allowed_usages & BR_KEYTYPE_SIGN) != 0 && fh) {
 				choices->cipher_suite = st[u][0];
 				choices->algo_id = hash_id + 0xFF00;
 				return 1;
