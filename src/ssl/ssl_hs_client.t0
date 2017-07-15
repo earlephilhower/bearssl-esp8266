@@ -805,6 +805,13 @@ cc: DEBUG-BLOB ( addr len -- ) {
 			1 addr-reneg set8
 		then
 		close-elt
+	else
+		\ No extension received at all, so the server does not
+		\ support secure renegotiation. This is a hard failure
+		\ if the server was previously known to support it (i.e.
+		\ this is a renegotiation).
+		ext-reneg-length 5 > if ERR_BAD_SECRENEG fail then
+		1 addr-reneg set8
 	then
 	close-elt
 	resume
@@ -1257,6 +1264,12 @@ cc: do-client-sign ( -- sig_len ) {
 						wait-co drop
 					repeat
 					100 send-warning
+					\ We rejected the renegotiation,
+					\ but the connection is not dead.
+					\ We must set back things into
+					\ working "application data" state.
+					1 addr-application_data set8
+					23 addr-record_type_out set8
 				else
 					do-handshake
 				then

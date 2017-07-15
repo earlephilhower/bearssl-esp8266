@@ -871,8 +871,8 @@ typedef struct {
 	/*
 	 * Secure renegotiation (RFC 5746): 'reneg' can be:
 	 *   0   first handshake (server support is not known)
-	 *   1   server does not support secure renegotiation
-	 *   2   server supports secure renegotiation
+	 *   1   peer does not support secure renegotiation
+	 *   2   peer supports secure renegotiation
 	 *
 	 * The saved_finished buffer contains the client and the
 	 * server "Finished" values from the last handshake, in
@@ -2063,8 +2063,9 @@ void br_ssl_engine_close(br_ssl_engine_context *cc);
  *
  * If the engine is failed or closed, or if the peer is known not to
  * support secure renegotiation (RFC 5746), or if renegotiations have
- * been disabled with the `BR_OPT_NO_RENEGOTIATION` flag, then this
- * function returns 0 and nothing else happens.
+ * been disabled with the `BR_OPT_NO_RENEGOTIATION` flag, or if there
+ * is buffered incoming application data, then this function returns 0
+ * and nothing else happens.
  *
  * Otherwise, this function returns 1, and a renegotiation attempt is
  * triggered (if a handshake is already ongoing at that point, then

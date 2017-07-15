@@ -79,6 +79,23 @@ preamble {
 : NYI ( -- ! )
 	"NOT YET IMPLEMENTED!" puts cr -1 fail ;
 
+\ Debug function that prints a string (and a newline) on stderr.
+cc: DBG ( addr -- ) {
+	extern void *stderr;
+	extern int fprintf(void *, const char *, ...);
+	fprintf(stderr, "%s\n", &t0_datablock[T0_POPi()]);
+}
+
+\ Debug function that prints a string and an integer value (followed
+\ by a newline) on stderr.
+cc: DBG2 ( addr x -- ) {
+	extern void *stderr;
+	extern int fprintf(void *, const char *, ...);
+	int32_t x = T0_POPi();
+	fprintf(stderr, "%s: %ld (0x%08lX)\n",
+		&t0_datablock[T0_POPi()], (long)x, (unsigned long)(uint32_t)x);
+}
+
 \ Mark the context as failed with a specific error code. This also
 \ returns control to the caller.
 cc: fail ( err -- ! ) {

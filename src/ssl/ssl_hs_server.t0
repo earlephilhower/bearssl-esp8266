@@ -611,6 +611,13 @@ cc: save-session ( -- ) {
 	}
 }
 
+\ Read and drop ClientHello. This is used when a client-triggered
+\ renegotiation attempt is rejected.
+: skip-ClientHello ( -- )
+	read-handshake-header-core
+	1 = ifnot ERR_UNEXPECTED fail then
+	dup skip-blob drop ;
+
 \ Read ClientHello. If the session is resumed, then -1 is returned.
 : read-ClientHello ( -- resume )
 	\ Get header, and check message type.
@@ -1473,6 +1480,7 @@ cc: verify-CV-sig ( sig-len -- err ) {
 					\ The best we can do is ask for a
 					\ renegotiation, then wait for it
 					\ to happen.
+					0 addr-application_data set8
 					send-HelloRequest
 				then
 			endof
@@ -1482,11 +1490,16 @@ cc: verify-CV-sig ( sig-len -- err ) {
 				\ "no renegotiation" flag is set.
 				drop
 				addr-reneg get8 1 = 1 flag? or if
+					skip-ClientHello
 					flush-record
 					begin can-output? not while
 						wait-co drop
 					repeat
 					100 send-warning
+					\ Put back connection in "application
+					\ data" state: it's not dead yet.
+					1 addr-application_data set8
+					23 addr-record_type_out set8
 				else
 					0 do-handshake
 				then
