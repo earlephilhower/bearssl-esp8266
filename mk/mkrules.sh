@@ -49,6 +49,7 @@ set -e
 
 # Source files. Please keep in alphabetical order.
 coresrc=" \
+	src/aead/gcm.c \
 	src/codec/ccopy.c \
 	src/codec/dec16be.c \
 	src/codec/dec16le.c \
@@ -307,6 +308,7 @@ testx509src=" \
 # Public header files.
 headerspub=" \
 	inc/bearssl.h \
+	inc/bearssl_aead.h \
 	inc/bearssl_block.h \
 	inc/bearssl_ec.h \
 	inc/bearssl_hash.h \
@@ -432,7 +434,9 @@ tools: \$(BRSSL)
 
 tests: \$(TESTCRYPTO) \$(TESTSPEED) \$(TESTX509)
 
-T0: \$(T0COMP) src\$Pssl\$Pssl_hs_common.t0 src\$Pssl\$Pssl_hs_client.t0 src\$Pssl\$Pssl_hs_server.t0 src\$Px509\$Pasn1.t0 src\$Px509\$Pskey_decoder.t0 src\$Px509\$Px509_decoder.t0 src\$Px509\$Px509_minimal.t0
+T0: kT0
+
+kT0: \$(T0COMP) src\$Pssl\$Pssl_hs_common.t0 src\$Pssl\$Pssl_hs_client.t0 src\$Pssl\$Pssl_hs_server.t0 src\$Px509\$Pasn1.t0 src\$Px509\$Pskey_decoder.t0 src\$Px509\$Px509_decoder.t0 src\$Px509\$Px509_minimal.t0
 	\$(RUNT0COMP) -o src\$Pcodec\$Ppemdec -r br_pem_decoder src\$Pcodec\$Ppemdec.t0
 	\$(RUNT0COMP) -o src\$Pssl\$Pssl_hs_client -r br_ssl_hs_client src\$Pssl\$Pssl_hs_common.t0 src\$Pssl\$Pssl_hs_client.t0
 	\$(RUNT0COMP) -o src\$Pssl\$Pssl_hs_server -r br_ssl_hs_server src\$Pssl\$Pssl_hs_common.t0 src\$Pssl\$Pssl_hs_server.t0

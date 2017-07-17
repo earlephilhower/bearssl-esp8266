@@ -127,6 +127,7 @@
 #include "bearssl_rand.h"
 #include "bearssl_prf.h"
 #include "bearssl_block.h"
+#include "bearssl_aead.h"
 #include "bearssl_rsa.h"
 #include "bearssl_ec.h"
 #include "bearssl_ssl.h"
