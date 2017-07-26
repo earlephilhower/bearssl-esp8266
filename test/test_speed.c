@@ -175,17 +175,24 @@ test_speed_ ## fname(void) \
 static void \
 test_speed_ ## fname(void) \
 { \
+	br_chacha20_run bc; \
 	unsigned char key[32]; \
 	unsigned char buf[8192]; \
 	unsigned char iv[12]; \
 	int i; \
 	long num; \
  \
+	bc = br_ ## fname ## _get(); \
+	if (bc == 0) { \
+		printf("%-30s UNAVAILABLE\n", #Name); \
+		fflush(stdout); \
+		return; \
+	} \
 	memset(key, 'T', sizeof key); \
 	memset(buf, 'P', sizeof buf); \
 	memset(iv, 'X', sizeof iv); \
 	for (i = 0; i < 10; i ++) { \
-		br_ ## fname ## _run(key, iv, i, buf, sizeof buf); \
+		bc(key, iv, i, buf, sizeof buf); \
 	} \
 	num = 10; \
 	for (;;) { \
@@ -195,8 +202,7 @@ test_speed_ ## fname(void) \
  \
 		begin = clock(); \
 		for (k = num; k > 0; k --) { \
-			br_ ## fname ## _run(key, iv, \
-				(uint32_t)k, buf, sizeof buf); \
+			bc(key, iv, (uint32_t)k, buf, sizeof buf); \
 		} \
 		end = clock(); \
 		tt = (double)(end - begin) / CLOCKS_PER_SEC; \
@@ -232,6 +238,7 @@ SPEED_HASH(SHA-512, sha512)
 #define br_aes_ct64_cbcenc_get_vtable()    (&br_aes_ct64_cbcenc_vtable)
 #define br_aes_ct64_cbcdec_get_vtable()    (&br_aes_ct64_cbcdec_vtable)
 #define br_aes_ct64_ctr_get_vtable()       (&br_aes_ct64_ctr_vtable)
+#define br_chacha20_ct_get()               (&br_chacha20_ct_run)
 
 #define SPEED_AES(iname) \
 SPEED_BLOCKCIPHER_CBC(AES-128 CBC encrypt (iname), aes128_ ## iname ## _cbcenc, aes_ ## iname, 16, enc) \
@@ -265,7 +272,8 @@ SPEED_BLOCKCIPHER_CBC(3DES CBC decrypt (iname), 3des_ ## iname ## _cbcdec, des_ 
 SPEED_DES(tab)
 SPEED_DES(ct)
 
-SPEED_CHACHA20(ChaCha20, chacha20_ct)
+SPEED_CHACHA20(ChaCha20 (ct), chacha20_ct)
+SPEED_CHACHA20(ChaCha20 (sse2), chacha20_sse2)
 
 static void
 test_speed_ghash_inner(char *name, br_ghash gh)
@@ -1279,6 +1287,7 @@ static const struct {
 	STU(3des_ct_cbcdec),
 
 	STU(chacha20_ct),
+	STU(chacha20_sse2),
 
 	STU(ghash_ctmul),
 	STU(ghash_ctmul32),

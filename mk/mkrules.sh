@@ -258,6 +258,7 @@ coresrc=" \
 	src/symcipher/aes_x86ni_cbcenc.c \
 	src/symcipher/aes_x86ni_ctr.c \
 	src/symcipher/chacha20_ct.c \
+	src/symcipher/chacha20_sse2.c \
 	src/symcipher/des_ct.c \
 	src/symcipher/des_ct_cbcdec.c \
 	src/symcipher/des_ct_cbcenc.c \

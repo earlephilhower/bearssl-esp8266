@@ -259,9 +259,26 @@ extern "C" {
  * `chacha20_ct` is a straightforward implementation of ChaCha20 in
  * plain C; it is constant-time, small, and reasonably fast.
  *
+ * `chacha20_sse2` leverages SSE2 opcodes (on x86 architectures that
+ * support these opcodes). It is faster than `chacha20_ct`.
+ *
  * `poly1305_ctmul` is an implementation of the ChaCha20+Poly1305 AEAD
  * construction, where the Poly1305 part is performed with mixed 32-bit
  * multiplications (operands are 32-bit, result is 64-bit).
+ *
+ * `poly1305_ctmul32` implements ChaCha20+Poly1305 using pure 32-bit
+ * multiplications (32-bit operands, 32-bit result). It is slower than
+ * `poly1305_ctmul`, except on some specific architectures such as
+ * the ARM Cortex M0+.
+ *
+ * `poly1305_ctmulq` implements ChaCha20+Poly1305 with mixed 64-bit
+ * multiplications (operands are 64-bit, result is 128-bit) on 64-bit
+ * platforms that support such operations.
+ *
+ * `poly1305_i15` implements ChaCha20+Poly1305 with the generic "i15"
+ * big integer implementation. It is meant mostly for testing purposes,
+ * although it can help with saving a few hundred bytes of code footprint
+ * on systems where code size is scarce.
  */
 
 /**
@@ -1683,6 +1700,39 @@ typedef uint32_t (*br_chacha20_run)(const void *key,
  */
 uint32_t br_chacha20_ct_run(const void *key,
 	const void *iv, uint32_t cc, void *data, size_t len);
+
+/**
+ * \brief ChaCha20 implementation (SSE2 code, constant-time).
+ *
+ * This implementation is available only on x86 platforms, depending on
+ * compiler support. Moreover, in 32-bit mode, it might not actually run,
+ * if the underlying hardware does not implement the SSE2 opcode (in
+ * 64-bit mode, SSE2 is part of the ABI, so if the code could be compiled
+ * at all, then it can run). Use `br_chacha20_sse2_get()` to safely obtain
+ * a pointer to that function.
+ *
+ * \see br_chacha20_run
+ *
+ * \param key    secret key (32 bytes).
+ * \param iv     IV (12 bytes).
+ * \param cc     initial counter value.
+ * \param data   data to encrypt or decrypt.
+ * \param len    data length (in bytes).
+ */
+uint32_t br_chacha20_sse2_run(const void *key,
+	const void *iv, uint32_t cc, void *data, size_t len);
+
+/**
+ * \brief Obtain the `sse2` ChaCha20 implementation, if available.
+ *
+ * This function returns a pointer to `br_chacha20_sse2_run`, if
+ * that implementation was compiled in the library _and_ the SSE2
+ * opcodes are available on the currently running CPU. If either of
+ * these conditions is not met, then this function returns `0`.
+ *
+ * \return  the `sse2` ChaCha20 implementation, or `0`.
+ */
+br_chacha20_run br_chacha20_sse2_get(void);
 
 /**
  * \brief Type for a ChaCha20+Poly1305 AEAD implementation.

@@ -145,9 +145,45 @@
 #endif
 
 /*
+ * Determine whether SSE2 intrinsics are understood by the compiler.
+ * Right now, we restrict ourselves to compiler versions where things
+ * are documented to work well:
+ *  -- GCC 4.4+ and Clang 3.7+ understand the function attribute "target"
+ *  -- MS Visual Studio 2005 documents the existence of <emmintrin.h>
+ * SSE2-powered code _might_ work with older versions, but there is no
+ * pressing need to do so right now.
+ */
+#ifndef BR_SSE2
+#if (__i386__ || __x86_64__) \
+	&& ((__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) \
+	    || (__clang_major__ > 3 \
+	        || (__clang_major__ == 3 && __clang_minor__ >= 7)))
+#define BR_SSE2   1
+#elif (_M_IX86 || _M_X64) && (_MSC_VER >= 1400)
+#define BR_SSE2   1
+#endif
+#endif
+
+/*
+ * If we use SSE2 intrinsics, determine the compiler brand.
+ */
+#if BR_SSE2
+#ifndef BR_SSE2_GCC
+#if __GNUC__
+#define BR_SSE2_GCC   1
+#endif
+#endif
+#ifndef BR_SSE2_MSC
+#if _MSC_VER >= 1400
+#define BR_SSE2_MSC   1
+#endif
+#endif
+#endif
+
+/*
  * A macro to tag a function with a "target" attribute (for GCC and Clang).
  */
-#if BR_AES_X86NI_GCC
+#if BR_AES_X86NI_GCC || BR_SSE2_GCC
 #define BR_TARGET(x)   __attribute__((target(x)))
 #else
 #define BR_TARGET(x)
@@ -156,8 +192,8 @@
 /*
  * GCC versions from 4.4 to 4.8 (inclusive) must use a special #pragma
  * to activate extra opcodes before including the relevant intrinsic
- * headers. But these don't work with Clang (which does not need them
- * either). We also need that #pragma for GCC 4.9 in order to work
+ * AES-NI headers. But these don't work with Clang (which does not need
+ * them either). We also need that #pragma for GCC 4.9 in order to work
  * around a compiler bug (it tends to blow up on ghash_pclmul code
  * otherwise).
  */

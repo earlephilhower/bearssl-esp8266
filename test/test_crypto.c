@@ -4178,12 +4178,16 @@ static const struct {
 };
 
 static void
-test_ChaCha20_ct(void)
+test_ChaCha20_generic(const char *name, br_chacha20_run cr)
 {
 	size_t u;
 
-	printf("Test ChaCha20_ct: ");
+	printf("Test %s: ", name);
 	fflush(stdout);
+	if (cr == 0) {
+		printf("UNAVAILABLE\n");
+		return;
+	}
 
 	for (u = 0; KAT_CHACHA20[u].skey; u ++) {
 		unsigned char key[32], nonce[12], plain[400], cipher[400];
@@ -4199,10 +4203,11 @@ test_ChaCha20_ct(void)
 		for (v = 0; v < len; v ++) {
 			unsigned char tmp[400];
 			size_t w;
+			uint32_t cc2;
 
 			memset(tmp, 0, sizeof tmp);
 			memcpy(tmp, plain, v);
-			if (br_chacha20_ct_run(key, nonce, cc, tmp, v)
+			if (cr(key, nonce, cc, tmp, v)
 				!= cc + (uint32_t)((v + 63) >> 6))
 			{
 				fprintf(stderr, "ChaCha20: wrong counter\n");
@@ -4218,7 +4223,21 @@ test_ChaCha20_ct(void)
 					exit(EXIT_FAILURE);
 				}
 			}
-			br_chacha20_ct_run(key, nonce, cc, tmp, v);
+			for (w = 0, cc2 = cc; w < v; w += 64, cc2 ++) {
+				size_t x;
+
+				x = v - w;
+				if (x > 64) {
+					x = 64;
+				}
+				if (cr(key, nonce, cc2, tmp + w, x)
+					!= (cc2 + 1))
+				{
+					fprintf(stderr, "ChaCha20:"
+						" wrong counter (2)\n");
+					exit(EXIT_FAILURE);
+				}
+			}
 			if (memcmp(tmp, plain, v) != 0) {
 				fprintf(stderr, "ChaCha20 KAT fail (2)\n");
 				exit(EXIT_FAILURE);
@@ -4231,6 +4250,18 @@ test_ChaCha20_ct(void)
 
 	printf(" done.\n");
 	fflush(stdout);
+}
+
+static void
+test_ChaCha20_ct(void)
+{
+	test_ChaCha20_generic("ChaCha20_ct", &br_chacha20_ct_run);
+}
+
+static void
+test_ChaCha20_sse2(void)
+{
+	test_ChaCha20_generic("ChaCha20_sse2", br_chacha20_sse2_get());
 }
 
 static const struct {
@@ -6173,6 +6204,7 @@ static const struct {
 	STU(DES_tab),
 	STU(DES_ct),
 	STU(ChaCha20_ct),
+	STU(ChaCha20_sse2),
 	STU(Poly1305_ctmul),
 	STU(Poly1305_ctmul32),
 	STU(Poly1305_ctmulq),

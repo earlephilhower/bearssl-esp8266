@@ -163,6 +163,16 @@
  */
 
 /*
+ * When BR_SSE2 is enabled, SSE2 intrinsics will be used for some
+ * algorithm implementations that use them (e.g. chacha20_sse2). If this
+ * is not enabled explicitly, then support for SSE2 intrinsics will be
+ * automatically detected. If set explicitly to 0, then SSE2 code will
+ * not be compiled at all.
+ *
+#define BR_SSE2   1
+ */
+
+/*
  * When BR_POWER8 is enabled, the AES implementation using the POWER ISA
  * 2.07 opcodes (available on POWER8 processors and later) is compiled.
  * If this is not enabled explicitly, then that implementation will be
