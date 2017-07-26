@@ -418,6 +418,8 @@ static const struct {
 		(const void *(*)(void))&br_aes_x86ni_cbcdec_get_vtable },
 	{ "aes_x86ni_ctr",        "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_ctr_get_vtable },
+	{ "chacha20_sse2",        "sse2",
+		(const void *(*)(void))&br_chacha20_sse2_get },
 	{ "ghash_pclmul",         "pclmul",
 		(const void *(*)(void))&br_ghash_pclmul_get },
 	{ "ghash_pwr8",           "pwr8",
