@@ -54,6 +54,10 @@
  *   tree left child     4 bytes (big endian)
  *   tree right child    4 bytes (big endian)
  *
+ * If an entry has a protocol version set to 0, then it is "disabled":
+ * it was a session pushed to the cache at some point, but it has
+ * been explicitly removed.
+ *
  * We need to keep the tree balanced because an attacker could make
  * handshakes, selecting some specific sessions (by reusing them) to
  * try to make us make an imbalanced tree that makes lookups expensive
@@ -437,8 +441,18 @@ lru_load(const br_ssl_session_cache_class **ctx,
 	mask_id(cc, params->session_id, id);
 	x = find_node(cc, id, NULL);
 	if (x != ADDR_NULL) {
-		params->version = br_dec16be(
-			cc->store + x + VERSION_OFF);
+		unsigned version;
+
+		version = br_dec16be(cc->store + x + VERSION_OFF);
+		if (version == 0) {
+			/*
+			 * Entry is disabled, we pretend we did not find it.
+			 * Notably, we don't move it to the front of the
+			 * LRU list.
+			 */
+			return 0;
+		}
+		params->version = version;
 		params->cipher_suite = br_dec16be(
 			cc->store + x + CIPHER_SUITE_OFF);
 		memcpy(params->master_secret,
@@ -488,4 +502,36 @@ br_ssl_session_cache_lru_init(br_ssl_session_cache_lru *cc,
 	cc->head = ADDR_NULL;
 	cc->tail = ADDR_NULL;
 	cc->root = ADDR_NULL;
+}
+
+/* see bearssl_ssl.h */
+void br_ssl_session_cache_lru_forget(
+	br_ssl_session_cache_lru *cc, const unsigned char *id)
+{
+	unsigned char mid[SESSION_ID_LEN];
+	uint32_t addr;
+
+	/*
+	 * If the cache is not initialised yet, then it is empty, and
+	 * there is nothing to forget.
+	 */
+	if (!cc->init_done) {
+		return;
+	}
+
+	/*
+	 * Look for the node in the tree. If found, the entry is marked
+	 * as "disabled"; it will be reused in due course, as it ages
+	 * through the list.
+	 *
+	 * We do not go through the complex moves of actually releasing
+	 * the entry right away because explicitly forgetting sessions
+	 * should be a rare event, meant mostly for testing purposes,
+	 * so this is not worth the extra code size.
+	 */
+	mask_id(cc, id, mid);
+	addr = find_node(cc, id, NULL);
+	if (addr != ADDR_NULL) {
+		br_enc16be(cc->store + addr + VERSION_OFF, 0);
+	}
 }

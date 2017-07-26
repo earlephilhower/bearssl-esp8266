@@ -3221,6 +3221,19 @@ void br_ssl_session_cache_lru_init(br_ssl_session_cache_lru *cc,
 	unsigned char *store, size_t store_len);
 
 /**
+ * \brief Forget an entry in an LRU session cache.
+ *
+ * The session cache context must have been initialised. The entry
+ * with the provided session ID (of exactly 32 bytes) is looked for
+ * in the cache; if located, it is disabled.
+ *
+ * \param cc   session cache context.
+ * \param id   session ID to forget.
+ */
+void br_ssl_session_cache_lru_forget(
+	br_ssl_session_cache_lru *cc, const unsigned char *id);
+
+/**
  * \brief Context structure for a SSL server.
  *
  * The first field (called `eng`) is the SSL engine; all functions that
