@@ -764,7 +764,7 @@ do_client(int argc, char *argv[])
 			}
 			arg = argv[i];
 			if (minhello_len != (size_t)-1) {
-				fprintf(stderr, "ERROR: duplicate minium"
+				fprintf(stderr, "ERROR: duplicate minimum"
 					" ClientHello length\n");
 				usage_client();
 				goto client_exit_error;

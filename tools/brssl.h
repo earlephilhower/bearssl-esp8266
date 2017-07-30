@@ -485,7 +485,8 @@ const char *get_algo_name(const void *algo, int long_name);
 
 /*
  * Run a SSL engine, with a socket connected to the peer, and using
- * stdin/stdout to exchange application data.
+ * stdin/stdout to exchange application data. The socket must be a
+ * non-blocking descriptor.
  *
  * To help with Win32 compatibility, the socket descriptor is provided
  * as an "unsigned long" value.
@@ -537,5 +538,12 @@ int do_ta(int argc, char *argv[]);
  * Command-line arguments start _after_ the command name.
  */
 int do_chain(int argc, char *argv[]);
+
+/*
+ * Do the "twrch" command. Returned value is 0 on success, -1 on failure
+ * (processing or arguments), or a non-zero exit code. Command-line
+ * arguments start _after_ the command name.
+ */
+int do_twrch(int argc, char *argv[]);
 
 #endif

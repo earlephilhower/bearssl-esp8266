@@ -166,7 +166,7 @@ host_bind(const char *host, const char *port, int verbose)
 }
 
 static SOCKET
-accept_client(SOCKET server_fd, int verbose)
+accept_client(SOCKET server_fd, int verbose, int nonblock)
 {
 	int fd;
 	SOCKADDR_STORAGE sa;
@@ -209,16 +209,16 @@ accept_client(SOCKET server_fd, int verbose)
 	 * We make the socket non-blocking, since we are going to use
 	 * poll() or select() to organise I/O.
 	 */
+	if (nonblock) {
 #ifdef _WIN32
-	{
 		u_long arg;
 
 		arg = 1;
 		ioctlsocket(fd, FIONBIO, &arg);
-	}
 #else
-	fcntl(fd, F_SETFL, O_NONBLOCK);
+		fcntl(fd, F_SETFL, O_NONBLOCK);
 #endif
+	}
 	return fd;
 }
 
@@ -1177,15 +1177,16 @@ do_server(int argc, char *argv[])
 	 */
 	for (;;) {
 		int x;
+		unsigned run_flags;
 
-		fd = accept_client(server_fd, verbose);
+		fd = accept_client(server_fd, verbose, 1);
 		if (fd == INVALID_SOCKET) {
 			goto server_exit_error;
 		}
 		br_ssl_server_reset(&cc);
-		x = run_ssl_engine(&cc.eng, fd,
-			(verbose ? RUN_ENGINE_VERBOSE : 0)
-			| (trace ? RUN_ENGINE_TRACE : 0));
+		run_flags = (verbose ? RUN_ENGINE_VERBOSE : 0)
+			| (trace ? RUN_ENGINE_TRACE : 0);
+		x = run_ssl_engine(&cc.eng, fd, run_flags);
 #ifdef _WIN32
 		closesocket(fd);
 #else

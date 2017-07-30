@@ -50,6 +50,7 @@ usage(void)
 	fprintf(stderr, "   skey         decode private key\n");
 	fprintf(stderr, "   ta           decode trust anchors\n");
 	fprintf(stderr, "   chain        make C code for certificate chains\n");
+	fprintf(stderr, "   twrch        run the Twrch protocol\n");
 }
 
 int
@@ -97,6 +98,15 @@ main(int argc, char *argv[])
 	} else if (eqstr(cmd, "chain")) {
 		if (do_chain(argc - 2, argv + 2) < 0) {
 			return EXIT_FAILURE;
+		}
+	} else if (eqstr(cmd, "twrch")) {
+		int ret;
+
+		ret = do_twrch(argc - 2, argv + 2);
+		if (ret < 0) {
+			return EXIT_FAILURE;
+		} else {
+			return ret;
 		}
 	} else {
 		fprintf(stderr, "unknown command: '%s'\n", cmd);

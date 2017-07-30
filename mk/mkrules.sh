@@ -290,6 +290,7 @@ toolssrc=" \
 	tools/skey.c \
 	tools/sslio.c \
 	tools/ta.c \
+	tools/twrch.c \
 	tools/vector.c \
 	tools/verify.c \
 	tools/xmem.c"
