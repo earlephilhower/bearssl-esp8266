@@ -771,7 +771,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = inc/bearssl.h inc/bearssl_block.h inc/bearssl_ec.h inc/bearssl_hash.h inc/bearssl_hmac.h inc/bearssl_pem.h inc/bearssl_prf.h inc/bearssl_rand.h inc/bearssl_rsa.h inc/bearssl_ssl.h inc/bearssl_x509.h
+INPUT                  = inc/bearssl.h inc/bearssl_aead.h inc/bearssl_block.h inc/bearssl_ec.h inc/bearssl_hash.h inc/bearssl_hmac.h inc/bearssl_pem.h inc/bearssl_prf.h inc/bearssl_rand.h inc/bearssl_rsa.h inc/bearssl_ssl.h inc/bearssl_x509.h
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
