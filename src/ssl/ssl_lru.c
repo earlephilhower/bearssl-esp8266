@@ -530,7 +530,7 @@ void br_ssl_session_cache_lru_forget(
 	 * so this is not worth the extra code size.
 	 */
 	mask_id(cc, id, mid);
-	addr = find_node(cc, id, NULL);
+	addr = find_node(cc, mid, NULL);
 	if (addr != ADDR_NULL) {
 		br_enc16be(cc->store + addr + VERSION_OFF, 0);
 	}
