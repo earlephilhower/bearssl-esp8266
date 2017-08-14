@@ -222,8 +222,13 @@ void br_x509_minimal_run(void *t0ctx);
 #include <windows.h>
 #endif
 
+/*
+ * The T0 compiler will produce these prototypes declarations in the
+ * header.
+ *
 void br_x509_minimal_init_main(void *ctx);
 void br_x509_minimal_run(void *ctx);
+ */
 
 /* see bearssl_x509.h */
 void
