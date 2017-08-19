@@ -75,7 +75,7 @@ host_bind(const char *host, const char *port, int verbose)
 
 		sa = (struct sockaddr *)p->ai_addr;
 		if (sa->sa_family == AF_INET) {
-			sa4 = *(struct sockaddr_in *)sa;
+			memcpy(&sa4, sa, sizeof sa4);
 			sa = (struct sockaddr *)&sa4;
 			sa_len = sizeof sa4;
 			addr = &sa4.sin_addr;
@@ -83,7 +83,7 @@ host_bind(const char *host, const char *port, int verbose)
 				sa4.sin_addr.s_addr = INADDR_ANY;
 			}
 		} else if (sa->sa_family == AF_INET6) {
-			sa6 = *(struct sockaddr_in6 *)sa;
+			memcpy(&sa6, sa, sizeof sa6);
 			sa = (struct sockaddr *)&sa6;
 			sa_len = sizeof sa6;
 			addr = &sa6.sin6_addr;

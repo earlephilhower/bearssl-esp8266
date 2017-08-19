@@ -34,7 +34,7 @@ preamble {
 /*
  * This macro evaluates to a pointer to the current engine context.
  */
-#define ENG  ((br_ssl_engine_context *)((unsigned char *)t0ctx - offsetof(br_ssl_engine_context, cpu)))
+#define ENG  ((br_ssl_engine_context *)(void *)((unsigned char *)t0ctx - offsetof(br_ssl_engine_context, cpu)))
 
 }
 
@@ -112,13 +112,13 @@ cc: get8 ( addr -- val ) {
 \ Read a 16-bit word from the context (address is offset in context).
 cc: get16 ( addr -- val ) {
 	size_t addr = (size_t)T0_POP();
-	T0_PUSH(*(uint16_t *)((unsigned char *)ENG + addr));
+	T0_PUSH(*(uint16_t *)(void *)((unsigned char *)ENG + addr));
 }
 
 \ Read a 32-bit word from the context (address is offset in context).
 cc: get32 ( addr -- val ) {
 	size_t addr = (size_t)T0_POP();
-	T0_PUSH(*(uint32_t *)((unsigned char *)ENG + addr));
+	T0_PUSH(*(uint32_t *)(void *)((unsigned char *)ENG + addr));
 }
 
 \ Set a byte in the context (address is offset in context).
@@ -130,13 +130,13 @@ cc: set8 ( val addr -- ) {
 \ Set a 16-bit word in the context (address is offset in context).
 cc: set16 ( val addr -- ) {
 	size_t addr = (size_t)T0_POP();
-	*(uint16_t *)((unsigned char *)ENG + addr) = (uint16_t)T0_POP();
+	*(uint16_t *)(void *)((unsigned char *)ENG + addr) = (uint16_t)T0_POP();
 }
 
 \ Set a 32-bit word in the context (address is offset in context).
 cc: set32 ( val addr -- ) {
 	size_t addr = (size_t)T0_POP();
-	*(uint32_t *)((unsigned char *)ENG + addr) = (uint32_t)T0_POP();
+	*(uint32_t *)(void *)((unsigned char *)ENG + addr) = (uint32_t)T0_POP();
 }
 
 \ Define a word that evaluates as an address of a field within the

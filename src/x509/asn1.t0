@@ -198,12 +198,12 @@ cc: set8 ( val addr -- ) {
 
 cc: set16 ( val addr -- ) {
 	uint32_t addr = T0_POP();
-	*(uint16_t *)((unsigned char *)CTX + addr) = T0_POP();
+	*(uint16_t *)(void *)((unsigned char *)CTX + addr) = T0_POP();
 }
 
 cc: set32 ( val addr -- ) {
 	uint32_t addr = T0_POP();
-	*(uint32_t *)((unsigned char *)CTX + addr) = T0_POP();
+	*(uint32_t *)(void *)((unsigned char *)CTX + addr) = T0_POP();
 }
 
 cc: get8 ( addr -- val ) {
@@ -213,12 +213,12 @@ cc: get8 ( addr -- val ) {
 
 cc: get16 ( addr -- val ) {
 	uint32_t addr = T0_POP();
-	T0_PUSH(*(uint16_t *)((unsigned char *)CTX + addr));
+	T0_PUSH(*(uint16_t *)(void *)((unsigned char *)CTX + addr));
 }
 
 cc: get32 ( addr -- val ) {
 	uint32_t addr = T0_POP();
-	T0_PUSH(*(uint32_t *)((unsigned char *)CTX + addr));
+	T0_PUSH(*(uint32_t *)(void *)((unsigned char *)CTX + addr));
 }
 
 \ Read an ASN.1 tag. This function returns the "constructed" status

@@ -72,9 +72,11 @@ host_connect(const char *host, const char *port, int verbose)
 
 			sa = (struct sockaddr *)p->ai_addr;
 			if (sa->sa_family == AF_INET) {
-				addr = &((struct sockaddr_in *)sa)->sin_addr;
+				addr = &((struct sockaddr_in *)
+					(void *)sa)->sin_addr;
 			} else if (sa->sa_family == AF_INET6) {
-				addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+				addr = &((struct sockaddr_in6 *)
+					(void *)sa)->sin6_addr;
 			} else {
 				addr = NULL;
 			}

@@ -356,7 +356,7 @@ const br_x509_class br_x509_minimal_vtable = {
 	xm_get_pkey
 };
 
-#define CTX   ((br_x509_minimal_context *)((unsigned char *)t0ctx - offsetof(br_x509_minimal_context, cpu)))
+#define CTX   ((br_x509_minimal_context *)(void *)((unsigned char *)t0ctx - offsetof(br_x509_minimal_context, cpu)))
 #define CONTEXT_NAME   br_x509_minimal_context
 
 #define DNHASH_LEN   ((CTX->dn_hash_impl->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK)
@@ -1444,7 +1444,7 @@ br_x509_minimal_run(void *t0ctx)
 				/* get16 */
 
 	uint32_t addr = T0_POP();
-	T0_PUSH(*(uint16_t *)((unsigned char *)CTX + addr));
+	T0_PUSH(*(uint16_t *)(void *)((unsigned char *)CTX + addr));
 
 				}
 				break;
@@ -1452,7 +1452,7 @@ br_x509_minimal_run(void *t0ctx)
 				/* get32 */
 
 	uint32_t addr = T0_POP();
-	T0_PUSH(*(uint32_t *)((unsigned char *)CTX + addr));
+	T0_PUSH(*(uint32_t *)(void *)((unsigned char *)CTX + addr));
 
 				}
 				break;
@@ -1606,7 +1606,7 @@ br_x509_minimal_run(void *t0ctx)
 				/* set16 */
 
 	uint32_t addr = T0_POP();
-	*(uint16_t *)((unsigned char *)CTX + addr) = T0_POP();
+	*(uint16_t *)(void *)((unsigned char *)CTX + addr) = T0_POP();
 
 				}
 				break;
@@ -1614,7 +1614,7 @@ br_x509_minimal_run(void *t0ctx)
 				/* set32 */
 
 	uint32_t addr = T0_POP();
-	*(uint32_t *)((unsigned char *)CTX + addr) = T0_POP();
+	*(uint32_t *)(void *)((unsigned char *)CTX + addr) = T0_POP();
 
 				}
 				break;
