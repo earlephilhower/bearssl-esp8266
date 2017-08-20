@@ -249,7 +249,7 @@ xm_start_chain(const br_x509_class **ctx, const char *server_name)
 	br_x509_minimal_context *cc;
 	size_t u;
 
-	cc = (br_x509_minimal_context *)ctx;
+	cc = (br_x509_minimal_context *)(void *)ctx;
 	for (u = 0; u < cc->num_name_elts; u ++) {
 		cc->name_elts[u].status = 0;
 		cc->name_elts[u].buf[0] = 0;
@@ -272,7 +272,7 @@ xm_start_cert(const br_x509_class **ctx, uint32_t length)
 {
 	br_x509_minimal_context *cc;
 
-	cc = (br_x509_minimal_context *)ctx;
+	cc = (br_x509_minimal_context *)(void *)ctx;
 	if (cc->err != 0) {
 		return;
 	}
@@ -288,7 +288,7 @@ xm_append(const br_x509_class **ctx, const unsigned char *buf, size_t len)
 {
 	br_x509_minimal_context *cc;
 
-	cc = (br_x509_minimal_context *)ctx;
+	cc = (br_x509_minimal_context *)(void *)ctx;
 	if (cc->err != 0) {
 		return;
 	}
@@ -302,7 +302,7 @@ xm_end_cert(const br_x509_class **ctx)
 {
 	br_x509_minimal_context *cc;
 
-	cc = (br_x509_minimal_context *)ctx;
+	cc = (br_x509_minimal_context *)(void *)ctx;
 	if (cc->err == 0 && cc->cert_length != 0) {
 		cc->err = BR_ERR_X509_TRUNCATED;
 	}
@@ -314,7 +314,7 @@ xm_end_chain(const br_x509_class **ctx)
 {
 	br_x509_minimal_context *cc;
 
-	cc = (br_x509_minimal_context *)ctx;
+	cc = (br_x509_minimal_context *)(void *)ctx;
 	if (cc->err == 0) {
 		if (cc->num_certs == 0) {
 			cc->err = BR_ERR_X509_EMPTY_CHAIN;
@@ -332,14 +332,14 @@ xm_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
 {
 	br_x509_minimal_context *cc;
 
-	cc = (br_x509_minimal_context *)ctx;
+	cc = (br_x509_minimal_context *)(void *)ctx;
 	if (cc->err == BR_ERR_X509_OK
 		|| cc->err == BR_ERR_X509_NOT_TRUSTED)
 	{
 		if (usages != NULL) {
 			*usages = cc->key_usages;
 		}
-		return &((br_x509_minimal_context *)ctx)->pkey;
+		return &((br_x509_minimal_context *)(void *)ctx)->pkey;
 	} else {
 		return NULL;
 	}
