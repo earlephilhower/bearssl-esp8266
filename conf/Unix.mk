@@ -37,7 +37,7 @@ RM = rm -f
 MKDIR = mkdir -p
 
 # C compiler and flags.
-CC = gcc
+CC = cc
 CFLAGS = -W -Wall -Os -fPIC
 CCOUT = -c -o 
 
@@ -47,12 +47,12 @@ ARFLAGS = -rcs
 AROUT =
 
 # DLL building tool.
-LDDLL = gcc
+LDDLL = cc
 LDDLLFLAGS = -shared
 LDDLLOUT = -o 
 
 # Static linker.
-LD = gcc
+LD = cc
 LDFLAGS = 
 LDOUT = -o 
 
