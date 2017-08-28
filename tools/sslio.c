@@ -266,7 +266,11 @@ run_ssl_engine(br_ssl_engine_context *cc, unsigned long fd, unsigned flags)
 	 * Print algorithm details.
 	 */
 	if (verbose) {
+		const char *rngname;
+
 		fprintf(stderr, "Algorithms:\n");
+		br_prng_seeder_system(&rngname);
+		fprintf(stderr, "   RNG:           %s\n", rngname);
 		if (cc->iaes_cbcenc != 0) {
 			fprintf(stderr, "   AES/CBC (enc): %s\n",
 				get_algo_name(cc->iaes_cbcenc, 0));

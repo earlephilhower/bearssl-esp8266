@@ -51,6 +51,7 @@ usage(void)
 	fprintf(stderr, "   ta           decode trust anchors\n");
 	fprintf(stderr, "   chain        make C code for certificate chains\n");
 	fprintf(stderr, "   twrch        run the Twrch protocol\n");
+	fprintf(stderr, "   impl         report on implementations\n");
 }
 
 int
@@ -107,6 +108,10 @@ main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		} else {
 			return ret;
+		}
+	} else if (eqstr(cmd, "impl")) {
+		if (do_impl(argc - 2, argv + 2) < 0) {
+			return EXIT_FAILURE;
 		}
 	} else {
 		fprintf(stderr, "unknown command: '%s'\n", cmd);

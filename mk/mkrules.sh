@@ -49,6 +49,7 @@ set -e
 
 # Source files. Please keep in alphabetical order.
 coresrc=" \
+	src/settings.c \
 	src/aead/gcm.c \
 	src/codec/ccopy.c \
 	src/codec/dec16be.c \
@@ -165,6 +166,7 @@ coresrc=" \
 	src/mac/hmac.c \
 	src/mac/hmac_ct.c \
 	src/rand/hmac_drbg.c \
+	src/rand/sysrng.c \
 	src/rsa/rsa_default_pkcs1_sign.c \
 	src/rsa/rsa_default_pkcs1_vrfy.c \
 	src/rsa/rsa_default_priv.c \
@@ -284,6 +286,7 @@ toolssrc=" \
 	tools/client.c \
 	tools/errors.c \
 	tools/files.c \
+	tools/impl.c \
 	tools/keys.c \
 	tools/names.c \
 	tools/server.c \

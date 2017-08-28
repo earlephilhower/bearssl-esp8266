@@ -200,20 +200,6 @@ void br_x509_minimal_run(void *t0ctx);
  *  then validation is reported as failed.
  */
 
-#ifndef BR_USE_UNIX_TIME
-#if defined __unix__ || defined __linux__ \
-	|| defined _POSIX_SOURCE || defined _POSIX_C_SOURCE \
-	|| (defined __APPLE__ && defined __MACH__)
-#define BR_USE_UNIX_TIME   1
-#endif
-#endif
-
-#ifndef BR_USE_WIN32_TIME
-#if defined _WIN32 || defined _WIN64
-#define BR_USE_WIN32_TIME   1
-#endif
-#endif
-
 #if BR_USE_UNIX_TIME
 #include <time.h>
 #endif

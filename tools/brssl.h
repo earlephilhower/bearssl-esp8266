@@ -546,4 +546,10 @@ int do_chain(int argc, char *argv[]);
  */
 int do_twrch(int argc, char *argv[]);
 
+/*
+ * Do the "impl" command. Returned value is 0 on success, -1 on failure.
+ * Command-line arguments start _after_ the command name.
+ */
+int do_impl(int argc, char *argv[]);
+
 #endif
