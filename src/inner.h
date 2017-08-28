@@ -2243,18 +2243,25 @@ int br_ssl_choose_hash(unsigned bf);
  */
 #if BR_i386 || BR_amd64
 
+/*
+ * On GCC before version 5.0, we need to use the pragma to enable the
+ * target options globally, because the 'target' function attribute
+ * appears to be unreliable. Before 4.6 we must also avoid the
+ * push_options / pop_options mechanism, because it tends to trigger
+ * some internal compiler errors.
+ */
 #if BR_GCC && !BR_GCC_5_0
 #if BR_GCC_4_6
 #define BR_TARGETS_X86_UP \
 	_Pragma("GCC push_options") \
 	_Pragma("GCC target(\"sse2,ssse3,sse4.1,aes,pclmul,rdrnd\")")
-#else
-#define BR_TARGETS_X86_UP \
-	_Pragma("GCC push_options") \
-	_Pragma("GCC target(\"sse2,ssse3,sse4.1,aes,pclmul\")")
-#endif
 #define BR_TARGETS_X86_DOWN \
 	_Pragma("GCC pop_options")
+#else
+#define BR_TARGETS_X86_UP \
+	_Pragma("GCC target(\"sse2,ssse3,sse4.1,aes,pclmul\")")
+#endif
+#define BR_TARGETS_X86_DOWN
 #pragma GCC diagnostic ignored "-Wpsabi"
 #endif
 
@@ -2286,7 +2293,7 @@ int br_ssl_choose_hash(unsigned bf);
 BR_TARGETS_X86_UP
 #include <x86intrin.h>
 #include <cpuid.h>
-#define bswap32   __builtin_bswap32
+#define br_bswap32   __builtin_bswap32
 BR_TARGETS_X86_DOWN
 #endif
 
@@ -2294,7 +2301,7 @@ BR_TARGETS_X86_DOWN
 #include <stdlib.h>
 #include <intrin.h>
 #include <immintrin.h>
-#define bswap32   _byteswap_ulong
+#define br_bswap32   _byteswap_ulong
 #endif
 
 static inline int

@@ -68,10 +68,10 @@ br_aes_x86ni_ctr_run(const br_aes_x86ni_ctr_keys *ctx,
 	while (len > 0) {
 		__m128i x0, x1, x2, x3;
 
-		x0 = _mm_insert_epi32(ivx, bswap32(cc + 0), 3);
-		x1 = _mm_insert_epi32(ivx, bswap32(cc + 1), 3);
-		x2 = _mm_insert_epi32(ivx, bswap32(cc + 2), 3);
-		x3 = _mm_insert_epi32(ivx, bswap32(cc + 3), 3);
+		x0 = _mm_insert_epi32(ivx, br_bswap32(cc + 0), 3);
+		x1 = _mm_insert_epi32(ivx, br_bswap32(cc + 1), 3);
+		x2 = _mm_insert_epi32(ivx, br_bswap32(cc + 2), 3);
+		x3 = _mm_insert_epi32(ivx, br_bswap32(cc + 3), 3);
 		x0 = _mm_xor_si128(x0, sk[0]);
 		x1 = _mm_xor_si128(x1, sk[0]);
 		x2 = _mm_xor_si128(x2, sk[0]);
