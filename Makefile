@@ -37,5 +37,9 @@
 !else
 .POSIX:
 include mk/SingleUnix.mk
+# Extra hack for OpenBSD make.
+ifndef: all
+0: all
+endif: all
 # \
 !endif
