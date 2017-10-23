@@ -3412,6 +3412,224 @@ test_AES_pwr8(void)
 }
 
 /*
+ * Custom CTR + CBC-MAC AES implementation. Can also do CTR-only, and
+ * CBC-MAC-only. The 'aes_big' implementation (CTR) is used. This is
+ * meant for comparisons.
+ *
+ * If 'ctr' is NULL then no encryption/decryption is done; otherwise,
+ * CTR encryption/decryption is performed (full-block counter) and the
+ * 'ctr' array is updated with the new counter value.
+ *
+ * If 'cbcmac' is NULL then no CBC-MAC is done; otherwise, CBC-MAC is
+ * applied on the encrypted data, with 'cbcmac' as IV and destination
+ * buffer for the output. If 'ctr' is not NULL and 'encrypt' is non-zero,
+ * then CBC-MAC is computed over the result of CTR processing; otherwise,
+ * CBC-MAC is computed over the input data itself.
+ */
+static void
+do_aes_ctrcbc(const void *key, size_t key_len, int encrypt,
+	void *ctr, void *cbcmac, unsigned char *data, size_t len)
+{
+	br_aes_big_ctr_keys bc;
+	int i;
+
+	br_aes_big_ctr_init(&bc, key, key_len);
+	for (i = 0; i < 2; i ++) {
+		/*
+		 * CBC-MAC is computed on the encrypted data, so in
+		 * first pass if decrypting, second pass if encrypting.
+		 */
+		if (cbcmac != NULL
+			&& ((encrypt && i == 1) || (!encrypt && i == 0)))
+		{
+			unsigned char zz[16];
+			size_t u;
+
+			memcpy(zz, cbcmac, sizeof zz);
+			for (u = 0; u < len; u += 16) {
+				unsigned char tmp[16];
+				size_t v;
+
+				for (v = 0; v < 16; v ++) {
+					tmp[v] = zz[v] ^ data[u + v];
+				}
+				memset(zz, 0, sizeof zz);
+				br_aes_big_ctr_run(&bc,
+					tmp, br_dec32be(tmp + 12), zz, 16);
+			}
+			memcpy(cbcmac, zz, sizeof zz);
+		}
+
+		/*
+		 * CTR encryption/decryption is done only in the first pass.
+		 * We process data block per block, because the CTR-only
+		 * class uses a 32-bit counter, while the CTR+CBC-MAC
+		 * class uses a 128-bit counter.
+		 */
+		if (ctr != NULL && i == 0) {
+			unsigned char zz[16];
+			size_t u;
+
+			memcpy(zz, ctr, sizeof zz);
+			for (u = 0; u < len; u += 16) {
+				int i;
+
+				br_aes_big_ctr_run(&bc,
+					zz, br_dec32be(zz + 12), data + u, 16);
+				for (i = 15; i >= 0; i --) {
+					zz[i] = (zz[i] + 1) & 0xFF;
+					if (zz[i] != 0) {
+						break;
+					}
+				}
+			}
+			memcpy(ctr, zz, sizeof zz);
+		}
+	}
+}
+
+static void
+test_AES_CTRCBC_inner(const char *name, const br_block_ctrcbc_class *vt)
+{
+	br_hmac_drbg_context rng;
+	size_t key_len;
+
+	printf("Test AES CTR/CBC-MAC %s: ", name);
+	fflush(stdout);
+
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, name, strlen(name));
+	for (key_len = 16; key_len <= 32; key_len += 8) {
+		br_aes_gen_ctrcbc_keys bc;
+		unsigned char key[32];
+		size_t data_len;
+
+		br_hmac_drbg_generate(&rng, key, key_len);
+		vt->init(&bc.vtable, key, key_len);
+		for (data_len = 0; data_len <= 512; data_len += 16) {
+			unsigned char plain[512];
+			unsigned char data1[sizeof plain];
+			unsigned char data2[sizeof plain];
+			unsigned char ctr[16], cbcmac[16];
+			unsigned char ctr1[16], cbcmac1[16];
+			unsigned char ctr2[16], cbcmac2[16];
+			int i;
+
+			br_hmac_drbg_generate(&rng, plain, data_len);
+
+			for (i = 0; i <= 16; i ++) {
+				if (i == 0) {
+					br_hmac_drbg_generate(&rng, ctr, 16);
+				} else {
+					memset(ctr, 0, i - 1);
+					memset(ctr + i - 1, 0xFF, 17 - i);
+				}
+				br_hmac_drbg_generate(&rng, cbcmac, 16);
+
+				memcpy(data1, plain, data_len);
+				memcpy(ctr1, ctr, 16);
+				vt->ctr(&bc.vtable, ctr1, data1, data_len);
+				memcpy(data2, plain, data_len);
+				memcpy(ctr2, ctr, 16);
+				do_aes_ctrcbc(key, key_len, 1,
+					ctr2, NULL, data2, data_len);
+				check_equals("CTR-only data",
+					data1, data2, data_len);
+				check_equals("CTR-only counter",
+					ctr1, ctr2, 16);
+
+				memcpy(data1, plain, data_len);
+				memcpy(cbcmac1, cbcmac, 16);
+				vt->mac(&bc.vtable, cbcmac1, data1, data_len);
+				memcpy(data2, plain, data_len);
+				memcpy(cbcmac2, cbcmac, 16);
+				do_aes_ctrcbc(key, key_len, 1,
+					NULL, cbcmac2, data2, data_len);
+				check_equals("CBC-MAC-only",
+					cbcmac1, cbcmac2, 16);
+
+				memcpy(data1, plain, data_len);
+				memcpy(ctr1, ctr, 16);
+				memcpy(cbcmac1, cbcmac, 16);
+				vt->encrypt(&bc.vtable,
+					ctr1, cbcmac1, data1, data_len);
+				memcpy(data2, plain, data_len);
+				memcpy(ctr2, ctr, 16);
+				memcpy(cbcmac2, cbcmac, 16);
+				do_aes_ctrcbc(key, key_len, 1,
+					ctr2, cbcmac2, data2, data_len);
+				check_equals("encrypt: combined data",
+					data1, data2, data_len);
+				check_equals("encrypt: combined counter",
+					ctr1, ctr2, 16);
+				check_equals("encrypt: combined CBC-MAC",
+					cbcmac1, cbcmac2, 16);
+
+				memcpy(ctr1, ctr, 16);
+				memcpy(cbcmac1, cbcmac, 16);
+				vt->decrypt(&bc.vtable,
+					ctr1, cbcmac1, data1, data_len);
+				memcpy(ctr2, ctr, 16);
+				memcpy(cbcmac2, cbcmac, 16);
+				do_aes_ctrcbc(key, key_len, 0,
+					ctr2, cbcmac2, data2, data_len);
+				check_equals("decrypt: combined data",
+					data1, data2, data_len);
+				check_equals("decrypt: combined counter",
+					ctr1, ctr2, 16);
+				check_equals("decrypt: combined CBC-MAC",
+					cbcmac1, cbcmac2, 16);
+			}
+
+			printf(".");
+			fflush(stdout);
+		}
+
+		printf(" ");
+		fflush(stdout);
+	}
+
+	printf("done.\n");
+	fflush(stdout);
+}
+
+static void
+test_AES_CTRCBC_big(void)
+{
+	test_AES_CTRCBC_inner("big", &br_aes_big_ctrcbc_vtable);
+}
+
+static void
+test_AES_CTRCBC_small(void)
+{
+	test_AES_CTRCBC_inner("small", &br_aes_small_ctrcbc_vtable);
+}
+
+static void
+test_AES_CTRCBC_ct(void)
+{
+	test_AES_CTRCBC_inner("ct", &br_aes_ct_ctrcbc_vtable);
+}
+
+static void
+test_AES_CTRCBC_ct64(void)
+{
+	test_AES_CTRCBC_inner("ct64", &br_aes_ct64_ctrcbc_vtable);
+}
+
+static void
+test_AES_CTRCBC_x86ni(void)
+{
+	const br_block_ctrcbc_class *vt;
+
+	vt = br_aes_x86ni_ctrcbc_get_vtable();
+	if (vt != NULL) {
+		test_AES_CTRCBC_inner("x86ni", vt);
+	} else {
+		printf("Test AES CTR/CBC-MAC x86ni: UNAVAILABLE\n");
+	}
+}
+
+/*
  * DES known-answer tests. Order: plaintext, key, ciphertext.
  * (mostly from NIST SP 800-20).
  */
@@ -5077,7 +5295,7 @@ test_GCM(void)
 		br_aes_ct_ctr_keys bc;
 		br_gcm_context gc;
 		unsigned char tmp[100], out[16];
-		size_t v;
+		size_t v, tag_len;
 
 		key_len = hextobin(key, KAT_GCM[u]);
 		plain_len = hextobin(plain, KAT_GCM[u + 1]);
@@ -5167,12 +5385,504 @@ test_GCM(void)
 			}
 		}
 
+		/*
+		 * Tag truncation.
+		 */
+		for (tag_len = 1; tag_len <= 16; tag_len ++) {
+			memset(out, 0x54, sizeof out);
+			memcpy(tmp, plain, plain_len);
+			br_gcm_reset(&gc, iv, iv_len);
+			br_gcm_aad_inject(&gc, aad, aad_len);
+			br_gcm_flip(&gc);
+			br_gcm_run(&gc, 1, tmp, plain_len);
+			br_gcm_get_tag_trunc(&gc, out, tag_len);
+			check_equals("KAT GCM 8", out, tag, tag_len);
+			for (v = tag_len; v < sizeof out; v ++) {
+				if (out[v] != 0x54) {
+					fprintf(stderr, "overflow on tag\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+
+			memcpy(tmp, plain, plain_len);
+			br_gcm_reset(&gc, iv, iv_len);
+			br_gcm_aad_inject(&gc, aad, aad_len);
+			br_gcm_flip(&gc);
+			br_gcm_run(&gc, 1, tmp, plain_len);
+			if (!br_gcm_check_tag_trunc(&gc, out, tag_len)) {
+				fprintf(stderr, "Tag not verified (3)\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+
 		printf(".");
 		fflush(stdout);
 	}
 
 	printf(" done.\n");
 	fflush(stdout);
+}
+
+/*
+ * From "The EAX Mode of Operation (A Two-Pass Authenticated Encryption
+ * Scheme Optimized for Simplicity and Efficiency)" (Bellare, Rogaway,
+ * Wagner), presented at FSE 2004. Full article is available at:
+ *   http://web.cs.ucdavis.edu/~rogaway/papers/eax.html
+ *
+ * EAX specification concatenates the authentication tag at the end of
+ * the ciphertext; in our API and the vectors below, the tag is separate.
+ *
+ * Order is: plaintext, key, nonce, header, ciphertext, tag.
+ */
+static const char *const KAT_EAX[] = {
+	"",
+	"233952dee4d5ed5f9b9c6d6ff80ff478",
+	"62ec67f9c3a4a407fcb2a8c49031a8b3",
+	"6bfb914fd07eae6b",
+	"",
+	"e037830e8389f27b025a2d6527e79d01",
+
+	"f7fb",
+	"91945d3f4dcbee0bf45ef52255f095a4",
+	"becaf043b0a23d843194ba972c66debd",
+	"fa3bfd4806eb53fa",
+	"19dd",
+	"5c4c9331049d0bdab0277408f67967e5",
+
+	"1a47cb4933",
+	"01f74ad64077f2e704c0f60ada3dd523",
+	"70c3db4f0d26368400a10ed05d2bff5e",
+	"234a3463c1264ac6",
+	"d851d5bae0",
+	"3a59f238a23e39199dc9266626c40f80",
+
+	"481c9e39b1",
+	"d07cf6cbb7f313bdde66b727afd3c5e8",
+	"8408dfff3c1a2b1292dc199e46b7d617",
+	"33cce2eabff5a79d",
+	"632a9d131a",
+	"d4c168a4225d8e1ff755939974a7bede",
+
+	"40d0c07da5e4",
+	"35b6d0580005bbc12b0587124557d2c2",
+	"fdb6b06676eedc5c61d74276e1f8e816",
+	"aeb96eaebe2970e9",
+	"071dfe16c675",
+	"cb0677e536f73afe6a14b74ee49844dd",
+
+	"4de3b35c3fc039245bd1fb7d",
+	"bd8e6e11475e60b268784c38c62feb22",
+	"6eac5c93072d8e8513f750935e46da1b",
+	"d4482d1ca78dce0f",
+	"835bb4f15d743e350e728414",
+	"abb8644fd6ccb86947c5e10590210a4f",
+
+	"8b0a79306c9ce7ed99dae4f87f8dd61636",
+	"7c77d6e813bed5ac98baa417477a2e7d",
+	"1a8c98dcd73d38393b2bf1569deefc19",
+	"65d2017990d62528",
+	"02083e3979da014812f59f11d52630da30",
+	"137327d10649b0aa6e1c181db617d7f2",
+
+	"1bda122bce8a8dbaf1877d962b8592dd2d56",
+	"5fff20cafab119ca2fc73549e20f5b0d",
+	"dde59b97d722156d4d9aff2bc7559826",
+	"54b9f04e6a09189a",
+	"2ec47b2c4954a489afc7ba4897edcdae8cc3",
+	"3b60450599bd02c96382902aef7f832a",
+
+	"6cf36720872b8513f6eab1a8a44438d5ef11",
+	"a4a4782bcffd3ec5e7ef6d8c34a56123",
+	"b781fcf2f75fa5a8de97a9ca48e522ec",
+	"899a175897561d7e",
+	"0de18fd0fdd91e7af19f1d8ee8733938b1e8",
+	"e7f6d2231618102fdb7fe55ff1991700",
+
+	"ca40d7446e545ffaed3bd12a740a659ffbbb3ceab7",
+	"8395fcf1e95bebd697bd010bc766aac3",
+	"22e7add93cfc6393c57ec0b3c17d6b44",
+	"126735fcc320d25a",
+	"cb8920f87a6c75cff39627b56e3ed197c552d295a7",
+	"cfc46afc253b4652b1af3795b124ab6e",
+
+	NULL
+};
+
+static void
+test_EAX_inner(const char *name, const br_block_ctrcbc_class *vt)
+{
+	size_t u;
+
+	printf("Test EAX %s: ", name);
+	fflush(stdout);
+
+	for (u = 0; KAT_EAX[u]; u += 6) {
+		unsigned char plain[100];
+		unsigned char key[32];
+		unsigned char nonce[100];
+		unsigned char aad[100];
+		unsigned char cipher[100];
+		unsigned char tag[100];
+		size_t plain_len, key_len, nonce_len, aad_len;
+		br_aes_gen_ctrcbc_keys bc;
+		br_eax_context ec;
+		unsigned char tmp[100], out[16];
+		size_t v, tag_len;
+
+		plain_len = hextobin(plain, KAT_EAX[u]);
+		key_len = hextobin(key, KAT_EAX[u + 1]);
+		nonce_len = hextobin(nonce, KAT_EAX[u + 2]);
+		aad_len = hextobin(aad, KAT_EAX[u + 3]);
+		hextobin(cipher, KAT_EAX[u + 4]);
+		hextobin(tag, KAT_EAX[u + 5]);
+
+		vt->init(&bc.vtable, key, key_len);
+		br_eax_init(&ec, &bc.vtable);
+
+		memset(tmp, 0x54, sizeof tmp);
+
+		/*
+		 * Basic operation.
+		 */
+		memcpy(tmp, plain, plain_len);
+		br_eax_reset(&ec, nonce, nonce_len);
+		br_eax_aad_inject(&ec, aad, aad_len);
+		br_eax_flip(&ec);
+		br_eax_run(&ec, 1, tmp, plain_len);
+		br_eax_get_tag(&ec, out);
+		check_equals("KAT EAX 1", tmp, cipher, plain_len);
+		check_equals("KAT EAX 2", out, tag, 16);
+
+		br_eax_reset(&ec, nonce, nonce_len);
+		br_eax_aad_inject(&ec, aad, aad_len);
+		br_eax_flip(&ec);
+		br_eax_run(&ec, 0, tmp, plain_len);
+		check_equals("KAT EAX 3", tmp, plain, plain_len);
+		if (!br_eax_check_tag(&ec, tag)) {
+			fprintf(stderr, "Tag not verified (1)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		for (v = plain_len; v < sizeof tmp; v ++) {
+			if (tmp[v] != 0x54) {
+				fprintf(stderr, "overflow on data\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		/*
+		 * Byte-by-byte injection.
+		 */
+		br_eax_reset(&ec, nonce, nonce_len);
+		for (v = 0; v < aad_len; v ++) {
+			br_eax_aad_inject(&ec, aad + v, 1);
+		}
+		br_eax_flip(&ec);
+		for (v = 0; v < plain_len; v ++) {
+			br_eax_run(&ec, 1, tmp + v, 1);
+		}
+		check_equals("KAT EAX 4", tmp, cipher, plain_len);
+		if (!br_eax_check_tag(&ec, tag)) {
+			fprintf(stderr, "Tag not verified (2)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		br_eax_reset(&ec, nonce, nonce_len);
+		for (v = 0; v < aad_len; v ++) {
+			br_eax_aad_inject(&ec, aad + v, 1);
+		}
+		br_eax_flip(&ec);
+		for (v = 0; v < plain_len; v ++) {
+			br_eax_run(&ec, 0, tmp + v, 1);
+		}
+		br_eax_get_tag(&ec, out);
+		check_equals("KAT EAX 5", tmp, plain, plain_len);
+		check_equals("KAT EAX 6", out, tag, 16);
+
+		/*
+		 * Check that alterations are detected.
+		 */
+		for (v = 0; v < aad_len; v ++) {
+			memcpy(tmp, cipher, plain_len);
+			br_eax_reset(&ec, nonce, nonce_len);
+			aad[v] ^= 0x04;
+			br_eax_aad_inject(&ec, aad, aad_len);
+			aad[v] ^= 0x04;
+			br_eax_flip(&ec);
+			br_eax_run(&ec, 0, tmp, plain_len);
+			check_equals("KAT EAX 7", tmp, plain, plain_len);
+			if (br_eax_check_tag(&ec, tag)) {
+				fprintf(stderr, "Tag should have changed\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		/*
+		 * Tag truncation.
+		 */
+		for (tag_len = 1; tag_len <= 16; tag_len ++) {
+			memset(out, 0x54, sizeof out);
+			memcpy(tmp, plain, plain_len);
+			br_eax_reset(&ec, nonce, nonce_len);
+			br_eax_aad_inject(&ec, aad, aad_len);
+			br_eax_flip(&ec);
+			br_eax_run(&ec, 1, tmp, plain_len);
+			br_eax_get_tag_trunc(&ec, out, tag_len);
+			check_equals("KAT EAX 8", out, tag, tag_len);
+			for (v = tag_len; v < sizeof out; v ++) {
+				if (out[v] != 0x54) {
+					fprintf(stderr, "overflow on tag\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+
+			memcpy(tmp, plain, plain_len);
+			br_eax_reset(&ec, nonce, nonce_len);
+			br_eax_aad_inject(&ec, aad, aad_len);
+			br_eax_flip(&ec);
+			br_eax_run(&ec, 1, tmp, plain_len);
+			if (!br_eax_check_tag_trunc(&ec, out, tag_len)) {
+				fprintf(stderr, "Tag not verified (3)\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
+static void
+test_EAX(void)
+{
+	const br_block_ctrcbc_class *x_ctrcbc;
+
+	test_EAX_inner("aes_big", &br_aes_big_ctrcbc_vtable);
+	test_EAX_inner("aes_small", &br_aes_small_ctrcbc_vtable);
+	test_EAX_inner("aes_ct", &br_aes_ct_ctrcbc_vtable);
+	test_EAX_inner("aes_ct64", &br_aes_ct64_ctrcbc_vtable);
+
+	x_ctrcbc = br_aes_x86ni_ctrcbc_get_vtable();
+	if (x_ctrcbc != NULL) {
+		test_EAX_inner("aes_x86ni", x_ctrcbc);
+	} else {
+		printf("Test EAX aes_x86ni: UNAVAILABLE\n");
+	}
+}
+
+/*
+ * From NIST SP 800-38C, appendix C.
+ *
+ * CCM specification concatenates the authentication tag at the end of
+ * the ciphertext; in our API and the vectors below, the tag is separate.
+ *
+ * Order is: key, nonce, aad, plaintext, ciphertext, tag.
+ */
+static const char *const KAT_CCM[] = {
+	"404142434445464748494a4b4c4d4e4f",
+	"10111213141516",
+	"0001020304050607",
+	"20212223",
+	"7162015b",
+	"4dac255d",
+
+	"404142434445464748494a4b4c4d4e4f",
+	"1011121314151617",
+	"000102030405060708090a0b0c0d0e0f",
+	"202122232425262728292a2b2c2d2e2f",
+	"d2a1f0e051ea5f62081a7792073d593d",
+	"1fc64fbfaccd",
+
+	"404142434445464748494a4b4c4d4e4f",
+	"101112131415161718191a1b",
+	"000102030405060708090a0b0c0d0e0f10111213",
+	"202122232425262728292a2b2c2d2e2f3031323334353637",
+	"e3b201a9f5b71a7a9b1ceaeccd97e70b6176aad9a4428aa5",
+	"484392fbc1b09951",
+
+	"404142434445464748494a4b4c4d4e4f",
+	"101112131415161718191a1b1c",
+	NULL,
+	"202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+	"69915dad1e84c6376a68c2967e4dab615ae0fd1faec44cc484828529463ccf72",
+	"b4ac6bec93e8598e7f0dadbcea5b",
+
+	NULL
+};
+
+static void
+test_CCM_inner(const char *name, const br_block_ctrcbc_class *vt)
+{
+	size_t u;
+
+	printf("Test CCM %s: ", name);
+	fflush(stdout);
+
+	for (u = 0; KAT_CCM[u]; u += 6) {
+		unsigned char plain[100];
+		unsigned char key[32];
+		unsigned char nonce[100];
+		unsigned char aad_buf[100], *aad;
+		unsigned char cipher[100];
+		unsigned char tag[100];
+		size_t plain_len, key_len, nonce_len, aad_len, tag_len;
+		br_aes_gen_ctrcbc_keys bc;
+		br_ccm_context ec;
+		unsigned char tmp[100], out[16];
+		size_t v;
+
+		key_len = hextobin(key, KAT_CCM[u]);
+		nonce_len = hextobin(nonce, KAT_CCM[u + 1]);
+		if (KAT_CCM[u + 2] == NULL) {
+			aad_len = 65536;
+			aad = malloc(aad_len);
+			if (aad == NULL) {
+				fprintf(stderr, "OOM error\n");
+				exit(EXIT_FAILURE);
+			}
+			for (v = 0; v < 65536; v ++) {
+				aad[v] = (unsigned char)v;
+			}
+		} else {
+			aad = aad_buf;
+			aad_len = hextobin(aad, KAT_CCM[u + 2]);
+		}
+		plain_len = hextobin(plain, KAT_CCM[u + 3]);
+		hextobin(cipher, KAT_CCM[u + 4]);
+		tag_len = hextobin(tag, KAT_CCM[u + 5]);
+
+		vt->init(&bc.vtable, key, key_len);
+		br_ccm_init(&ec, &bc.vtable);
+
+		memset(tmp, 0x54, sizeof tmp);
+
+		/*
+		 * Basic operation.
+		 */
+		memcpy(tmp, plain, plain_len);
+		if (!br_ccm_reset(&ec, nonce, nonce_len,
+			aad_len, plain_len, tag_len))
+		{
+			fprintf(stderr, "CCM reset failed\n");
+			exit(EXIT_FAILURE);
+		}
+		br_ccm_aad_inject(&ec, aad, aad_len);
+		br_ccm_flip(&ec);
+		br_ccm_run(&ec, 1, tmp, plain_len);
+		if (br_ccm_get_tag(&ec, out) != tag_len) {
+			fprintf(stderr, "CCM returned wrong tag length\n");
+			exit(EXIT_FAILURE);
+		}
+		check_equals("KAT CCM 1", tmp, cipher, plain_len);
+		check_equals("KAT CCM 2", out, tag, tag_len);
+
+		br_ccm_reset(&ec, nonce, nonce_len,
+			aad_len, plain_len, tag_len);
+		br_ccm_aad_inject(&ec, aad, aad_len);
+		br_ccm_flip(&ec);
+		br_ccm_run(&ec, 0, tmp, plain_len);
+		check_equals("KAT CCM 3", tmp, plain, plain_len);
+		if (!br_ccm_check_tag(&ec, tag)) {
+			fprintf(stderr, "Tag not verified (1)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		for (v = plain_len; v < sizeof tmp; v ++) {
+			if (tmp[v] != 0x54) {
+				fprintf(stderr, "overflow on data\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		/*
+		 * Byte-by-byte injection.
+		 */
+		br_ccm_reset(&ec, nonce, nonce_len,
+			aad_len, plain_len, tag_len);
+		for (v = 0; v < aad_len; v ++) {
+			br_ccm_aad_inject(&ec, aad + v, 1);
+		}
+		br_ccm_flip(&ec);
+		for (v = 0; v < plain_len; v ++) {
+			br_ccm_run(&ec, 1, tmp + v, 1);
+		}
+		check_equals("KAT CCM 4", tmp, cipher, plain_len);
+		if (!br_ccm_check_tag(&ec, tag)) {
+			fprintf(stderr, "Tag not verified (2)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		br_ccm_reset(&ec, nonce, nonce_len,
+			aad_len, plain_len, tag_len);
+		for (v = 0; v < aad_len; v ++) {
+			br_ccm_aad_inject(&ec, aad + v, 1);
+		}
+		br_ccm_flip(&ec);
+		for (v = 0; v < plain_len; v ++) {
+			br_ccm_run(&ec, 0, tmp + v, 1);
+		}
+		br_ccm_get_tag(&ec, out);
+		check_equals("KAT CCM 5", tmp, plain, plain_len);
+		check_equals("KAT CCM 6", out, tag, tag_len);
+
+		/*
+		 * Check that alterations are detected.
+		 */
+		for (v = 0; v < aad_len; v ++) {
+			memcpy(tmp, cipher, plain_len);
+			br_ccm_reset(&ec, nonce, nonce_len,
+				aad_len, plain_len, tag_len);
+			aad[v] ^= 0x04;
+			br_ccm_aad_inject(&ec, aad, aad_len);
+			aad[v] ^= 0x04;
+			br_ccm_flip(&ec);
+			br_ccm_run(&ec, 0, tmp, plain_len);
+			check_equals("KAT CCM 7", tmp, plain, plain_len);
+			if (br_ccm_check_tag(&ec, tag)) {
+				fprintf(stderr, "Tag should have changed\n");
+				exit(EXIT_FAILURE);
+			}
+
+			/*
+			 * When the AAD is really big, we don't want to do
+			 * the complete quadratic operation.
+			 */
+			if (v >= 32) {
+				break;
+			}
+		}
+
+		if (aad != aad_buf) {
+			free(aad);
+		}
+
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
+static void
+test_CCM(void)
+{
+	const br_block_ctrcbc_class *x_ctrcbc;
+
+	test_CCM_inner("aes_big", &br_aes_big_ctrcbc_vtable);
+	test_CCM_inner("aes_small", &br_aes_small_ctrcbc_vtable);
+	test_CCM_inner("aes_ct", &br_aes_ct_ctrcbc_vtable);
+	test_CCM_inner("aes_ct64", &br_aes_ct64_ctrcbc_vtable);
+
+	x_ctrcbc = br_aes_x86ni_ctrcbc_get_vtable();
+	if (x_ctrcbc != NULL) {
+		test_CCM_inner("aes_x86ni", x_ctrcbc);
+	} else {
+		printf("Test CCM aes_x86ni: UNAVAILABLE\n");
+	}
 }
 
 static void
@@ -6201,6 +6911,11 @@ static const struct {
 	STU(AES_ct64),
 	STU(AES_pwr8),
 	STU(AES_x86ni),
+	STU(AES_CTRCBC_big),
+	STU(AES_CTRCBC_small),
+	STU(AES_CTRCBC_ct),
+	STU(AES_CTRCBC_ct64),
+	STU(AES_CTRCBC_x86ni),
 	STU(DES_tab),
 	STU(DES_ct),
 	STU(ChaCha20_ct),
@@ -6218,6 +6933,8 @@ static const struct {
 	STU(GHASH_ctmul64),
 	STU(GHASH_pclmul),
 	STU(GHASH_pwr8),
+	STU(CCM),
+	STU(EAX),
 	STU(GCM),
 	STU(EC_prime_i15),
 	STU(EC_prime_i31),

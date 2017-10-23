@@ -50,6 +50,8 @@ set -e
 # Source files. Please keep in alphabetical order.
 coresrc=" \
 	src/settings.c \
+	src/aead/ccm.c \
+	src/aead/eax.c \
 	src/aead/gcm.c \
 	src/codec/ccopy.c \
 	src/codec/dec16be.c \
@@ -231,6 +233,7 @@ coresrc=" \
 	src/symcipher/aes_big_cbcdec.c \
 	src/symcipher/aes_big_cbcenc.c \
 	src/symcipher/aes_big_ctr.c \
+	src/symcipher/aes_big_ctrcbc.c \
 	src/symcipher/aes_big_dec.c \
 	src/symcipher/aes_big_enc.c \
 	src/symcipher/aes_common.c \
@@ -239,11 +242,13 @@ coresrc=" \
 	src/symcipher/aes_ct64_cbcdec.c \
 	src/symcipher/aes_ct64_cbcenc.c \
 	src/symcipher/aes_ct64_ctr.c \
+	src/symcipher/aes_ct64_ctrcbc.c \
 	src/symcipher/aes_ct64_dec.c \
 	src/symcipher/aes_ct64_enc.c \
 	src/symcipher/aes_ct_cbcdec.c \
 	src/symcipher/aes_ct_cbcenc.c \
 	src/symcipher/aes_ct_ctr.c \
+	src/symcipher/aes_ct_ctrcbc.c \
 	src/symcipher/aes_ct_dec.c \
 	src/symcipher/aes_ct_enc.c \
 	src/symcipher/aes_pwr8.c \
@@ -253,12 +258,14 @@ coresrc=" \
 	src/symcipher/aes_small_cbcdec.c \
 	src/symcipher/aes_small_cbcenc.c \
 	src/symcipher/aes_small_ctr.c \
+	src/symcipher/aes_small_ctrcbc.c \
 	src/symcipher/aes_small_dec.c \
 	src/symcipher/aes_small_enc.c \
 	src/symcipher/aes_x86ni.c \
 	src/symcipher/aes_x86ni_cbcdec.c \
 	src/symcipher/aes_x86ni_cbcenc.c \
 	src/symcipher/aes_x86ni_ctr.c \
+	src/symcipher/aes_x86ni_ctrcbc.c \
 	src/symcipher/chacha20_ct.c \
 	src/symcipher/chacha20_sse2.c \
 	src/symcipher/des_ct.c \

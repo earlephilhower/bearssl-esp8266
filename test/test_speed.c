@@ -443,6 +443,82 @@ test_speed_poly1305_i15(void)
 	test_speed_poly1305_inner("Poly1305 (i15)", &br_poly1305_i15_run);
 }
 
+static void
+test_speed_eax_inner(char *name,
+	const br_block_ctrcbc_class *vt, size_t key_len)
+{
+	unsigned char buf[8192], key[32], nonce[16], aad[16], tag[16];
+	int i;
+	long num;
+	br_aes_gen_ctrcbc_keys ac;
+	br_eax_context ec;
+
+	memset(key, 'K', key_len);
+	memset(nonce, 'N', sizeof nonce);
+	memset(aad, 'A', sizeof aad);
+	memset(buf, 'T', sizeof buf);
+	for (i = 0; i < 10; i ++) {
+		vt->init(&ac.vtable, key, key_len);
+		br_eax_init(&ec, &ac.vtable);
+		br_eax_reset(&ec, nonce, sizeof nonce);
+		br_eax_aad_inject(&ec, aad, sizeof aad);
+		br_eax_flip(&ec);
+		br_eax_run(&ec, 1, buf, sizeof buf);
+		br_eax_get_tag(&ec, tag);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			vt->init(&ac.vtable, key, key_len);
+			br_eax_init(&ec, &ac.vtable);
+			br_eax_reset(&ec, nonce, sizeof nonce);
+			br_eax_aad_inject(&ec, aad, sizeof aad);
+			br_eax_flip(&ec);
+			br_eax_run(&ec, 1, buf, sizeof buf);
+			br_eax_get_tag(&ec, tag);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("%-30s %8.2f MB/s\n", name,
+				((double)sizeof buf) * (double)num
+				/ (tt * 1000000.0));
+			fflush(stdout);
+			return;
+		}
+		num <<= 1;
+	}
+}
+
+#define SPEED_EAX(Algo, algo, keysize, impl) \
+static void \
+test_speed_eax_ ## algo ## keysize ## _ ## impl(void) \
+{ \
+	test_speed_eax_inner("EAX " #Algo "-" #keysize "(" #impl ")", \
+		&br_ ## algo ## _ ## impl ##  _ctrcbc_vtable, (keysize) >> 3); \
+}
+
+SPEED_EAX(AES, aes, 128, big)
+SPEED_EAX(AES, aes, 128, small)
+SPEED_EAX(AES, aes, 128, ct)
+SPEED_EAX(AES, aes, 128, ct64)
+SPEED_EAX(AES, aes, 128, x86ni)
+SPEED_EAX(AES, aes, 192, big)
+SPEED_EAX(AES, aes, 192, small)
+SPEED_EAX(AES, aes, 192, ct)
+SPEED_EAX(AES, aes, 192, ct64)
+SPEED_EAX(AES, aes, 192, x86ni)
+SPEED_EAX(AES, aes, 256, big)
+SPEED_EAX(AES, aes, 256, small)
+SPEED_EAX(AES, aes, 256, ct)
+SPEED_EAX(AES, aes, 256, ct64)
+SPEED_EAX(AES, aes, 256, x86ni)
+
 static const unsigned char RSA_N[] = {
 	0xE9, 0xF2, 0x4A, 0x2F, 0x96, 0xDF, 0x0A, 0x23,
 	0x01, 0x85, 0xF1, 0x2C, 0xB2, 0xA8, 0xEF, 0x23,
@@ -1299,6 +1375,22 @@ static const struct {
 	STU(poly1305_ctmul32),
 	STU(poly1305_ctmulq),
 	STU(poly1305_i15),
+
+	STU(eax_aes128_big),
+	STU(eax_aes192_big),
+	STU(eax_aes256_big),
+	STU(eax_aes128_small),
+	STU(eax_aes192_small),
+	STU(eax_aes256_small),
+	STU(eax_aes128_ct),
+	STU(eax_aes192_ct),
+	STU(eax_aes256_ct),
+	STU(eax_aes128_ct64),
+	STU(eax_aes192_ct64),
+	STU(eax_aes256_ct64),
+	STU(eax_aes128_x86ni),
+	STU(eax_aes192_x86ni),
+	STU(eax_aes256_x86ni),
 
 	STU(rsa_i15),
 	STU(rsa_i31),
