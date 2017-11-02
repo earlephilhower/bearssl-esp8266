@@ -392,23 +392,23 @@ EOF
 
 (printf "\nOBJ ="
 for f in $coresrc ; do
-	printf ' $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
+	printf ' \\\n $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
 done
 printf "\nOBJBRSSL ="
 for f in $toolssrc ; do
-	printf ' $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
+	printf ' \\\n $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
 done
 printf "\nOBJTESTCRYPTO ="
 for f in $testcryptosrc ; do
-	printf ' $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
+	printf ' \\\n $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
 done
 printf "\nOBJTESTSPEED ="
 for f in $testspeedsrc ; do
-	printf ' $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
+	printf ' \\\n $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
 done
 printf "\nOBJTESTX509 ="
 for f in $testx509src ; do
-	printf ' $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
+	printf ' \\\n $(OBJDIR)$P%s' "$(basename "$f" .c)\$O"
 done
 printf "\nHEADERSPUB ="
 for f in $headerspub ; do
