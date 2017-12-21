@@ -229,15 +229,19 @@ SPEED_HASH(SHA-512, sha512)
 #define br_aes_big_cbcenc_get_vtable()     (&br_aes_big_cbcenc_vtable)
 #define br_aes_big_cbcdec_get_vtable()     (&br_aes_big_cbcdec_vtable)
 #define br_aes_big_ctr_get_vtable()        (&br_aes_big_ctr_vtable)
+#define br_aes_big_ctrcbc_get_vtable()     (&br_aes_big_ctrcbc_vtable)
 #define br_aes_small_cbcenc_get_vtable()   (&br_aes_small_cbcenc_vtable)
 #define br_aes_small_cbcdec_get_vtable()   (&br_aes_small_cbcdec_vtable)
 #define br_aes_small_ctr_get_vtable()      (&br_aes_small_ctr_vtable)
+#define br_aes_small_ctrcbc_get_vtable()   (&br_aes_small_ctrcbc_vtable)
 #define br_aes_ct_cbcenc_get_vtable()      (&br_aes_ct_cbcenc_vtable)
 #define br_aes_ct_cbcdec_get_vtable()      (&br_aes_ct_cbcdec_vtable)
 #define br_aes_ct_ctr_get_vtable()         (&br_aes_ct_ctr_vtable)
+#define br_aes_ct_ctrcbc_get_vtable()      (&br_aes_ct_ctrcbc_vtable)
 #define br_aes_ct64_cbcenc_get_vtable()    (&br_aes_ct64_cbcenc_vtable)
 #define br_aes_ct64_cbcdec_get_vtable()    (&br_aes_ct64_cbcdec_vtable)
 #define br_aes_ct64_ctr_get_vtable()       (&br_aes_ct64_ctr_vtable)
+#define br_aes_ct64_ctrcbc_get_vtable()    (&br_aes_ct64_ctrcbc_vtable)
 #define br_chacha20_ct_get()               (&br_chacha20_ct_run)
 
 #define SPEED_AES(iname) \
@@ -453,6 +457,11 @@ test_speed_eax_inner(char *name,
 	br_aes_gen_ctrcbc_keys ac;
 	br_eax_context ec;
 
+	if (vt == NULL) {
+		printf("%-30s UNAVAILABLE\n", name);
+		fflush(stdout);
+		return;
+	}
 	memset(key, 'K', key_len);
 	memset(nonce, 'N', sizeof nonce);
 	memset(aad, 'A', sizeof aad);
@@ -500,7 +509,8 @@ static void \
 test_speed_eax_ ## algo ## keysize ## _ ## impl(void) \
 { \
 	test_speed_eax_inner("EAX " #Algo "-" #keysize "(" #impl ")", \
-		&br_ ## algo ## _ ## impl ##  _ctrcbc_vtable, (keysize) >> 3); \
+		br_ ## algo ## _ ## impl ##  _ctrcbc_get_vtable() \
+		, (keysize) >> 3); \
 }
 
 SPEED_EAX(AES, aes, 128, big)
