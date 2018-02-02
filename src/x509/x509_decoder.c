@@ -2,6 +2,9 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#ifdef ESP8266
+	#include <pgmspace.h>
+#endif
 
 typedef struct {
 	uint32_t *dp;
@@ -18,7 +21,11 @@ t0_parse7E_unsigned(const unsigned char **p)
 	for (;;) {
 		unsigned y;
 
+#ifdef ESP8266
+		y = pgm_read_byte((*p)++);
+#else
 		y = *(*p) ++;
+#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			return x;
@@ -32,12 +39,20 @@ t0_parse7E_signed(const unsigned char **p)
 	int neg;
 	uint32_t x;
 
+#ifdef ESP8266
+	neg = (pgm_read_byte(*p) >> 6) & 1;
+#else
 	neg = ((**p) >> 6) & 1;
+#endif
 	x = (uint32_t)-neg;
 	for (;;) {
 		unsigned y;
 
+#ifdef ESP8266
+		y = pgm_read_byte((*p)++);
+#else
 		y = *(*p) ++;
+#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			if (neg) {
@@ -129,7 +144,11 @@ static const unsigned char t0_datablock[] = {
 	0x29, 0xFF, 0x03, 0x55, 0x1D, 0x13
 };
 
+#ifdef ESP8266
+static const unsigned char t0_codeblock[] PROGMEM = {
+#else
 static const unsigned char t0_codeblock[] = {
+#endif
 	0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x11, 0x00, 0x00, 0x01,
 	0x01, 0x09, 0x00, 0x00, 0x01, 0x01, 0x0A, 0x00, 0x00, 0x1A, 0x1A, 0x00,
 	0x00, 0x01, T0_INT1(BR_ERR_X509_BAD_BOOLEAN), 0x00, 0x00, 0x01,
@@ -260,7 +279,11 @@ static const unsigned char t0_codeblock[] = {
 	0x04, 0x76, 0x00, 0x00, 0x01, 0x00, 0x20, 0x21, 0x0B, 0x2B, 0x00
 };
 
+#ifdef ESP8266
+static const uint16_t t0_caddr[] PROGMEM = {
+#else
 static const uint16_t t0_caddr[] = {
+#endif
 	0,
 	5,
 	10,
@@ -351,6 +374,17 @@ static const uint16_t t0_caddr[] = {
 
 #define T0_INTERPRETED   39
 
+#ifdef ESP8266
+#define T0_ENTER(ip, rp, slot)   do { \
+		const unsigned char *t0_newip; \
+		uint32_t t0_lnum; \
+		t0_newip = &t0_codeblock[pgm_read_word(&t0_caddr[(slot) - T0_INTERPRETED])]; \
+		t0_lnum = t0_parse7E_unsigned(&t0_newip); \
+		(rp) += t0_lnum; \
+		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
+		(ip) = t0_newip; \
+	} while (0)
+#else
 #define T0_ENTER(ip, rp, slot)   do { \
 		const unsigned char *t0_newip; \
 		uint32_t t0_lnum; \
@@ -360,6 +394,7 @@ static const uint16_t t0_caddr[] = {
 		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
 		(ip) = t0_newip; \
 	} while (0)
+#endif
 
 #define T0_DEFENTRY(name, slot) \
 void \
@@ -372,7 +407,11 @@ name(void *ctx) \
 
 T0_DEFENTRY(br_x509_decoder_init_main, 92)
 
+#ifdef ESP8266
+#define T0_NEXT(t0ipp)   (pgm_read_byte((*t0ipp)++))
+#else
 #define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)
+#endif
 
 void
 br_x509_decoder_run(void *t0ctx)

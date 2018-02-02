@@ -139,6 +139,25 @@ seeder_win32(const br_prng_class **ctx)
 }
 #endif
 
+#if BR_USE_ESP8266_RAND
+extern uint32_t phy_get_rand(void);  // From the ESP8266 SDK
+
+static int
+seeder_esp8266(const br_prng_class **ctx)
+{
+	uint32_t tmp[32 / sizeof(uint32_t)];
+	size_t i;
+
+	for (i=0; i<sizeof(tmp)/sizeof(tmp[0]); i++) {
+		tmp[i] = phy_get_rand();
+	}
+
+	(*ctx)->update(ctx, tmp, sizeof tmp);
+
+	return 1;
+}
+#endif
+
 /* see bearssl_rand.h.h */
 br_prng_seeder
 br_prng_seeder_system(const char **name)
@@ -161,6 +180,11 @@ br_prng_seeder_system(const char **name)
 		*name = "win32";
 	}
 	return &seeder_win32;
+#elif BR_USE_ESP8266_RAND
+        if (name != NULL) {
+                *name = "esp8266";
+        }
+        return &seeder_esp8266;
 #endif
 	if (name != NULL) {
 		*name = "none";

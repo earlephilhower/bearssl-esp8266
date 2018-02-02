@@ -1689,6 +1689,9 @@ public class T0Comp {
 
 #include <stddef.h>
 #include <stdint.h>
+#ifdef ESP8266
+	#include <pgmspace.h>
+#endif
 
 typedef struct {
 	uint32_t *dp;
@@ -1705,7 +1708,11 @@ t0_parse7E_unsigned(const unsigned char **p)
 	for (;;) {
 		unsigned y;
 
+#ifdef ESP8266
+		y = pgm_read_byte((*p)++);
+#else
 		y = *(*p) ++;
+#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			return x;
@@ -1719,12 +1726,20 @@ t0_parse7E_signed(const unsigned char **p)
 	int neg;
 	uint32_t x;
 
+#ifdef ESP8266
+	neg = (pgm_read_byte(*p) >> 6) & 1;
+#else
 	neg = ((**p) >> 6) & 1;
+#endif
 	x = (uint32_t)-neg;
 	for (;;) {
 		unsigned y;
 
+#ifdef ESP8266
+		y = pgm_read_byte((*p)++);
+#else
 		y = *(*p) ++;
+#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			if (neg) {
@@ -1784,8 +1799,13 @@ t0_parse7E_signed(const unsigned char **p)
 			tw.WriteLine("};");
 
 			tw.WriteLine();
-			tw.Write("static const unsigned char"
-				+ " t0_codeblock[] = {");
+			tw.Write("#ifdef ESP8266\n"
+				+ "static const unsigned char "
+				+ "t0_codeblock[] PROGMEM = {\n" 
+				+ "#else\n"
+				+ "static const unsigned char"
+				+ " t0_codeblock[] = {\n"
+				+ "#endif" );
 			bw = new BlobWriter(tw, 78, 1);
 			foreach (CodeElement ce in gcode) {
 				ce.Encode(bw, oneByteCode);
@@ -1794,7 +1814,11 @@ t0_parse7E_signed(const unsigned char **p)
 			tw.WriteLine("};");
 
 			tw.WriteLine();
-			tw.Write("static const uint16_t t0_caddr[] = {");
+			tw.Write("#ifdef ESP8266\n"
+				+ "static const uint16_t t0_caddr[] PROGMEM = {\n"
+				+ "#else\n"
+				+ "static const uint16_t t0_caddr[] = {\n"
+				+ "#endif");
 			for (int i = 0; i < interpretedEntry.Length; i ++) {
 				if (i != 0) {
 					tw.Write(',');
@@ -1809,6 +1833,18 @@ t0_parse7E_signed(const unsigned char **p)
 			tw.WriteLine("#define T0_INTERPRETED   {0}",
 				slotInterpreted);
 			tw.WriteLine();
+			tw.WriteLine("#ifdef ESP8266");
+			tw.WriteLine("{0}",
+@"#define T0_ENTER(ip, rp, slot)   do { \
+		const unsigned char *t0_newip; \
+		uint32_t t0_lnum; \
+		t0_newip = &t0_codeblock[pgm_read_word(&t0_caddr[(slot) - T0_INTERPRETED])]; \
+		t0_lnum = t0_parse7E_unsigned(&t0_newip); \
+		(rp) += t0_lnum; \
+		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
+		(ip) = t0_newip; \
+	} while (0)");
+			tw.WriteLine("#else");
 			tw.WriteLine("{0}",
 @"#define T0_ENTER(ip, rp, slot)   do { \
 		const unsigned char *t0_newip; \
@@ -1819,6 +1855,7 @@ t0_parse7E_signed(const unsigned char **p)
 		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
 		(ip) = t0_newip; \
 	} while (0)");
+			tw.WriteLine("#endif");
 			tw.WriteLine();
 			tw.WriteLine("{0}",
 @"#define T0_DEFENTRY(name, slot) \
@@ -1838,7 +1875,8 @@ name(void *ctx) \
 			}
 			tw.WriteLine();
 			if (oneByteCode) {
-				tw.WriteLine("{0}",
+				tw.WriteLine("#ifdef ESP8266\n{0}\n#else\n{1}\n#endif",
+@"#define T0_NEXT(t0ipp)   (pgm_read_byte((*t0ipp)++))",
 @"#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)");
 			} else {
 				tw.WriteLine("{0}",

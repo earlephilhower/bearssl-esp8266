@@ -30,28 +30,28 @@
  * representation).
  */
 
-static const uint32_t P256_P[] = {
+static const uint32_t P256_P[] PROGMEM= {
 	0x00000108,
 	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x00000007,
 	0x00000000, 0x00000000, 0x00000040, 0x7FFFFF80,
 	0x000000FF
 };
 
-static const uint32_t P256_R2[] = {
+static const uint32_t P256_R2[] PROGMEM= {
 	0x00000108,
 	0x00014000, 0x00018000, 0x00000000, 0x7FF40000,
 	0x7FEFFFFF, 0x7FF7FFFF, 0x7FAFFFFF, 0x005FFFFF,
 	0x00000000
 };
 
-static const uint32_t P256_B[] = {
+static const uint32_t P256_B[] PROGMEM= {
 	0x00000108,
 	0x6FEE1803, 0x6229C4BD, 0x21B139BE, 0x327150AA,
 	0x3567802E, 0x3F7212ED, 0x012E4355, 0x782DD38D,
 	0x0000000E
 };
 
-static const uint32_t P384_P[] = {
+static const uint32_t P384_P[] PROGMEM= {
 	0x0000018C,
 	0x7FFFFFFF, 0x00000001, 0x00000000, 0x7FFFFFF8,
 	0x7FFFFFEF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
@@ -59,7 +59,7 @@ static const uint32_t P384_P[] = {
 	0x00000FFF
 };
 
-static const uint32_t P384_R2[] = {
+static const uint32_t P384_R2[] PROGMEM= {
 	0x0000018C,
 	0x00000000, 0x00000080, 0x7FFFFE00, 0x000001FF,
 	0x00000800, 0x00000000, 0x7FFFE000, 0x00001FFF,
@@ -67,7 +67,7 @@ static const uint32_t P384_R2[] = {
 	0x00000000
 };
 
-static const uint32_t P384_B[] = {
+static const uint32_t P384_B[] PROGMEM= {
 	0x0000018C,
 	0x6E666840, 0x070D0392, 0x5D810231, 0x7651D50C,
 	0x17E218D6, 0x1B192002, 0x44EFE441, 0x3A524E2B,
@@ -75,7 +75,7 @@ static const uint32_t P384_B[] = {
 	0x000008A5
 };
 
-static const uint32_t P521_P[] = {
+static const uint32_t P521_P[] PROGMEM= {
 	0x00000219,
 	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
 	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
@@ -84,7 +84,7 @@ static const uint32_t P521_P[] = {
 	0x01FFFFFF
 };
 
-static const uint32_t P521_R2[] = {
+static const uint32_t P521_R2[] PROGMEM= {
 	0x00000219,
 	0x00001000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -93,7 +93,7 @@ static const uint32_t P521_R2[] = {
 	0x00000000
 };
 
-static const uint32_t P521_B[] = {
+static const uint32_t P521_B[] PROGMEM= {
 	0x00000219,
 	0x540FC00A, 0x228FEA35, 0x2C34F1EF, 0x67BF107A,
 	0x46FC1CD5, 0x1605E9DD, 0x6937B165, 0x272A3D8F,

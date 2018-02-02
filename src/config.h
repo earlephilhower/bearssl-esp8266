@@ -118,6 +118,13 @@
  */
 
 /*
+ * When BR_USE_ESP8266_RAND is enabled, use the phy_get_rand() SDK call
+ * on the ESP8266 as the entropy source, 32-bits at a time.
+ *
+#define BR_USE_ESP8266_RAND 1
+ */
+
+/*
  * When BR_USE_WIN32_RAND is enabled, the SSL engine will use the Win32
  * (CryptoAPI) functions (CryptAcquireContext(), CryptGenRandom()...) to
  * automatically obtain quality randomness for seedings its internal PRNG.

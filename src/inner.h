@@ -28,6 +28,8 @@
 #include <string.h>
 #include <limits.h>
 
+#include "pgmspace.h"
+
 #include "config.h"
 #include "bearssl.h"
 
@@ -109,7 +111,7 @@
  * Set BR_LOMUL on platforms where it makes sense.
  */
 #ifndef BR_LOMUL
-#if BR_ARMEL_CORTEXM_GCC
+#if BR_ARMEL_CORTEXM_GCC || defined(ESP8266)
 #define BR_LOMUL   1
 #endif
 #endif
@@ -285,6 +287,15 @@
 #ifndef BR_RDRAND
 #if (BR_i386 || BR_amd64) && (BR_GCC_4_6 || BR_CLANG_3_7 || BR_MSC_2012)
 #define BR_RDRAND   1
+#endif
+#endif
+
+/*
+ * Use ESP8266 hardware random generator when possible.
+ */
+#ifndef BR_USE_ESP8266_RAND
+#if defined(ESP8266)
+#define BR_USE_ESP8266_RAND 1
 #endif
 #endif
 

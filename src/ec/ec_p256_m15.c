@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+#include <pgmspace.h>
+
 #include "inner.h"
 
 /*
@@ -1820,7 +1822,7 @@ p256_mul(p256_jacobian *P, const unsigned char *x, size_t xlen)
  * order); 13-bit words are then grouped 2-by-2 into 32-bit words
  * (little-endian order within each word).
  */
-static const uint32_t Gwin[15][20] = {
+static const uint32_t Gwin[15][20] PROGMEM = {
 
 	{ 0x04C60296, 0x02721176, 0x19D00F4A, 0x102517AC,
 	  0x13B8037D, 0x0748103C, 0x1E730E56, 0x08481FE2,

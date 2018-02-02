@@ -30,7 +30,7 @@
  *   - R^2 mod p (R = 2^(31k) for the smallest k such that R >= p)
  */
 
-static const uint32_t C255_P[] = {
+static const uint32_t C255_P[] PROGMEM = {
 	0x00000107,
 	0x7FFFFFED, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
 	0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x0000007F
@@ -38,13 +38,13 @@ static const uint32_t C255_P[] = {
 
 #define P0I   0x286BCA1B
 
-static const uint32_t C255_R2[] = {
+static const uint32_t C255_R2[] PROGMEM = {
 	0x00000107,
 	0x00000000, 0x02D20000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
-static const uint32_t C255_A24[] = {
+static const uint32_t C255_A24[] PROGMEM = {
 	0x00000107,
 	0x53000000, 0x0000468B, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000

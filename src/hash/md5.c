@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <pgmspace.h>
 #include "inner.h"
 
 #define F(B, C, D)     ((((C) ^ (D)) & (B)) ^ (D))
@@ -32,11 +33,11 @@
 #define ROTL(x, n)    (((x) << (n)) | ((x) >> (32 - (n))))
 
 /* see inner.h */
-const uint32_t br_md5_IV[4] = {
+const uint32_t br_md5_IV[4] PROGMEM = {
 	0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476
 };
 
-static const uint32_t K[64] = {
+static const uint32_t K[64] PROGMEM = {
 	0xD76AA478, 0xE8C7B756, 0x242070DB, 0xC1BDCEEE,
 	0xF57C0FAF, 0x4787C62A, 0xA8304613, 0xFD469501,
 	0x698098D8, 0x8B44F7AF, 0xFFFF5BB1, 0x895CD7BE,

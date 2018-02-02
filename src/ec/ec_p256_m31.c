@@ -295,7 +295,7 @@ square9(uint32_t *d, const uint32_t *a)
 /*
  * Base field modulus for P-256.
  */
-static const uint32_t F256[] = {
+static const uint32_t F256[] PROGMEM = {
 
 	0x3FFFFFFF, 0x3FFFFFFF, 0x3FFFFFFF, 0x0000003F, 0x00000000,
 	0x00000000, 0x00001000, 0x3FFFC000, 0x0000FFFF
@@ -304,7 +304,7 @@ static const uint32_t F256[] = {
 /*
  * The 'b' curve equation coefficient for P-256.
  */
-static const uint32_t P256_B[] = {
+static const uint32_t P256_B[] PROGMEM = {
 
 	0x27D2604B, 0x2F38F0F8, 0x053B0F63, 0x0741AC33, 0x1886BC65,
 	0x2EF555DA, 0x293E7B3E, 0x0D762A8E, 0x00005AC6
@@ -1169,7 +1169,7 @@ p256_mul(p256_jacobian *P, const unsigned char *x, size_t xlen)
  * the point are encoded as 9 words of 30 bits each (little-endian
  * order).
  */
-static const uint32_t Gwin[15][18] = {
+static const uint32_t Gwin[15][18] PROGMEM = {
 
 	{ 0x1898C296, 0x1284E517, 0x1EB33A0F, 0x00DF604B,
 	  0x2440F277, 0x339B958E, 0x04247F8B, 0x347CB84B,

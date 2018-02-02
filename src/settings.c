@@ -245,6 +245,13 @@ static const br_config_option config[] = {
 	 0
 #endif
 	},
+	{ "BR_ESP8266_RAND",
+#if BR_USE_ESP8266_RAND
+	 1
+#else
+	 0
+#endif
+	},
 	{ "BR_SLOW_MUL",
 #if BR_SLOW_MUL
 	 1
