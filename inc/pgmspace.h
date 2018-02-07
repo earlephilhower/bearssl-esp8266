@@ -82,7 +82,7 @@ static inline uint16_t pgm_read_word_inlined(const void* addr) {
 #define pgm_read_float_far(addr)        pgm_read_float(addr)
 #define pgm_read_ptr_far(addr)          pgm_read_ptr(addr)
 
-extern void *memcpy_P(void *dest, const void *src, size_t n);
+extern void *memcpy_P(void *dest, const void *src, int n);
 
 
 /* TODO: Are the following used anywhere?  If not, remove */

@@ -1333,7 +1333,11 @@ br_ssl_hs_server_run(void *t0ctx)
 	if (clen > sizeof ENG->pad) {
 		clen = sizeof ENG->pad;
 	}
+#ifdef ESP8266
+	memcpy_P(ENG->pad, ENG->cert_cur, clen);
+#else
 	memcpy(ENG->pad, ENG->cert_cur, clen);
+#endif
 	ENG->cert_cur += clen;
 	ENG->cert_len -= clen;
 	T0_PUSH(clen);
@@ -1611,7 +1615,11 @@ br_ssl_hs_server_run(void *t0ctx)
 		if ((size_t)len < clen) {
 			clen = (size_t)len;
 		}
+#ifdef ESP8266
+		memcpy_P((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
+#else
 		memcpy((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
+#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, ENG->hbuf_in, clen);
 		}
@@ -1629,7 +1637,11 @@ br_ssl_hs_server_run(void *t0ctx)
 	if (ENG->hlen_in > 0) {
 		unsigned char x;
 
+#ifdef ESP8266
+		x = pgm_read_byte(ENG->hbuf_in ++);
+#else
 		x = *ENG->hbuf_in ++;
+#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, &x, 1);
 		}
