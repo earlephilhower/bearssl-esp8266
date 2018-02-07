@@ -503,7 +503,11 @@ br_pem_decoder_run(void *t0ctx)
 				/* read8-native */
 
 	if (CTX->hlen > 0) {
+#ifdef ESP8266
+		T0_PUSH(pgm_read_byte(CTX->hbuf ++));
+#else
 		T0_PUSH(*CTX->hbuf ++);
+#endif
 		CTX->hlen --;
 	} else {
 		T0_PUSHi(-1);

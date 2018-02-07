@@ -745,7 +745,11 @@ br_x509_decoder_run(void *t0ctx)
 		clen = (size_t)len;
 	}
 	if (addr != 0) {
+#ifdef ESP8266
+		memcpy_P((unsigned char *)CTX + addr, CTX->hbuf, clen);
+#else
 		memcpy((unsigned char *)CTX + addr, CTX->hbuf, clen);
+#endif
 	}
 	if (CTX->copy_dn && CTX->append_dn) {
 		CTX->append_dn(CTX->append_dn_ctx, CTX->hbuf, clen);
@@ -763,7 +767,11 @@ br_x509_decoder_run(void *t0ctx)
 	if (CTX->hlen == 0) {
 		T0_PUSHi(-1);
 	} else {
+#ifdef ESP8266
+		unsigned char x = pgm_read_byte(CTX->hbuf ++);
+#else
 		unsigned char x = *CTX->hbuf ++;
+#endif
 		if (CTX->copy_dn && CTX->append_dn) {
 			CTX->append_dn(CTX->append_dn_ctx, &x, 1);
 		}

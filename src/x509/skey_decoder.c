@@ -588,7 +588,11 @@ br_skey_decoder_run(void *t0ctx)
 		clen = (size_t)len;
 	}
 	if (addr != 0) {
+#ifdef ESP8266
+		memcpy_P((unsigned char *)CTX + addr, CTX->hbuf, clen);
+#else
 		memcpy((unsigned char *)CTX + addr, CTX->hbuf, clen);
+#endif
 	}
 	CTX->hbuf += clen;
 	CTX->hlen -= clen;
@@ -604,7 +608,11 @@ br_skey_decoder_run(void *t0ctx)
 		T0_PUSHi(-1);
 	} else {
 		CTX->hlen --;
+#ifdef ESP8266
+		T0_PUSH(pgm_read_byte(CTX->hbuf ++));
+#else
 		T0_PUSH(*CTX->hbuf ++);
+#endif
 	}
 
 				}
