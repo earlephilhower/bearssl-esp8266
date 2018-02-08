@@ -593,6 +593,20 @@ typedef struct {
 } br_eax_context;
 
 /**
+ * \brief EAX captured state.
+ *
+ * Some internal values computed by EAX may be captured at various
+ * points, and reused for another EAX run with the same secret key,
+ * for lower per-message overhead. Captured values do not depend on
+ * the nonce.
+ */
+typedef struct {
+#ifndef BR_DOXYGEN_IGNORE
+	unsigned char st[3][16];
+#endif
+} br_eax_state;
+
+/**
  * \brief Initialize an EAX context.
  *
  * A block cipher implementation, with its initialised context
@@ -607,6 +621,21 @@ typedef struct {
  * \param bctx   block cipher context (already initialised with secret key).
  */
 void br_eax_init(br_eax_context *ctx, const br_block_ctrcbc_class **bctx);
+
+/**
+ * \brief Capture pre-AAD state.
+ *
+ * This function precomputes key-dependent data, and stores it in the
+ * provided `st` structure. This structure should then be used with
+ * `br_eax_reset_pre_aad()`, or updated with `br_eax_get_aad_mac()`
+ * and then used with `br_eax_reset_post_aad()`.
+ *
+ * The EAX context structure is unmodified by this call.
+ *
+ * \param ctx   EAX context structure.
+ * \param st    recipient for captured state.
+ */
+void br_eax_capture(const br_eax_context *ctx, br_eax_state *st);
 
 /**
  * \brief Reset an EAX context.
@@ -627,6 +656,52 @@ void br_eax_init(br_eax_context *ctx, const br_block_ctrcbc_class **bctx);
  * \param len     EAX nonce length (in bytes).
  */
 void br_eax_reset(br_eax_context *ctx, const void *nonce, size_t len);
+
+/**
+ * \brief Reset an EAX context with a pre-AAD captured state.
+ *
+ * This function is an alternative to `br_eax_reset()`, that reuses a
+ * previously captured state structure for lower per-message overhead.
+ * The state should have been populated with `br_eax_capture_state()`
+ * but not updated with `br_eax_get_aad_mac()`.
+ *
+ * After this function is called, additional authenticated data MUST
+ * be injected. At least one byte of additional authenticated data
+ * MUST be provided with `br_eax_aad_inject()`; computation result will
+ * be incorrect if `br_eax_flip()` is called right away.
+ *
+ * After injection of the AAD and call to `br_eax_flip()`, at least
+ * one message byte must be provided. Empty messages are not supported
+ * with this reset mode.
+ *
+ * \param ctx     EAX context structure.
+ * \param st      pre-AAD captured state.
+ * \param nonce   EAX nonce to use.
+ * \param len     EAX nonce length (in bytes).
+ */
+void br_eax_reset_pre_aad(br_eax_context *ctx, const br_eax_state *st,
+	const void *nonce, size_t len);
+
+/**
+ * \brief Reset an EAX context with a post-AAD captured state.
+ *
+ * This function is an alternative to `br_eax_reset()`, that reuses a
+ * previously captured state structure for lower per-message overhead.
+ * The state should have been populated with `br_eax_capture_state()`
+ * and then updated with `br_eax_get_aad_mac()`.
+ *
+ * After this function is called, message data MUST be injected. The
+ * `br_eax_flip()` function MUST NOT be called. At least one byte of
+ * message data MUST be provided with `br_eax_run()`; empty messages
+ * are not supported with this reset mode.
+ *
+ * \param ctx     EAX context structure.
+ * \param st      post-AAD captured state.
+ * \param nonce   EAX nonce to use.
+ * \param len     EAX nonce length (in bytes).
+ */
+void br_eax_reset_post_aad(br_eax_context *ctx, const br_eax_state *st,
+	const void *nonce, size_t len);
 
 /**
  * \brief Inject additional authenticated data into EAX.
@@ -653,6 +728,24 @@ void br_eax_aad_inject(br_eax_context *ctx, const void *data, size_t len);
  * \param ctx   EAX context structure.
  */
 void br_eax_flip(br_eax_context *ctx);
+
+/**
+ * \brief Obtain a copy of the MAC on additional authenticated data.
+ *
+ * This function may be called only after `br_eax_flip()`; it copies the
+ * AAD-specific MAC value into the provided state. The MAC value depends
+ * on the secret key and the additional data itself, but not on the
+ * nonce. The updated state `st` is meant to be used as parameter for a
+ * further `br_eax_reset_post_aad()` call.
+ *
+ * \param ctx   EAX context structure.
+ * \param st    captured state to update.
+ */
+static inline void
+br_eax_get_aad_mac(const br_eax_context *ctx, br_eax_state *st)
+{
+	memcpy(st->st[1], ctx->head, sizeof ctx->head);
+}
 
 /**
  * \brief Encrypt or decrypt some data with EAX.
