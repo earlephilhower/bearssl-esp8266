@@ -232,6 +232,7 @@ OBJ = \
  $(OBJDIR)$Ppoly1305_ctmulq$O \
  $(OBJDIR)$Ppoly1305_i15$O \
  $(OBJDIR)$Pskey_decoder$O \
+ $(OBJDIR)$Ppkey_decoder$O \
  $(OBJDIR)$Px509_decoder$O \
  $(OBJDIR)$Px509_knownkey$O \
  $(OBJDIR)$Px509_minimal$O \
@@ -280,11 +281,12 @@ tests: $(TESTCRYPTO) $(TESTSPEED) $(TESTX509)
 
 T0: kT0
 
-kT0: $(T0COMP) src$Pssl$Pssl_hs_common.t0 src$Pssl$Pssl_hs_client.t0 src$Pssl$Pssl_hs_server.t0 src$Px509$Pasn1.t0 src$Px509$Pskey_decoder.t0 src$Px509$Px509_decoder.t0 src$Px509$Px509_minimal.t0
+kT0: $(T0COMP) src$Pssl$Pssl_hs_common.t0 src$Pssl$Pssl_hs_client.t0 src$Pssl$Pssl_hs_server.t0 src$Px509$Pasn1.t0 src$Px509$Pskey_decoder.t0 src$Px509$Ppkey_decoder.t0 src$Px509$Px509_decoder.t0 src$Px509$Px509_minimal.t0
 	$(RUNT0COMP) -o src$Pcodec$Ppemdec -r br_pem_decoder src$Pcodec$Ppemdec.t0
 	$(RUNT0COMP) -o src$Pssl$Pssl_hs_client -r br_ssl_hs_client src$Pssl$Pssl_hs_common.t0 src$Pssl$Pssl_hs_client.t0
 	$(RUNT0COMP) -o src$Pssl$Pssl_hs_server -r br_ssl_hs_server src$Pssl$Pssl_hs_common.t0 src$Pssl$Pssl_hs_server.t0
 	$(RUNT0COMP) -o src$Px509$Pskey_decoder -r br_skey_decoder src$Px509$Pasn1.t0 src$Px509$Pskey_decoder.t0
+	$(RUNT0COMP) -o src$Px509$Ppkey_decoder -r br_pkey_decoder src$Px509$Pasn1.t0 src$Px509$Ppkey_decoder.t0
 	$(RUNT0COMP) -o src$Px509$Px509_decoder -r br_x509_decoder src$Px509$Pasn1.t0 src$Px509$Px509_decoder.t0
 	$(RUNT0COMP) -o src$Px509$Px509_minimal -r br_x509_minimal src$Px509$Pasn1.t0 src$Px509$Px509_minimal.t0
 
@@ -1008,6 +1010,9 @@ $(OBJDIR)$Ppoly1305_i15$O: src$Psymcipher$Ppoly1305_i15.c $(HEADERSPRIV)
 
 $(OBJDIR)$Pskey_decoder$O: src$Px509$Pskey_decoder.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pskey_decoder$O src$Px509$Pskey_decoder.c
+
+$(OBJDIR)$Ppkey_decoder$O: src$Px509$Ppkey_decoder.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Ppkey_decoder$O src$Px509$Ppkey_decoder.c
 
 $(OBJDIR)$Px509_decoder$O: src$Px509$Px509_decoder.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Px509_decoder$O src$Px509$Px509_decoder.c
