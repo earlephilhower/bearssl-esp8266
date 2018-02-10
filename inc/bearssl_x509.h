@@ -700,6 +700,11 @@ typedef struct {
 	const br_x509_trust_anchor *trust_anchors;
 	size_t trust_anchors_num;
 
+	/* Dynamic trust anchor, for on-the-fly loading of TAs */
+	const br_x509_trust_anchor* (*trust_anchor_dynamic)(void *hashed_dn, size_t hashed_dn_len);
+	/* And a chance to free any dynamically allocated TA returned from above */
+	void (*trust_anchor_dynamic_free)(const br_x509_trust_anchor *ta);
+
 	/*
 	 * Multi-hasher for the TBS.
 	 */
@@ -757,6 +762,34 @@ extern const br_x509_class br_x509_minimal_vtable;
 void br_x509_minimal_init(br_x509_minimal_context *ctx,
 	const br_hash_class *dn_hash_impl,
 	const br_x509_trust_anchor *trust_anchors, size_t trust_anchors_num);
+
+/**
+ * \brief Set the optional dynamic trust anchor lookup callbacks
+ *
+ * The dynamic trust anchor lookup callbacks allow an application to implement
+ * a non-memory resident trust anchor store. This can be useful on embedded
+ * systems where RAM is at a premium, but there is an external stable store,
+ * such as embedded flash or SD card, to keep many CA certificates.  Set or
+ * leave these functions as NULL to not use such a feature.
+ *
+ * The dynamic routine will be passed in the hashed DN in question using the
+ * dn_hash_impl, and should compare this DN to its set of hashed known DNs.
+ * Of course, the same dn_hash_impl needs to be used in the dynamic routine.
+ * After the trust_anchor* is used, the dynamic_free callback is given a
+ * chance to deallocate its memory, if needed.
+ *
+ * \param ctx                   context to initialise.
+ * \param trust_anchor_dynamic  provides a trust_anchor* for a hashed_dn
+ * \param trust_anchor_dynamic_free  allows deallocation of returned TA
+ */
+static inline void
+br_x509_minimal_set_dynamic(br_x509_minimal_context *ctx,
+	const br_x509_trust_anchor* (*dynamic)(void *hashed_dn, size_t hashed_dn_len),
+        void (*dynamic_free)(const br_x509_trust_anchor *ta))
+{
+	ctx->trust_anchor_dynamic = dynamic;
+	ctx->trust_anchor_dynamic_free = dynamic_free;
+}
 
 /**
  * \brief Set a supported hash function in an X.509 "minimal" engine.
