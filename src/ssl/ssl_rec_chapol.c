@@ -103,7 +103,7 @@ chapol_decrypt(br_sslrec_chapol_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_in_chapol_class br_sslrec_in_chapol_vtable = {
+const br_sslrec_in_chapol_class br_sslrec_in_chapol_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_chapol_context),
 		(int (*)(const br_sslrec_in_class *const *, size_t))
@@ -160,7 +160,7 @@ chapol_encrypt(br_sslrec_chapol_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_out_chapol_class br_sslrec_out_chapol_vtable = {
+const br_sslrec_out_chapol_class br_sslrec_out_chapol_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_chapol_context),
 		(void (*)(const br_sslrec_out_class *const *,

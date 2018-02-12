@@ -230,7 +230,7 @@ cbc_decrypt(br_sslrec_in_cbc_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_in_cbc_class br_sslrec_in_cbc_vtable = {
+const br_sslrec_in_cbc_class br_sslrec_in_cbc_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_in_cbc_context),
 		(int (*)(const br_sslrec_in_class *const *, size_t))
@@ -422,7 +422,7 @@ cbc_encrypt(br_sslrec_out_cbc_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_out_cbc_class br_sslrec_out_cbc_vtable = {
+const br_sslrec_out_cbc_class br_sslrec_out_cbc_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_out_cbc_context),
 		(void (*)(const br_sslrec_out_class *const *,

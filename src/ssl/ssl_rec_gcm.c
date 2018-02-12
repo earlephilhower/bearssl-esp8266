@@ -150,7 +150,7 @@ gcm_decrypt(br_sslrec_gcm_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_in_gcm_class br_sslrec_in_gcm_vtable = {
+const br_sslrec_in_gcm_class br_sslrec_in_gcm_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_gcm_context),
 		(int (*)(const br_sslrec_in_class *const *, size_t))
@@ -218,7 +218,7 @@ gcm_encrypt(br_sslrec_gcm_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_out_gcm_class br_sslrec_out_gcm_vtable = {
+const br_sslrec_out_gcm_class br_sslrec_out_gcm_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_gcm_context),
 		(void (*)(const br_sslrec_out_class *const *,

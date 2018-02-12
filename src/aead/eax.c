@@ -392,7 +392,7 @@ br_eax_check_tag(br_eax_context *ctx, const void *tag)
 }
 
 /* see bearssl_aead.h */
-const br_aead_class br_eax_vtable = {
+const br_aead_class br_eax_vtable PROGMEM = {
 	16,
 	(void (*)(const br_aead_class **, const void *, size_t))
 		&br_eax_reset,

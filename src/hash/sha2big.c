@@ -247,7 +247,7 @@ br_sha512_out(const br_sha512_context *cc, void *dst)
 }
 
 /* see bearssl.h */
-const br_hash_class br_sha384_vtable = {
+const br_hash_class br_sha384_vtable PROGMEM = {
 	sizeof(br_sha384_context),
 	BR_HASHDESC_ID(br_sha384_ID)
 		| BR_HASHDESC_OUT(48)
@@ -266,7 +266,7 @@ const br_hash_class br_sha384_vtable = {
 };
 
 /* see bearssl.h */
-const br_hash_class br_sha512_vtable = {
+const br_hash_class br_sha512_vtable PROGMEM = {
 	sizeof(br_sha512_context),
 	BR_HASHDESC_ID(br_sha512_ID)
 		| BR_HASHDESC_OUT(64)

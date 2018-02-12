@@ -72,7 +72,7 @@ br_aes_small_ctr_run(const br_aes_small_ctr_keys *ctx,
 }
 
 /* see bearssl_block.h */
-const br_block_ctr_class br_aes_small_ctr_vtable = {
+const br_block_ctr_class br_aes_small_ctr_vtable PROGMEM = {
 	sizeof(br_aes_small_ctr_keys),
 	16,
 	4,

@@ -122,7 +122,7 @@ cc_do_sign(const br_ssl_client_certificate_class **pctx,
 	return zc->irsasign(hash_oid, hv, hv_len, zc->sk, data) ? sig_len : 0;
 }
 
-static const br_ssl_client_certificate_class ccert_vtable = {
+static const br_ssl_client_certificate_class ccert_vtable PROGMEM = {
 	sizeof(br_ssl_client_certificate_rsa_context),
 	cc_none0, /* start_name_list */
 	cc_none1, /* start_name */

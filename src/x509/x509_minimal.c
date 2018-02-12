@@ -347,7 +347,7 @@ xm_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
 }
 
 /* see bearssl_x509.h */
-const br_x509_class br_x509_minimal_vtable = {
+const br_x509_class br_x509_minimal_vtable PROGMEM = {
 	sizeof(br_x509_minimal_context),
 	xm_start_chain,
 	xm_start_cert,

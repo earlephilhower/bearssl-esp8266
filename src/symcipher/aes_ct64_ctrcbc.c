@@ -412,7 +412,7 @@ br_aes_ct64_ctrcbc_decrypt(const br_aes_ct64_ctrcbc_keys *ctx,
 }
 
 /* see bearssl_block.h */
-const br_block_ctrcbc_class br_aes_ct64_ctrcbc_vtable = {
+const br_block_ctrcbc_class br_aes_ct64_ctrcbc_vtable PROGMEM = {
 	sizeof(br_aes_ct64_ctrcbc_keys),
 	16,
 	4,

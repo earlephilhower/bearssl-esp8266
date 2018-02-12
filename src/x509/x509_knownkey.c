@@ -94,7 +94,7 @@ kk_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
 }
 
 /* see bearssl_x509.h */
-const br_x509_class br_x509_knownkey_vtable = {
+const br_x509_class br_x509_knownkey_vtable PROGMEM = {
 	sizeof(br_x509_knownkey_context),
 	kk_start_chain,
 	kk_start_cert,

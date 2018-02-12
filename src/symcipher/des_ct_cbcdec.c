@@ -76,7 +76,7 @@ br_des_ct_cbcdec_run(const br_des_ct_cbcdec_keys *ctx,
 }
 
 /* see bearssl_block.h */
-const br_block_cbcdec_class br_des_ct_cbcdec_vtable = {
+const br_block_cbcdec_class br_des_ct_cbcdec_vtable PROGMEM = {
 	sizeof(br_des_ct_cbcdec_keys),
 	8,
 	3,

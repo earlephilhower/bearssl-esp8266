@@ -123,7 +123,7 @@ cc_do_sign(const br_ssl_client_certificate_class **pctx,
 	return zc->iecdsa(zc->iec, hc, hv, zc->sk, data);
 }
 
-static const br_ssl_client_certificate_class ccert_vtable = {
+static const br_ssl_client_certificate_class ccert_vtable PROGMEM = {
 	sizeof(br_ssl_client_certificate_ec_context),
 	cc_none0, /* start_name_list */
 	cc_none1, /* start_name */

@@ -56,7 +56,7 @@ br_des_tab_cbcenc_run(const br_des_tab_cbcenc_keys *ctx,
 }
 
 /* see bearssl_block.h */
-const br_block_cbcenc_class br_des_tab_cbcenc_vtable = {
+const br_block_cbcenc_class br_des_tab_cbcenc_vtable PROGMEM = {
 	sizeof(br_des_tab_cbcenc_keys),
 	8,
 	3,

@@ -114,7 +114,7 @@ se_do_sign(const br_ssl_server_policy_class **pctx,
 	return pc->iecdsa(pc->iec, hc, hv, pc->sk, data);
 }
 
-static const br_ssl_server_policy_class se_policy_vtable = {
+static const br_ssl_server_policy_class se_policy_vtable PROGMEM = {
 	sizeof(br_ssl_server_policy_ec_context),
 	se_choose,
 	se_do_keyx,

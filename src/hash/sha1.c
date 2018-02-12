@@ -174,7 +174,7 @@ br_sha1_set_state(br_sha1_context *cc, const void *stb, uint64_t count)
 }
 
 /* see bearssl.h */
-const br_hash_class br_sha1_vtable = {
+const br_hash_class br_sha1_vtable PROGMEM = {
 	sizeof(br_sha1_context),
 	BR_HASHDESC_ID(br_sha1_ID)
 		| BR_HASHDESC_OUT(20)

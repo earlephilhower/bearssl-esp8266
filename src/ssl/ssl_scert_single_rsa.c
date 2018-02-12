@@ -137,7 +137,7 @@ sr_do_sign(const br_ssl_server_policy_class **pctx,
 	return pc->irsasign(hash_oid, hv, hv_len, pc->sk, data) ? sig_len : 0;
 }
 
-static const br_ssl_server_policy_class sr_policy_vtable = {
+static const br_ssl_server_policy_class sr_policy_vtable PROGMEM = {
 	sizeof(br_ssl_server_policy_rsa_context),
 	sr_choose,
 	sr_do_keyx,

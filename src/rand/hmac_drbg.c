@@ -146,7 +146,7 @@ br_hmac_drbg_update(br_hmac_drbg_context *ctx, const void *seed, size_t len)
 }
 
 /* see bearssl.h */
-const br_prng_class br_hmac_drbg_vtable = {
+const br_prng_class br_hmac_drbg_vtable PROGMEM = {
 	sizeof(br_hmac_drbg_context),
 	(void (*)(const br_prng_class **, const void *, const void *, size_t))
 		&br_hmac_drbg_init,

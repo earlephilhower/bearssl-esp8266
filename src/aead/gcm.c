@@ -297,7 +297,7 @@ br_gcm_check_tag(br_gcm_context *ctx, const void *tag)
 }
 
 /* see bearssl_aead.h */
-const br_aead_class br_gcm_vtable = {
+const br_aead_class br_gcm_vtable PROGMEM = {
 	16,
 	(void (*)(const br_aead_class **, const void *, size_t))
 		&br_gcm_reset,

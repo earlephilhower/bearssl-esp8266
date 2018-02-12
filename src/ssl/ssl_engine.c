@@ -956,7 +956,7 @@ clear_encrypt(br_sslrec_out_clear_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_out_class br_sslrec_out_clear_vtable = {
+const br_sslrec_out_class br_sslrec_out_clear_vtable PROGMEM = {
 	sizeof(br_sslrec_out_clear_context),
 	(void (*)(const br_sslrec_out_class *const *, size_t *, size_t *))
 		&clear_max_plaintext,

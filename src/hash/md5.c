@@ -193,7 +193,7 @@ br_md5_set_state(br_md5_context *cc, const void *stb, uint64_t count)
 }
 
 /* see bearssl.h */
-const br_hash_class br_md5_vtable = {
+const br_hash_class br_md5_vtable PROGMEM = {
 	sizeof(br_md5_context),
 	BR_HASHDESC_ID(br_md5_ID)
 		| BR_HASHDESC_OUT(16)

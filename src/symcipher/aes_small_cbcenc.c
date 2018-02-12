@@ -56,7 +56,7 @@ br_aes_small_cbcenc_run(const br_aes_small_cbcenc_keys *ctx,
 }
 
 /* see bearssl_block.h */
-const br_block_cbcenc_class br_aes_small_cbcenc_vtable = {
+const br_block_cbcenc_class br_aes_small_cbcenc_vtable PROGMEM = {
 	sizeof(br_aes_small_cbcenc_keys),
 	16,
 	4,
