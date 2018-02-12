@@ -50,7 +50,7 @@ static const unsigned char P384_G[] = {
 };
 
 /* see inner.h */
-const br_ec_curve_def br_secp384r1 = {
+const br_ec_curve_def br_secp384r1 PROGMEM = {
 	BR_EC_secp384r1,
 	P384_N, sizeof P384_N,
 	P384_G, sizeof P384_G

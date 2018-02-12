@@ -57,7 +57,7 @@ static const unsigned char P521_G[] = {
 };
 
 /* see inner.h */
-const br_ec_curve_def br_secp521r1 = {
+const br_ec_curve_def br_secp521r1 PROGMEM = {
 	BR_EC_secp521r1,
 	P521_N, sizeof P521_N,
 	P521_G, sizeof P521_G

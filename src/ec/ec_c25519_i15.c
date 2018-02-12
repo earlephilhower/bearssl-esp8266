@@ -387,7 +387,7 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 }
 
 /* see bearssl_ec.h */
-const br_ec_impl br_ec_c25519_i15 = {
+const br_ec_impl br_ec_c25519_i15 PROGMEM = {
 	(uint32_t)0x20000000,
 	&api_generator,
 	&api_order,

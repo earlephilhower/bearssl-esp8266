@@ -44,7 +44,7 @@ static const unsigned char P256_G[] = {
 };
 
 /* see inner.h */
-const br_ec_curve_def br_secp256r1 = {
+const br_ec_curve_def br_secp256r1 PROGMEM = {
 	BR_EC_secp256r1,
 	P256_N, sizeof P256_N,
 	P256_G, sizeof P256_G
