@@ -30,6 +30,7 @@ br_rsa_i15_pkcs1_vrfy(const unsigned char *x, size_t xlen,
 	const unsigned char *hash_oid, size_t hash_len,
 	const br_rsa_public_key *pk, unsigned char *hash_out)
 {
+	dumpstack();
 	unsigned char sig[BR_MAX_RSA_SIZE >> 3];
 
 	if (xlen > (sizeof sig)) {

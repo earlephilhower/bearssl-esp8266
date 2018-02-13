@@ -406,6 +406,7 @@ square20(uint32_t *d, const uint32_t *a)
 static void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
+	dumpstack();
 	uint32_t t[39];
 
 	t[ 0] = MUL15(a[ 0], b[ 0]);
@@ -815,6 +816,7 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 static void
 square20(uint32_t *d, const uint32_t *a)
 {
+	dumpstack();
 	uint32_t t[39];
 
 	t[ 0] = MUL15(a[ 0], a[ 0]);
@@ -1043,6 +1045,7 @@ square20(uint32_t *d, const uint32_t *a)
 static uint32_t
 reduce_final_f255(uint32_t *d)
 {
+	dumpstack();
 	uint32_t t[20];
 	uint32_t cc;
 	int i;
@@ -1065,6 +1068,7 @@ reduce_final_f255(uint32_t *d)
 static void
 f255_mulgen(uint32_t *d, const uint32_t *a, const uint32_t *b, int square)
 {
+	dumpstack();
 	uint32_t t[40], cc, w;
 
 	/*
@@ -1300,9 +1304,25 @@ static uint32_t
 api_mul(unsigned char *G, size_t Glen,
 	const unsigned char *kb, size_t kblen, int curve)
 {
-	uint32_t x1[20], x2[20], x3[20], z2[20], z3[20];
-	uint32_t a[20], aa[20], b[20], bb[20];
-	uint32_t c[20], d[20], e[20], da[20], cb[20];
+	STACK_PROXY_ENTER();
+	dumpstack();
+//	uint32_t x1[20], x2[20], x3[20], z2[20], z3[20];
+//	uint32_t a[20], aa[20], b[20], bb[20];
+//	uint32_t c[20], d[20], e[20], da[20], cb[20];
+	STACK_PROXY_ALLOC(uint32_t, x1, 20);
+	STACK_PROXY_ALLOC(uint32_t, x2, 20);
+	STACK_PROXY_ALLOC(uint32_t, x3, 20);
+	STACK_PROXY_ALLOC(uint32_t, z2, 20);
+	STACK_PROXY_ALLOC(uint32_t, z3, 20);
+	STACK_PROXY_ALLOC(uint32_t, a, 20);
+	STACK_PROXY_ALLOC(uint32_t, aa, 20);
+	STACK_PROXY_ALLOC(uint32_t, b, 20);
+	STACK_PROXY_ALLOC(uint32_t, bb, 20);
+	STACK_PROXY_ALLOC(uint32_t, c, 20);
+	STACK_PROXY_ALLOC(uint32_t, d, 20);
+	STACK_PROXY_ALLOC(uint32_t, e, 20);
+	STACK_PROXY_ALLOC(uint32_t, da, 20);
+	STACK_PROXY_ALLOC(uint32_t, cb, 20);
 	unsigned char k[32];
 	uint32_t swap;
 	int i;
@@ -1316,6 +1336,7 @@ api_mul(unsigned char *G, size_t Glen,
 	 * be ignored/cleared.
 	 */
 	if (Glen != 32 || kblen > 32) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	G[31] &= 0x7F;
@@ -1325,11 +1346,11 @@ api_mul(unsigned char *G, size_t Glen,
 	 * into Montgomery representation.
 	 */
 	x1[19] = le8_to_le13(x1, G, 32);
-	memcpy(x3, x1, sizeof x1);
-	memset(z2, 0, sizeof z2);
-	memset(x2, 0, sizeof x2);
+	memcpy(x3, x1, 20 * sizeof *x1);
+	memset(z2, 0, 20 * sizeof *z2);
+	memset(x2, 0, 20 * sizeof *x2);
 	x2[0] = 1;
-	memset(z3, 0, sizeof z3);
+	memset(z3, 0, 20 * sizeof *z3);
 	z3[0] = 1;
 
 	memcpy(k, kb, kblen);
@@ -1406,12 +1427,12 @@ api_mul(unsigned char *G, size_t Glen,
 	 * square-and-multiply algorithm; we mutualise most non-squarings
 	 * since the exponent contains almost only ones.
 	 */
-	memcpy(a, z2, sizeof z2);
+	memcpy(a, z2, 20 * sizeof *z2);
 	for (i = 0; i < 15; i ++) {
 		f255_square(a, a);
 		f255_mul(a, a, z2);
 	}
-	memcpy(b, a, sizeof a);
+	memcpy(b, a, 20 * sizeof *a);
 	for (i = 0; i < 14; i ++) {
 		int j;
 
@@ -1429,6 +1450,7 @@ api_mul(unsigned char *G, size_t Glen,
 	f255_mul(x2, x2, b);
 	reduce_final_f255(x2);
 	le13_to_le8(G, 32, x2);
+	STACK_PROXY_EXIT();
 	return 1;
 }
 

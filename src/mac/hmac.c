@@ -38,6 +38,7 @@ static void
 process_key(const br_hash_class **hc, void *ks,
 	const void *key, size_t key_len, unsigned bb)
 {
+	dumpstack();
 	unsigned char tmp[256];
 	size_t blen, u;
 
@@ -57,6 +58,7 @@ void
 br_hmac_key_init(br_hmac_key_context *kc,
 	const br_hash_class *dig, const void *key, size_t key_len)
 {
+	dumpstack();
 	br_hash_compat_context hc;
 	unsigned char kbuf[64];
 
@@ -78,6 +80,7 @@ void
 br_hmac_init(br_hmac_context *ctx,
 	const br_hmac_key_context *kc, size_t out_len)
 {
+	dumpstack();
 	const br_hash_class *dig;
 	size_t blen, hlen;
 
@@ -97,6 +100,7 @@ br_hmac_init(br_hmac_context *ctx,
 void
 br_hmac_update(br_hmac_context *ctx, const void *data, size_t len)
 {
+	dumpstack();
 	ctx->dig.vtable->update(&ctx->dig.vtable, data, len);
 }
 
@@ -104,6 +108,7 @@ br_hmac_update(br_hmac_context *ctx, const void *data, size_t len)
 size_t
 br_hmac_out(const br_hmac_context *ctx, void *out)
 {
+	dumpstack();
 	const br_hash_class *dig;
 	br_hash_compat_context hc;
 	unsigned char tmp[64];

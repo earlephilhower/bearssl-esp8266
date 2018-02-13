@@ -278,6 +278,7 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 static int
 make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 {
+dumpstack();
 	int curve;
 	unsigned char key[66], point[133];
 	const unsigned char *order, *point_src;
@@ -355,6 +356,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 static int
 make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 {
+dumpstack();
 	unsigned char point[133];
 	size_t point_len;
 	const br_x509_class **xc;
@@ -934,6 +936,7 @@ T0_DEFENTRY(br_ssl_hs_client_init_main, 167)
 void
 br_ssl_hs_client_run(void *t0ctx)
 {
+dumpstack();
 	uint32_t *dp, *rp;
 	const unsigned char *ip;
 

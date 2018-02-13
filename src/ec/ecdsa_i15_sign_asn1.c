@@ -32,6 +32,7 @@ br_ecdsa_i15_sign_asn1(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig)
 {
+	dumpstack();
 	unsigned char rsig[(ORDER_LEN << 1) + 12];
 	size_t sig_len;
 

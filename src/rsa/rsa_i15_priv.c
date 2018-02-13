@@ -49,6 +49,7 @@ print_int(const char *name, const uint16_t *x)
 uint32_t
 br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 {
+	dumpstack();
 	const unsigned char *p, *q;
 	size_t plen, qlen;
 	size_t fwlen;

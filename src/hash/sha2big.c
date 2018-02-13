@@ -94,7 +94,7 @@ static const uint64_t K[80] PROGMEM = {
 static void
 sha2big_round(const unsigned char *buf, uint64_t *val)
 {
-
+	dumpstack();
 #define SHA2BIG_STEP(A, B, C, D, E, F, G, H, j)   do { \
 		uint64_t T1, T2; \
 		T1 = H + BSG5_1(E) + CH(E, F, G) + K[j] + w[j]; \
@@ -170,6 +170,7 @@ sha2big_update(br_sha384_context *cc, const void *data, size_t len)
 static void
 sha2big_out(const br_sha384_context *cc, void *dst, int num)
 {
+	dumpstack();
 	unsigned char buf[128];
 	uint64_t val[8];
 	size_t ptr;

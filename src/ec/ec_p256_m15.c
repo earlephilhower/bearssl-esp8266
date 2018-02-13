@@ -363,6 +363,7 @@ square20(uint32_t *d, const uint32_t *a)
 static void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
+	dumpstack();
 	uint32_t t[39];
 
 	t[ 0] = MUL15(a[ 0], b[ 0]);
@@ -771,6 +772,7 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 static void
 square20(uint32_t *d, const uint32_t *a)
 {
+	dumpstack();
 	uint32_t t[39];
 
 	t[ 0] = MUL15(a[ 0], a[ 0]);
@@ -1035,6 +1037,7 @@ reduce_f256(uint32_t *d)
 static uint32_t
 reduce_final_f256(uint32_t *d)
 {
+	dumpstack();
 	uint32_t t[20];
 	uint32_t cc;
 	int i;
@@ -1063,6 +1066,7 @@ reduce_final_f256(uint32_t *d)
 static void
 mul_f256(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
+	dumpstack();
 	uint32_t t[40], cc;
 	int i;
 
@@ -1153,6 +1157,7 @@ mul_f256(uint32_t *d, const uint32_t *a, const uint32_t *b)
 static void
 square_f256(uint32_t *d, const uint32_t *a)
 {
+	dumpstack();
 	uint32_t t[40], cc;
 	int i;
 
@@ -1261,6 +1266,7 @@ typedef struct {
 static void
 p256_to_affine(p256_jacobian *P)
 {
+	dumpstack();
 	uint32_t t1[20], t2[20];
 	int i;
 
@@ -1341,6 +1347,7 @@ p256_to_affine(p256_jacobian *P)
 static void
 p256_double(p256_jacobian *Q)
 {
+	dumpstack();
 	/*
 	 * Doubling formulas are:
 	 *
@@ -1469,6 +1476,7 @@ p256_double(p256_jacobian *Q)
 static uint32_t
 p256_add(p256_jacobian *P1, const p256_jacobian *P2)
 {
+	dumpstack();
 	/*
 	 * Addtions formulas are:
 	 *
@@ -1594,6 +1602,7 @@ p256_add(p256_jacobian *P1, const p256_jacobian *P2)
 static uint32_t
 p256_add_mixed(p256_jacobian *P1, const p256_jacobian *P2)
 {
+	dumpstack();
 	/*
 	 * Addtions formulas are:
 	 *
@@ -1691,12 +1700,19 @@ p256_add_mixed(p256_jacobian *P1, const p256_jacobian *P2)
 static uint32_t
 p256_decode(p256_jacobian *P, const void *src, size_t len)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	const unsigned char *buf;
-	uint32_t tx[20], ty[20], t1[20], t2[20];
+//	uint32_t tx[20], ty[20], t1[20], t2[20];
+	STACK_PROXY_ALLOC(uint32_t, tx, 20);
+	STACK_PROXY_ALLOC(uint32_t, ty, 20);
+	STACK_PROXY_ALLOC(uint32_t, t1, 20);
+	STACK_PROXY_ALLOC(uint32_t, t2, 20);
 	uint32_t bad;
 	int i;
 
 	if (len != 65) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	buf = src;
@@ -1737,10 +1753,11 @@ p256_decode(p256_jacobian *P, const void *src, size_t len)
 	/*
 	 * Copy coordinates to the point structure.
 	 */
-	memcpy(P->x, tx, sizeof tx);
-	memcpy(P->y, ty, sizeof ty);
+	memcpy(P->x, tx, 20 * sizeof *tx);
+	memcpy(P->y, ty, 20 * sizeof *ty);
 	memset(P->z, 0, sizeof P->z);
 	P->z[0] = 1;
+	STACK_PROXY_EXIT();
 	return NEQ(bad, 0) ^ 1;
 }
 
@@ -1767,6 +1784,8 @@ p256_encode(void *dst, const p256_jacobian *P)
 static void
 p256_mul(p256_jacobian *P, const unsigned char *x, size_t xlen)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	/*
 	 * qz is a flag that is initially 1, and remains equal to 1
 	 * as long as the point is the point at infinity.
@@ -1775,20 +1794,25 @@ p256_mul(p256_jacobian *P, const unsigned char *x, size_t xlen)
 	 * The precomputed window really is the points P2 and P3.
 	 */
 	uint32_t qz;
-	p256_jacobian P2, P3, Q, T, U;
+//	p256_jacobian P2, P3, Q, T, U;
+	STACK_PROXY_ALLOC(p256_jacobian, P2, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, P3, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, Q, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, T, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, U, 1);
 
 	/*
 	 * Compute window values.
 	 */
-	P2 = *P;
-	p256_double(&P2);
-	P3 = *P;
-	p256_add(&P3, &P2);
+	*P2 = *P;
+	p256_double(P2);
+	*P3 = *P;
+	p256_add(P3, P2);
 
 	/*
 	 * We start with Q = 0. We process multiplier bits 2 by 2.
 	 */
-	memset(&Q, 0, sizeof Q);
+	memset(Q, 0, sizeof *Q);
 	qz = 1;
 	while (xlen -- > 0) {
 		int k;
@@ -1797,22 +1821,23 @@ p256_mul(p256_jacobian *P, const unsigned char *x, size_t xlen)
 			uint32_t bits;
 			uint32_t bnz;
 
-			p256_double(&Q);
-			p256_double(&Q);
-			T = *P;
-			U = Q;
+			p256_double(Q);
+			p256_double(Q);
+			*T = *P;
+			*U = *Q;
 			bits = (*x >> k) & (uint32_t)3;
 			bnz = NEQ(bits, 0);
-			CCOPY(EQ(bits, 2), &T, &P2, sizeof T);
-			CCOPY(EQ(bits, 3), &T, &P3, sizeof T);
-			p256_add(&U, &T);
-			CCOPY(bnz & qz, &Q, &T, sizeof Q);
-			CCOPY(bnz & ~qz, &Q, &U, sizeof Q);
+			CCOPY(EQ(bits, 2), T, P2, sizeof *T);
+			CCOPY(EQ(bits, 3), T, P3, sizeof *T);
+			p256_add(U, T);
+			CCOPY(bnz & qz, Q, T, sizeof *Q);
+			CCOPY(bnz & ~qz, Q, U, sizeof *Q);
 			qz &= ~bnz;
 		}
 		x ++;
 	}
-	*P = Q;
+	*P = *Q;
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -1921,6 +1946,7 @@ static const uint32_t Gwin[15][20] PROGMEM = {
 static void
 lookup_Gwin(p256_jacobian *T, uint32_t idx)
 {
+	dumpstack();
 	uint32_t xy[20];
 	uint32_t k;
 	size_t u;
@@ -1951,6 +1977,8 @@ lookup_Gwin(p256_jacobian *T, uint32_t idx)
 static void
 p256_mulgen(p256_jacobian *P, const unsigned char *x, size_t xlen)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	/*
 	 * qz is a flag that is initially 1, and remains equal to 1
 	 * as long as the point is the point at infinity.
@@ -1959,10 +1987,14 @@ p256_mulgen(p256_jacobian *P, const unsigned char *x, size_t xlen)
 	 * of 4. The precomputed window is constant static data, with
 	 * points in affine coordinates; we use a constant-time lookup.
 	 */
-	p256_jacobian Q;
+//	p256_jacobian Q;
+//	p256_jacobian T, U;
+	STACK_PROXY_ALLOC(p256_jacobian, Q, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, T, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, U, 1);
 	uint32_t qz;
 
-	memset(&Q, 0, sizeof Q);
+	memset(Q, 0, sizeof *Q);
 	qz = 1;
 	while (xlen -- > 0) {
 		int k;
@@ -1972,24 +2004,24 @@ p256_mulgen(p256_jacobian *P, const unsigned char *x, size_t xlen)
 		for (k = 0; k < 2; k ++) {
 			uint32_t bits;
 			uint32_t bnz;
-			p256_jacobian T, U;
 
-			p256_double(&Q);
-			p256_double(&Q);
-			p256_double(&Q);
-			p256_double(&Q);
+			p256_double(Q);
+			p256_double(Q);
+			p256_double(Q);
+			p256_double(Q);
 			bits = (bx >> 4) & 0x0F;
 			bnz = NEQ(bits, 0);
-			lookup_Gwin(&T, bits);
-			U = Q;
-			p256_add_mixed(&U, &T);
-			CCOPY(bnz & qz, &Q, &T, sizeof Q);
-			CCOPY(bnz & ~qz, &Q, &U, sizeof Q);
+			lookup_Gwin(T, bits);
+			*U = *Q;
+			p256_add_mixed(U, T);
+			CCOPY(bnz & qz, Q, T, sizeof *Q);
+			CCOPY(bnz & ~qz, Q, U, sizeof *Q);
 			qz &= ~bnz;
 			bx <<= 4;
 		}
 	}
-	*P = Q;
+	*P = *Q;
+	STACK_PROXY_EXIT();
 }
 
 static const unsigned char P256_G[] = {
@@ -2037,16 +2069,20 @@ static uint32_t
 api_mul(unsigned char *G, size_t Glen,
 	const unsigned char *x, size_t xlen, int curve)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	uint32_t r;
-	p256_jacobian P;
+//	p256_jacobian P;
+	STACK_PROXY_ALLOC(p256_jacobian, P, 1);
 
 	(void)curve;
-	r = p256_decode(&P, G, Glen);
-	p256_mul(&P, x, xlen);
+	r = p256_decode(P, G, Glen);
+	p256_mul(P, x, xlen);
 	if (Glen >= 65) {
-		p256_to_affine(&P);
-		p256_encode(G, &P);
+		p256_to_affine(P);
+		p256_encode(G, P);
 	}
+	STACK_PROXY_EXIT();
 	return r;
 }
 
@@ -2054,12 +2090,16 @@ static size_t
 api_mulgen(unsigned char *R,
 	const unsigned char *x, size_t xlen, int curve)
 {
-	p256_jacobian P;
+	STACK_PROXY_ENTER();
+	dumpstack();
+//	p256_jacobian P;
+	STACK_PROXY_ALLOC(p256_jacobian, P, 1);
 
 	(void)curve;
-	p256_mulgen(&P, x, xlen);
-	p256_to_affine(&P);
-	p256_encode(R, &P);
+	p256_mulgen(P, x, xlen);
+	p256_to_affine(P);
+	p256_encode(R, P);
+	STACK_PROXY_EXIT();
 	return 65;
 
 	/*
@@ -2078,31 +2118,35 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	const unsigned char *x, size_t xlen,
 	const unsigned char *y, size_t ylen, int curve)
 {
-	p256_jacobian P, Q;
+	STACK_PROXY_ENTER();
+	dumpstack();
+//	p256_jacobian P, Q;
+	STACK_PROXY_ALLOC(p256_jacobian, P, 1);
+	STACK_PROXY_ALLOC(p256_jacobian, Q, 1);
 	uint32_t r, t, z;
 	int i;
 
 	(void)curve;
-	r = p256_decode(&P, A, len);
-	p256_mul(&P, x, xlen);
+	r = p256_decode(P, A, len);
+	p256_mul(P, x, xlen);
 	if (B == NULL) {
-		p256_mulgen(&Q, y, ylen);
+		p256_mulgen(Q, y, ylen);
 	} else {
-		r &= p256_decode(&Q, B, len);
-		p256_mul(&Q, y, ylen);
+		r &= p256_decode(Q, B, len);
+		p256_mul(Q, y, ylen);
 	}
 
 	/*
 	 * The final addition may fail in case both points are equal.
 	 */
-	t = p256_add(&P, &Q);
-	reduce_final_f256(P.z);
+	t = p256_add(P, Q);
+	reduce_final_f256(P->z);
 	z = 0;
 	for (i = 0; i < 20; i ++) {
-		z |= P.z[i];
+		z |= P->z[i];
 	}
 	z = EQ(z, 0);
-	p256_double(&Q);
+	p256_double(Q);
 
 	/*
 	 * If z is 1 then either P+Q = 0 (t = 1) or P = Q (t = 0). So we
@@ -2113,10 +2157,11 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	 *   z = 1, t = 0   return Q (a 'double' case)
 	 *   z = 1, t = 1   report an error (P+Q = 0)
 	 */
-	CCOPY(z & ~t, &P, &Q, sizeof Q);
-	p256_to_affine(&P);
-	p256_encode(A, &P);
+	CCOPY(z & ~t, P, Q, sizeof *Q);
+	p256_to_affine(P);
+	p256_encode(A, P);
 	r &= ~(z & t);
+	STACK_PROXY_EXIT();
 	return r;
 }
 

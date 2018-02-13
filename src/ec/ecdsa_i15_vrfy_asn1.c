@@ -33,6 +33,7 @@ br_ecdsa_i15_vrfy_asn1(const br_ec_impl *impl,
 	const br_ec_public_key *pk,
 	const void *sig, size_t sig_len)
 {
+	dumpstack();
 	/*
 	 * We use a double-sized buffer because a malformed ASN.1 signature
 	 * may trigger a size expansion when converting to "raw" format.

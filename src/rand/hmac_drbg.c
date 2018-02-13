@@ -43,6 +43,7 @@ br_hmac_drbg_init(br_hmac_drbg_context *ctx,
 void
 br_hmac_drbg_generate(br_hmac_drbg_context *ctx, void *out, size_t len)
 {
+	dumpstack();
 	const br_hash_class *dig;
 	br_hmac_key_context kc;
 	br_hmac_context hc;
@@ -91,6 +92,7 @@ br_hmac_drbg_generate(br_hmac_drbg_context *ctx, void *out, size_t len)
 void
 br_hmac_drbg_update(br_hmac_drbg_context *ctx, const void *seed, size_t len)
 {
+	dumpstack();
 	const br_hash_class *dig;
 	br_hmac_key_context kc;
 	br_hmac_context hc;

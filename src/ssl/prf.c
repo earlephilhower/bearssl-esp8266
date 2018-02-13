@@ -31,6 +31,7 @@ br_tls_phash(void *dst, size_t len,
 	const void *secret, size_t secret_len, const char *label,
 	size_t seed_num, const br_tls_prf_seed_chunk *seed)
 {
+dumpstack();
 	unsigned char *buf;
 	unsigned char tmp[64], a[64];
 	br_hmac_key_context kc;

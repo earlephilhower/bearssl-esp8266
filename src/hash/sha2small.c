@@ -69,7 +69,7 @@ static const uint32_t K[64] PROGMEM = {
 void
 br_sha2small_round(const unsigned char *buf, uint32_t *val)
 {
-
+	dumpstack();
 #define SHA2_STEP(A, B, C, D, E, F, G, H, j)   do { \
 		uint32_t T1, T2; \
 		T1 = H + BSG2_1(E) + CH(E, F, G) + K[j] + w[j]; \
@@ -229,6 +229,7 @@ sha2small_update(br_sha224_context *cc, const void *data, size_t len)
 static void
 sha2small_out(const br_sha224_context *cc, void *dst, int num)
 {
+	dumpstack();
 	unsigned char buf[64];
 	uint32_t val[8];
 	size_t ptr;
