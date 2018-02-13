@@ -221,6 +221,7 @@ xm_start_cert(const br_x509_class **ctx, uint32_t length)
 static void
 xm_append(const br_x509_class **ctx, const unsigned char *buf, size_t len)
 {
+	dumpstack();
 	br_x509_minimal_context *cc;
 
 	cc = (br_x509_minimal_context *)(void *)ctx;

@@ -208,8 +208,12 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 static int
 make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	int curve;
-	unsigned char key[66], point[133];
+//	unsigned char key[66], point[133];
+	STACK_PROXY_ALLOC(unsigned char, key, 66);
+	STACK_PROXY_ALLOC(unsigned char, point, 133);
 	const unsigned char *order, *point_src;
 	size_t glen, olen, point_len, xoff, xlen;
 	unsigned char mask;
@@ -229,6 +233,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 		point_len = pk->key.ec.qlen;
 	}
 	if ((ctx->eng.iec->supported_curves & ((uint32_t)1 << curve)) == 0) {
+		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
@@ -253,11 +258,13 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	 */
 	ctx->eng.iec->generator(curve, &glen);
 	if (glen != point_len) {
+		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
 	memcpy(point, point_src, glen);
 	if (!ctx->eng.iec->mul(point, glen, key, olen, curve)) {
+		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
@@ -269,6 +276,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 
 	ctx->eng.iec->mulgen(point, key, olen, curve);
 	memcpy(ctx->eng.pad, point, glen);
+	STACK_PROXY_EXIT();
 	return (int)glen;
 }
 

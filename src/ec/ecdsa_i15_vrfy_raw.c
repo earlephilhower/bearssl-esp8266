@@ -34,6 +34,7 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	const br_ec_public_key *pk,
 	const void *sig, size_t sig_len)
 {
+	dumpstack();
 	/*
 	 * IMPORTANT: this code is fit only for curves with a prime
 	 * order. This is needed so that modular reduction of the X

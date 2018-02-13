@@ -34,6 +34,7 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig)
 {
+	dumpstack();
 	/*
 	 * IMPORTANT: this code is fit only for curves with a prime
 	 * order. This is needed so that modular reduction of the X

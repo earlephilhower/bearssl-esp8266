@@ -453,6 +453,7 @@ static uint32_t
 run_code(jacobian *P1, const jacobian *P2,
 	const curve_params *cc, const uint16_t *code)
 {
+	dumpstack();
 	uint32_t r;
 	uint16_t t[13][I15_LEN];
 	size_t u;
@@ -552,6 +553,8 @@ static void
 point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 	const curve_params *cc)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	/*
 	 * We do a simple double-and-add ladder with a 2-bit window
 	 * to make only one add every two doublings. We thus first
@@ -567,14 +570,19 @@ point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 	 * this situation.
 	 */
 	uint32_t qz;
-	jacobian P2, P3, Q, T, U;
+//	jacobian P2, P3, Q, T, U;
+	STACK_PROXY_ALLOC(jacobian, P2, 1);
+	STACK_PROXY_ALLOC(jacobian, P3, 1);
+	STACK_PROXY_ALLOC(jacobian, Q, 1);
+	STACK_PROXY_ALLOC(jacobian, T, 1);
+	STACK_PROXY_ALLOC(jacobian, U, 1);
 
-	memcpy(&P2, P, sizeof P2);
-	point_double(&P2, cc);
-	memcpy(&P3, P, sizeof P3);
-	point_add(&P3, &P2, cc);
+	memcpy(P2, P, sizeof *P2);
+	point_double(P2, cc);
+	memcpy(P3, P, sizeof *P3);
+	point_add(P3, P2, cc);
 
-	point_zero(&Q, cc);
+	point_zero(Q, cc);
 	qz = 1;
 	while (xlen -- > 0) {
 		int k;
@@ -583,22 +591,23 @@ point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 			uint32_t bits;
 			uint32_t bnz;
 
-			point_double(&Q, cc);
-			point_double(&Q, cc);
-			memcpy(&T, P, sizeof T);
-			memcpy(&U, &Q, sizeof U);
+			point_double(Q, cc);
+			point_double(Q, cc);
+			memcpy(T, P, sizeof *T);
+			memcpy(U, Q, sizeof *U);
 			bits = (*x >> k) & (uint32_t)3;
 			bnz = NEQ(bits, 0);
-			CCOPY(EQ(bits, 2), &T, &P2, sizeof T);
-			CCOPY(EQ(bits, 3), &T, &P3, sizeof T);
-			point_add(&U, &T, cc);
-			CCOPY(bnz & qz, &Q, &T, sizeof Q);
-			CCOPY(bnz & ~qz, &Q, &U, sizeof Q);
+			CCOPY(EQ(bits, 2), T, P2, sizeof *T);
+			CCOPY(EQ(bits, 3), T, P3, sizeof *T);
+			point_add(U, T, cc);
+			CCOPY(bnz & qz, Q, T, sizeof *Q);
+			CCOPY(bnz & ~qz, Q, U, sizeof *Q);
 			qz &= ~bnz;
 		}
 		x ++;
 	}
-	memcpy(P, &Q, sizeof Q);
+	memcpy(P, Q, sizeof *Q);
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -609,6 +618,7 @@ point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 static uint32_t
 point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 {
+	dumpstack();
 	/*
 	 * Points must use uncompressed format:
 	 * -- first byte is 0x04;
@@ -668,6 +678,7 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 static void
 point_encode(void *dst, const jacobian *P, const curve_params *cc)
 {
+	dumpstack();
 	unsigned char *buf;
 	size_t plen;
 	jacobian Q, T;
@@ -728,6 +739,7 @@ static uint32_t
 api_mul(unsigned char *G, size_t Glen,
 	const unsigned char *x, size_t xlen, int curve)
 {
+	dumpstack();
 	uint32_t r;
 	const curve_params *cc;
 	jacobian P;
@@ -759,6 +771,7 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	const unsigned char *x, size_t xlen,
 	const unsigned char *y, size_t ylen, int curve)
 {
+	dumpstack();
 	uint32_t r, t, z;
 	const curve_params *cc;
 	jacobian P, Q;

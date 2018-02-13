@@ -95,6 +95,7 @@ rev32(uint32_t x)
 void
 br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len)
 {
+	STACK_PROXY_ENTER();
 	/*
 	 * This implementation is similar to br_ghash_ctmul() except
 	 * that we have to do the multiplication twice, with the
@@ -106,6 +107,10 @@ br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len)
 	unsigned char *yb;
 	uint32_t yw[4];
 	uint32_t hw[4], hwr[4];
+	STACK_PROXY_ALLOC(uint32_t, a, 18);
+	STACK_PROXY_ALLOC(uint32_t, b, 18);
+	STACK_PROXY_ALLOC(uint32_t, c, 18);
+	STACK_PROXY_ALLOC(uint32_t, zw, 8);
 
 	buf = data;
 	yb = y;
@@ -126,9 +131,9 @@ br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len)
 		const unsigned char *src;
 		unsigned char tmp[16];
 		int i;
-		uint32_t a[18], b[18], c[18];
+//		uint32_t a[18], b[18], c[18];
 		uint32_t d0, d1, d2, d3, d4, d5, d6, d7;
-		uint32_t zw[8];
+//		uint32_t zw[8];
 
 		if (len >= 16) {
 			src = buf;
@@ -248,4 +253,5 @@ br_ghash_ctmul32(void *y, const void *h, const void *data, size_t len)
 	br_enc32be(yb + 4, yw[2]);
 	br_enc32be(yb + 8, yw[1]);
 	br_enc32be(yb + 12, yw[0]);
+	STACK_PROXY_EXIT();
 }

@@ -157,10 +157,12 @@ static void
 ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *xcoor, size_t xcoor_len, uint32_t ctl)
 {
-	unsigned char rpms[80];
+	STACK_PROXY_ENTER();
+//	unsigned char rpms[80];
+	STACK_PROXY_ALLOC(unsigned char, rpms, 80);
 
-	if (xcoor_len > sizeof rpms) {
-		xcoor_len = sizeof rpms;
+	if (xcoor_len > 80 * sizeof *rpms) {
+		xcoor_len = 80 * sizeof *rpms;
 		ctl = 0;
 	}
 
@@ -182,6 +184,7 @@ ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	 * in the context, hence potentially long-lived.
 	 */
 	memset(xcoor, 0, xcoor_len);
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -210,7 +213,10 @@ do_ecdh(br_ssl_server_context *ctx, int prf_id,
 static void
 do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 {
-	unsigned char cpoint[133];
+	STACK_PROXY_ENTER();
+	dumpstack();
+//	unsigned char cpoint[133];
+	STACK_PROXY_ALLOC(unsigned char, cpoint, 133);
 	size_t cpoint_len;
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
@@ -218,7 +224,7 @@ do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	cpoint_len = pk->key.ec.qlen;
-	if (cpoint_len > sizeof cpoint) {
+	if (cpoint_len > 133 * sizeof *cpoint) {
 		/*
 		 * If the point is larger than our buffer then we need to
 		 * restrict it. Length 2 is not a valid point length, so
@@ -228,6 +234,7 @@ do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 	}
 	memcpy(cpoint, pk->key.ec.q, cpoint_len);
 	do_ecdh(ctx, prf_id, cpoint, cpoint_len);
+	STACK_PROXY_EXIT();
 }
 
 static size_t

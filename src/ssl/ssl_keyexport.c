@@ -46,6 +46,7 @@ br_ssl_key_export(br_ssl_engine_context *cc,
 	void *dst, size_t len, const char *label,
 	const void *context, size_t context_len)
 {
+dumpstack();
 	br_tls_prf_seed_chunk chunks[4];
 	br_tls_prf_impl iprf;
 	size_t num_chunks, u;

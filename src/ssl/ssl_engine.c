@@ -565,6 +565,7 @@ br_ssl_engine_inject_entropy(br_ssl_engine_context *cc,
 static unsigned char *
 recvrec_buf(const br_ssl_engine_context *rc, size_t *len)
 {
+dumpstack();
 	if (rc->shutdown_recv) {
 		*len = 0;
 		return NULL;
@@ -602,6 +603,7 @@ recvrec_buf(const br_ssl_engine_context *rc, size_t *len)
 static void
 recvrec_ack(br_ssl_engine_context *rc, size_t len)
 {
+dumpstack();
 	unsigned char *pbuf;
 	size_t pbuf_len;
 
@@ -880,6 +882,7 @@ sendpld_ack(br_ssl_engine_context *rc, size_t len)
 static unsigned char *
 sendrec_buf(const br_ssl_engine_context *rc, size_t *len)
 {
+dumpstack();
 	/*
 	 * When still gathering payload bytes, oxc points to the start
 	 * of the record data, so oxc <= oxa. However, when a full
@@ -902,6 +905,7 @@ sendrec_buf(const br_ssl_engine_context *rc, size_t *len)
 static void
 sendrec_ack(br_ssl_engine_context *rc, size_t len)
 {
+dumpstack();
 	rc->oxb = (rc->oxa += len);
 	if (rc->oxa == rc->oxc) {
 		make_ready_out(rc);
@@ -1324,6 +1328,7 @@ void
 br_ssl_engine_compute_master(br_ssl_engine_context *cc,
 	int prf_id, const void *pms, size_t pms_len)
 {
+dumpstack();
 	br_tls_prf_impl iprf;
 	br_tls_prf_seed_chunk seed[2] = {
 		{ cc->client_random, sizeof cc->client_random },
@@ -1342,6 +1347,7 @@ static void
 compute_key_block(br_ssl_engine_context *cc, int prf_id,
 	size_t half_len, unsigned char *kb)
 {
+dumpstack();
 	br_tls_prf_impl iprf;
 	br_tls_prf_seed_chunk seed[2] = {
 		{ cc->server_random, sizeof cc->server_random },
@@ -1360,6 +1366,7 @@ br_ssl_engine_switch_cbc_in(br_ssl_engine_context *cc,
 	int is_client, int prf_id, int mac_id,
 	const br_block_cbcdec_class *bc_impl, size_t cipher_key_len)
 {
+dumpstack();
 	unsigned char kb[192];
 	unsigned char *cipher_key, *mac_key, *iv;
 	const br_hash_class *imh;
@@ -1403,6 +1410,7 @@ br_ssl_engine_switch_cbc_out(br_ssl_engine_context *cc,
 	int is_client, int prf_id, int mac_id,
 	const br_block_cbcenc_class *bc_impl, size_t cipher_key_len)
 {
+dumpstack();
 	unsigned char kb[192];
 	unsigned char *cipher_key, *mac_key, *iv;
 	const br_hash_class *imh;
@@ -1445,6 +1453,7 @@ br_ssl_engine_switch_gcm_in(br_ssl_engine_context *cc,
 	int is_client, int prf_id,
 	const br_block_ctr_class *bc_impl, size_t cipher_key_len)
 {
+dumpstack();
 	unsigned char kb[72];
 	unsigned char *cipher_key, *iv;
 
@@ -1467,6 +1476,7 @@ br_ssl_engine_switch_gcm_out(br_ssl_engine_context *cc,
 	int is_client, int prf_id,
 	const br_block_ctr_class *bc_impl, size_t cipher_key_len)
 {
+dumpstack();
 	unsigned char kb[72];
 	unsigned char *cipher_key, *iv;
 
@@ -1487,6 +1497,7 @@ void
 br_ssl_engine_switch_chapol_in(br_ssl_engine_context *cc,
 	int is_client, int prf_id)
 {
+dumpstack();
 	unsigned char kb[88];
 	unsigned char *cipher_key, *iv;
 
@@ -1508,6 +1519,7 @@ void
 br_ssl_engine_switch_chapol_out(br_ssl_engine_context *cc,
 	int is_client, int prf_id)
 {
+dumpstack();
 	unsigned char kb[88];
 	unsigned char *cipher_key, *iv;
 
