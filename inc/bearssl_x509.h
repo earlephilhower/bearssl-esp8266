@@ -990,6 +990,12 @@ typedef struct {
 	void *append_dn_ctx;
 	void (*append_dn)(void *ctx, const void *buf, size_t len);
 
+	/* DN processing: the issuer DN is extracted and pushed to the
+	   provided callback. */
+	unsigned char copy_in;
+	void *append_in_ctx;
+	void (*append_in)(void *ctx, const void *buf, size_t len);
+
 	/* Certificate data chunk. */
 	const unsigned char *hbuf;
 	size_t hlen;
@@ -1016,10 +1022,14 @@ typedef struct {
  * \param ctx             X.509 decoder context to initialise.
  * \param append_dn       DN receiver callback (or `0`).
  * \param append_dn_ctx   context for the DN receiver callback.
+ * \param append_in       issuer DN receiver callback (or `0`).
+ * \param append_in_ctx   context for the issuer DN receiver callback.
  */
 void br_x509_decoder_init(br_x509_decoder_context *ctx,
 	void (*append_dn)(void *ctx, const void *buf, size_t len),
-	void *append_dn_ctx);
+	void *append_dn_ctx,
+	void (*append_in)(void *ctx, const void *buf, size_t len),
+	void *append_in_ctx);
 
 /**
  * \brief Push some certificate bytes into a decoder context.

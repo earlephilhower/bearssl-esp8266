@@ -35,9 +35,12 @@ uint32_t
 br_rsa_i15_public(unsigned char *x, size_t xlen,
 	const br_rsa_public_key *pk)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	const unsigned char *n;
 	size_t nlen;
-	uint16_t tmp[1 + TLEN];
+//	uint16_t tmp[1 + TLEN];
+	STACK_PROXY_ALLOC(uint16_t, tmp, 1 + TLEN);
 	uint16_t *m, *a, *t;
 	size_t fwlen;
 	long z;
@@ -55,6 +58,7 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 		nlen --;
 	}
 	if (nlen == 0 || nlen > (BR_MAX_RSA_SIZE >> 3) || xlen != nlen) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	z = (long)nlen << 3;
@@ -109,5 +113,6 @@ br_rsa_i15_public(unsigned char *x, size_t xlen,
 	 * Encode the result.
 	 */
 	br_i15_encode(x, xlen, a);
+	STACK_PROXY_EXIT();
 	return r;
 }

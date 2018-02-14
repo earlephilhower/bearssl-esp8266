@@ -236,7 +236,8 @@ OBJ = \
  $(OBJDIR)$Px509_decoder$O \
  $(OBJDIR)$Px509_knownkey$O \
  $(OBJDIR)$Px509_minimal$O \
- $(OBJDIR)$Px509_minimal_full$O
+ $(OBJDIR)$Px509_minimal_full$O \
+ $(OBJDIR)$Pesp8266_stack_proxy$O
 OBJBRSSL = \
  $(OBJDIR)$Pbrssl$O \
  $(OBJDIR)$Pcerts$O \
@@ -261,7 +262,7 @@ OBJTESTSPEED = \
  $(OBJDIR)$Ptest_speed$O
 OBJTESTX509 = \
  $(OBJDIR)$Ptest_x509$O
-HEADERSPUB = inc$Pbearssl.h inc$Pbearssl_aead.h inc$Pbearssl_block.h inc$Pbearssl_ec.h inc$Pbearssl_hash.h inc$Pbearssl_hmac.h inc$Pbearssl_pem.h inc$Pbearssl_prf.h inc$Pbearssl_rand.h inc$Pbearssl_rsa.h inc$Pbearssl_ssl.h inc$Pbearssl_x509.h
+HEADERSPUB = inc$Pbearssl.h inc$Pbearssl_aead.h inc$Pbearssl_block.h inc$Pbearssl_ec.h inc$Pbearssl_hash.h inc$Pbearssl_hmac.h inc$Pbearssl_pem.h inc$Pbearssl_prf.h inc$Pbearssl_rand.h inc$Pbearssl_rsa.h inc$Pbearssl_ssl.h inc$Pbearssl_x509.h inc$Pbearssl_port.h
 HEADERSPRIV = $(HEADERSPUB) src$Pconfig.h src$Pinner.h
 HEADERSTOOLS = $(HEADERSPUB) tools$Pbrssl.h
 T0SRC = T0$PBlobWriter.cs T0$PCPU.cs T0$PCodeElement.cs T0$PCodeElementJump.cs T0$PCodeElementUInt.cs T0$PCodeElementUIntExpr.cs T0$PCodeElementUIntInt.cs T0$PCodeElementUIntUInt.cs T0$PConstData.cs T0$POpcode.cs T0$POpcodeCall.cs T0$POpcodeConst.cs T0$POpcodeGetLocal.cs T0$POpcodeJump.cs T0$POpcodeJumpIf.cs T0$POpcodeJumpIfNot.cs T0$POpcodeJumpUncond.cs T0$POpcodePutLocal.cs T0$POpcodeRet.cs T0$PSType.cs T0$PT0Comp.cs T0$PTPointerBase.cs T0$PTPointerBlob.cs T0$PTPointerExpr.cs T0$PTPointerNull.cs T0$PTPointerXT.cs T0$PTValue.cs T0$PWord.cs T0$PWordBuilder.cs T0$PWordData.cs T0$PWordInterpreted.cs T0$PWordNative.cs
@@ -1025,6 +1026,9 @@ $(OBJDIR)$Px509_minimal$O: src$Px509$Px509_minimal.c $(HEADERSPRIV)
 
 $(OBJDIR)$Px509_minimal_full$O: src$Px509$Px509_minimal_full.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Px509_minimal_full$O src$Px509$Px509_minimal_full.c
+
+$(OBJDIR)$Pesp8266_stack_proxy$O: src$Pport$Pesp8266_stack_proxy.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pesp8266_stack_proxy$O src$Pport$Pesp8266_stack_proxy.c
 
 $(OBJDIR)$Pbrssl$O: tools$Pbrssl.c $(HEADERSTOOLS)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pbrssl$O tools$Pbrssl.c

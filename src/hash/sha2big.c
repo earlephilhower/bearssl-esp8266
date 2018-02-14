@@ -94,7 +94,8 @@ static const uint64_t K[80] PROGMEM = {
 static void
 sha2big_round(const unsigned char *buf, uint64_t *val)
 {
-
+	STACK_PROXY_ENTER();
+	dumpstack();
 #define SHA2BIG_STEP(A, B, C, D, E, F, G, H, j)   do { \
 		uint64_t T1, T2; \
 		T1 = H + BSG5_1(E) + CH(E, F, G) + K[j] + w[j]; \
@@ -105,7 +106,8 @@ sha2big_round(const unsigned char *buf, uint64_t *val)
 
 	int i;
 	uint64_t a, b, c, d, e, f, g, h;
-	uint64_t w[80];
+//	uint64_t w[80];
+	STACK_PROXY_ALLOC(uint64_t, w, 80);
 
 	br_range_dec64be(w, 16, buf);
 	for (i = 16; i < 80; i ++) {
@@ -138,6 +140,7 @@ sha2big_round(const unsigned char *buf, uint64_t *val)
 	val[5] += f;
 	val[6] += g;
 	val[7] += h;
+	STACK_PROXY_EXIT();
 }
 
 static void
@@ -170,7 +173,10 @@ sha2big_update(br_sha384_context *cc, const void *data, size_t len)
 static void
 sha2big_out(const br_sha384_context *cc, void *dst, int num)
 {
-	unsigned char buf[128];
+	STACK_PROXY_ENTER();
+	dumpstack();
+//	unsigned char buf[128];
+	STACK_PROXY_ALLOC(unsigned char, buf, 128);
 	uint64_t val[8];
 	size_t ptr;
 
@@ -189,6 +195,7 @@ sha2big_out(const br_sha384_context *cc, void *dst, int num)
 	br_enc64be(buf + 120, cc->count << 3);
 	sha2big_round(buf, val);
 	br_range_enc64be(dst, val, num);
+	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */

@@ -49,12 +49,15 @@ print_int(const char *name, const uint16_t *x)
 uint32_t
 br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 {
+	STACK_PROXY_ENTER();
+	dumpstack();
 	const unsigned char *p, *q;
 	size_t plen, qlen;
 	size_t fwlen;
 	uint16_t p0i, q0i;
 	size_t xlen;
-	uint16_t tmp[1 + TLEN];
+//	uint16_t tmp[1 + TLEN];
+	STACK_PROXY_ALLOC(uint16_t, tmp, 1 + TLEN);
 	long z;
 	uint16_t *mp, *mq, *s1, *s2, *t1, *t2, *t3;
 	uint32_t r;
@@ -95,6 +98,7 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * We need to fit at least 6 values in the stack buffer.
 	 */
 	if (6 * fwlen > TLEN) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -186,5 +190,6 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * The only error conditions remaining at that point are invalid
 	 * values for p and q (even integers).
 	 */
+	STACK_PROXY_EXIT();
 	return p0i & q0i & r;
 }

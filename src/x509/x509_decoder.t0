@@ -31,7 +31,9 @@ preamble {
 void
 br_x509_decoder_init(br_x509_decoder_context *ctx,
 	void (*append_dn)(void *ctx, const void *buf, size_t len),
-	void *append_dn_ctx)
+	void *append_dn_ctx,
+	void (*append_in)(void *ctx, const void *buf, size_t len),
+	void *append_in_ctx)
 {
 	memset(ctx, 0, sizeof *ctx);
 	/* obsolete
@@ -41,6 +43,8 @@ br_x509_decoder_init(br_x509_decoder_context *ctx,
 	*/
 	ctx->append_dn = append_dn;
 	ctx->append_dn_ctx = append_dn_ctx;
+	ctx->append_in = append_in;
+	ctx->append_in_ctx = append_in_ctx;
 	ctx->cpu.dp = &ctx->dp_stack[0];
 	ctx->cpu.rp = &ctx->rp_stack[0];
 	br_x509_decoder_init_main(&ctx->cpu);
@@ -66,6 +70,7 @@ addr: notafter_days
 addr: notafter_seconds
 addr: isCA
 addr: copy_dn
+addr: copy_in
 addr: signer_key_type
 addr: signer_hash_id
 
@@ -80,6 +85,9 @@ cc: read8-low ( -- x ) {
 #endif
 		if (CTX->copy_dn && CTX->append_dn) {
 			CTX->append_dn(CTX->append_dn_ctx, &x, 1);
+		}
+		if (CTX->copy_in && CTX->append_in) {
+			CTX->append_in(CTX->append_in_ctx, &x, 1);
 		}
 		CTX->hlen --;
 		T0_PUSH(x);
@@ -102,6 +110,9 @@ cc: read-blob-inner ( addr len -- addr len ) {
 	}
 	if (CTX->copy_dn && CTX->append_dn) {
 		CTX->append_dn(CTX->append_dn_ctx, CTX->hbuf, clen);
+	}
+	if (CTX->copy_in && CTX->append_in) {
+		CTX->append_in(CTX->append_in_ctx, CTX->hbuf, clen);
 	}
 	CTX->hbuf += clen;
 	CTX->hlen -= clen;
@@ -155,6 +166,7 @@ OID: basicConstraints    2.5.29.19
 	\ Initialise state flags.
 	0 addr-decoded set8
 	0 addr-copy_dn set8
+	0 addr-copy_in set8
 
 	\ An arbitrary limit for the total certificate size.
 	0xFFFFFF
@@ -184,7 +196,9 @@ OID: basicConstraints    2.5.29.19
 	read-sequence-open skip-close-elt
 
 	\ Issuer name.
+	1 addr-copy_in set8
 	read-sequence-open skip-close-elt
+	0 addr-copy_in set8
 
 	\ Validity dates.
 	read-sequence-open

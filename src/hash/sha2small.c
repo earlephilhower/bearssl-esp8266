@@ -69,7 +69,8 @@ static const uint32_t K[64] PROGMEM = {
 void
 br_sha2small_round(const unsigned char *buf, uint32_t *val)
 {
-
+	STACK_PROXY_ENTER();
+	dumpstack();
 #define SHA2_STEP(A, B, C, D, E, F, G, H, j)   do { \
 		uint32_t T1, T2; \
 		T1 = H + BSG2_1(E) + CH(E, F, G) + K[j] + w[j]; \
@@ -80,7 +81,8 @@ br_sha2small_round(const unsigned char *buf, uint32_t *val)
 
 	int i;
 	uint32_t a, b, c, d, e, f, g, h;
-	uint32_t w[64];
+//	uint32_t w[64];
+	STACK_PROXY_ALLOC(uint32_t, w, 64);
 
 	br_range_dec32be(w, 16, buf);
 	for (i = 16; i < 64; i ++) {
@@ -113,6 +115,7 @@ br_sha2small_round(const unsigned char *buf, uint32_t *val)
 	val[5] += f;
 	val[6] += g;
 	val[7] += h;
+	STACK_PROXY_EXIT();
 
 #if 0
 /* obsolete */
@@ -229,7 +232,10 @@ sha2small_update(br_sha224_context *cc, const void *data, size_t len)
 static void
 sha2small_out(const br_sha224_context *cc, void *dst, int num)
 {
-	unsigned char buf[64];
+	STACK_PROXY_ENTER();
+	dumpstack();
+//	unsigned char buf[64];
+	STACK_PROXY_ALLOC(unsigned char, buf, 64);
 	uint32_t val[8];
 	size_t ptr;
 
@@ -247,6 +253,7 @@ sha2small_out(const br_sha224_context *cc, void *dst, int num)
 	br_enc64be(buf + 56, cc->count << 3);
 	br_sha2small_round(buf, val);
 	br_range_enc32be(dst, val, num);
+	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */
