@@ -45,7 +45,6 @@ void br_esp8266_stack_proxy_deinit()
 	stack_proxy_max_ptr = 0;
 	stack_proxy_depth = 0;
 }
-extern void P(const char *a);
 
 /* Stores the current ptr to the size stack on function entry, before any allocs */
 void br_stack_proxy_enter()
@@ -66,14 +65,12 @@ void *br_stack_proxy_alloc(size_t bytes)
 		}
 		while (stack_proxy_ptr&0x3) stack_proxy_ptr++; // Align 32-bits
 #if ESP8266DEBUG
-//{char a[32]; sprintf(a,"a%dp\n", bytes); PRINTIT(a);}
+		//{char a[32]; sprintf(a,"a%dp\n", bytes); PRINTIT(a);}
 #endif
-//		printf("alloc of %d passed\n", bytes);
 		return (void*)ptr;
 	}
-//	printf("alloc of %d failed\n", bytes);
 #if ESP8266DEBUG
-{char a[32]; sprintf(a,"a%dF\n", bytes); PRINTIT(a);}
+	//{char a[32]; sprintf(a,"a%dF\n", bytes); PRINTIT(a);}
 #endif
 	return NULL;
 }
