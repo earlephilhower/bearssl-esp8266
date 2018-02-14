@@ -34,6 +34,7 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	const br_ec_public_key *pk,
 	const void *sig, size_t sig_len)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
 	/*
 	 * IMPORTANT: this code is fit only for curves with a prime
@@ -41,10 +42,18 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	 * coordinate of a point can be done with a simple subtraction.
 	 */
 	const br_ec_curve_def *cd;
-	uint16_t n[I15_LEN], r[I15_LEN], s[I15_LEN], t1[I15_LEN], t2[I15_LEN];
-	unsigned char tx[(BR_MAX_EC_SIZE + 7) >> 3];
-	unsigned char ty[(BR_MAX_EC_SIZE + 7) >> 3];
-	unsigned char eU[POINT_LEN];
+//	uint16_t n[I15_LEN], r[I15_LEN], s[I15_LEN], t1[I15_LEN], t2[I15_LEN];
+	STACK_PROXY_ALLOC(uint16_t, n, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, r, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, s, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, t1, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, t2, I15_LEN);
+//	unsigned char tx[(BR_MAX_EC_SIZE + 7) >> 3];
+//	unsigned char ty[(BR_MAX_EC_SIZE + 7) >> 3];
+//	unsigned char eU[POINT_LEN];
+	STACK_PROXY_ALLOC(unsigned char, tx, (BR_MAX_EC_SIZE + 7) >> 3);
+	STACK_PROXY_ALLOC(unsigned char, ty, (BR_MAX_EC_SIZE + 7) >> 3);
+	STACK_PROXY_ALLOC(unsigned char, eU, POINT_LEN);
 	size_t nlen, rlen, ulen;
 	uint16_t n0i;
 	uint32_t res;
@@ -53,6 +62,7 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	 * If the curve is not supported, then report an error.
 	 */
 	if (((impl->supported_curves >> pk->curve) & 1) == 0) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -70,6 +80,7 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 		cd = &br_secp521r1;
 		break;
 	default:
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -77,6 +88,7 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	 * Signature length must be even.
 	 */
 	if (sig_len & 1) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	rlen = sig_len >> 1;
@@ -85,6 +97,7 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	 * Public key point must have the proper size for this curve.
 	 */
 	if (pk->qlen != cd->generator_len) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -96,12 +109,15 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	br_i15_decode(n, cd->order, nlen);
 	n0i = br_i15_ninv15(n[1]);
 	if (!br_i15_decode_mod(r, sig, rlen, n)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	if (!br_i15_decode_mod(s, (const unsigned char *)sig + rlen, rlen, n)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	if (br_i15_iszero(s)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -163,5 +179,6 @@ br_ecdsa_i15_vrfy_raw(const br_ec_impl *impl,
 	br_i15_sub(t1, n, br_i15_sub(t1, n, 0) ^ 1);
 	res &= ~br_i15_sub(t1, r, 1);
 	res &= br_i15_iszero(t1);
+	STACK_PROXY_EXIT();
 	return res;
 }

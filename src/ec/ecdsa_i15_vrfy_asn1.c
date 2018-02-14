@@ -33,17 +33,22 @@ br_ecdsa_i15_vrfy_asn1(const br_ec_impl *impl,
 	const br_ec_public_key *pk,
 	const void *sig, size_t sig_len)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
 	/*
 	 * We use a double-sized buffer because a malformed ASN.1 signature
 	 * may trigger a size expansion when converting to "raw" format.
 	 */
-	unsigned char rsig[(FIELD_LEN << 2) + 24];
+//	unsigned char rsig[(FIELD_LEN << 2) + 24];
+	STACK_PROXY_ALLOC(unsigned char, rsig, (FIELD_LEN << 2) + 24);
 
-	if (sig_len > ((sizeof rsig) >> 1)) {
+	if (sig_len > (((FIELD_LEN << 2) + 24) >> 1)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	memcpy(rsig, sig, sig_len);
 	sig_len = br_ecdsa_asn1_to_raw(rsig, sig_len);
-	return br_ecdsa_i15_vrfy_raw(impl, hash, hash_len, pk, rsig, sig_len);
+	uint32_t ret = br_ecdsa_i15_vrfy_raw(impl, hash, hash_len, pk, rsig, sig_len);
+	STACK_PROXY_EXIT();
+	return ret;
 }

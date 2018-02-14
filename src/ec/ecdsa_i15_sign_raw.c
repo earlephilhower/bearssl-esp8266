@@ -34,6 +34,7 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
 	/*
 	 * IMPORTANT: this code is fit only for curves with a prime
@@ -43,10 +44,20 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	 * from 0 and 1.
 	 */
 	const br_ec_curve_def *cd;
-	uint16_t n[I15_LEN], r[I15_LEN], s[I15_LEN], x[I15_LEN];
-	uint16_t m[I15_LEN], k[I15_LEN], t1[I15_LEN], t2[I15_LEN];
-	unsigned char tt[ORDER_LEN << 1];
-	unsigned char eU[POINT_LEN];
+//	uint16_t n[I15_LEN], r[I15_LEN], s[I15_LEN], x[I15_LEN];
+//	uint16_t m[I15_LEN], k[I15_LEN], t1[I15_LEN], t2[I15_LEN];
+	STACK_PROXY_ALLOC(uint16_t, n, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, r, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, s, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, x, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, m, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, k, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, t1, I15_LEN);
+	STACK_PROXY_ALLOC(uint16_t, t2, I15_LEN);
+//	unsigned char tt[ORDER_LEN << 1];
+//	unsigned char eU[POINT_LEN];
+	STACK_PROXY_ALLOC(unsigned char, tt, ORDER_LEN << 1);
+	STACK_PROXY_ALLOC(unsigned char, eU, POINT_LEN);
 	size_t hash_len, nlen, ulen;
 	uint16_t n0i;
 	uint32_t ctl;
@@ -56,6 +67,7 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	 * If the curve is not supported, then exit with an error.
 	 */
 	if (((impl->supported_curves >> sk->curve) & 1) == 0) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -73,6 +85,7 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 		cd = &br_secp521r1;
 		break;
 	default:
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -89,9 +102,11 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	 * curve order).
 	 */
 	if (!br_i15_decode_mod(x, sk->x, sk->xlen, n)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	if (br_i15_iszero(x)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -171,5 +186,6 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	 */
 	br_i15_encode(sig, nlen, r);
 	br_i15_encode((unsigned char *)sig + nlen, nlen, s);
+	STACK_PROXY_EXIT();
 	return nlen << 1;
 }

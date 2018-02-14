@@ -44,7 +44,7 @@ certificate_to_trust_anchor_inner(br_x509_trust_anchor *ta,
 	bvector vdn = VEC_INIT;
 	br_x509_pkey *pk;
 
-	br_x509_decoder_init(&dc, dn_append, &vdn);
+	br_x509_decoder_init(&dc, dn_append, &vdn, 0, 0);
 	br_x509_decoder_push(&dc, xc->data, xc->data_len);
 	pk = br_x509_decoder_get_pkey(&dc);
 	if (pk == NULL) {
@@ -146,7 +146,7 @@ get_cert_signer_algo(br_x509_certificate *xc)
 	br_x509_decoder_context dc;
 	int err;
 
-	br_x509_decoder_init(&dc, 0, 0);
+	br_x509_decoder_init(&dc, 0, 0, 0, 0);
 	br_x509_decoder_push(&dc, xc->data, xc->data_len);
 	err = br_x509_decoder_last_error(&dc);
 	if (err != 0) {

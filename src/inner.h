@@ -2354,24 +2354,30 @@ br_cpuid(uint32_t mask_eax, uint32_t mask_ebx,
 #ifdef ESP8266
 
 #define ESP8266_DEBUG 0
-extern void br_stack_proxy_enter();
-extern void *br_stack_proxy_alloc(size_t bytes);
-extern void br_stack_proxy_exit();
-extern void PRINTIT(const char *a);
-#include <stdio.h>
-#define STACK_PROXY_ENTER() { if (ESP8266_DEBUG) {char b[100]; sprintf(b, "ENTER:%s:%s\n", __FILE__, __FUNCTION__ ); PRINTIT(b);} br_stack_proxy_enter(); }
-#define STACK_PROXY_EXIT() { if (ESP8266_DEBUG) {char b[100]; sprintf(b, "EXIT: %s:%s\n", __FILE__, __FUNCTION__ ); PRINTIT(b);} br_stack_proxy_exit(); }
-#define STACK_PROXY_ALLOC(type, name, count) \
-	type *name = (type *)br_stack_proxy_alloc(sizeof(type) * (count));\
-	if (!name) name = (type *)alloca(sizeof(type) * (count));
+  #ifdef __cplusplus
+  extern "C" {
+  #endif
+  extern void br_stack_proxy_enter();
+  extern void *br_stack_proxy_alloc(size_t bytes);
+  extern void br_stack_proxy_exit();
+  extern void stack(const char *fcn, const char *file, int line);
+  extern void PRINTIT(const char *a);
+  #include <stdio.h>
+  #define STACK_PROXY_ENTER() { if (ESP8266_DEBUG) {char b[100]; sprintf(b, "ENTER:%s:%s\n", __FILE__, __FUNCTION__ ); PRINTIT(b);} br_stack_proxy_enter(); }
+  #define STACK_PROXY_EXIT() { if (ESP8266_DEBUG) {char b[100]; sprintf(b, "EXIT: %s:%s\n", __FILE__, __FUNCTION__ ); PRINTIT(b);} br_stack_proxy_exit(); }
+  #define STACK_PROXY_ALLOC(type, name, count) \
+		type *name = (type *)br_stack_proxy_alloc(sizeof(type) * (count));\
+		if (!name) name = (type *)alloca(sizeof(type) * (count));
+  #define dumpstack() if (ESP8266_DEBUG) stack(__FUNCTION__, __FILE__, __LINE__); else {}
+  #ifdef __cplusplus
+  }
+  #endif
 
-extern void stack(const char *fcn, const char *file, int line);
-#define dumpstack() if (ESP8266_DEBUG) stack(__FUNCTION__, __FILE__, __LINE__); else {}
 #else
-#define STACK_PROXY_ENTER()
-#define STACK_PROXY_EXIT()
-#define STACK_PROXY_ALLOC(type, name, count) type name[count]
-#define dumpstack()
+  #define STACK_PROXY_ENTER()
+  #define STACK_PROXY_EXIT()
+  #define STACK_PROXY_ALLOC(type, name, count) type name[count]
+  #define dumpstack()
 #endif
 
 
