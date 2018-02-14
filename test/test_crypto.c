@@ -5526,6 +5526,7 @@ test_EAX_inner(const char *name, const br_block_ctrcbc_class *vt)
 		size_t plain_len, key_len, nonce_len, aad_len;
 		br_aes_gen_ctrcbc_keys bc;
 		br_eax_context ec;
+		br_eax_state st;
 		unsigned char tmp[100], out[16];
 		size_t v, tag_len;
 
@@ -5646,6 +5647,63 @@ test_EAX_inner(const char *name, const br_block_ctrcbc_class *vt)
 				exit(EXIT_FAILURE);
 			}
 		}
+
+		printf(".");
+		fflush(stdout);
+
+		/*
+		 * For capture tests, we need the message to be non-empty.
+		 */
+		if (plain_len == 0) {
+			continue;
+		}
+
+		/*
+		 * Captured state, pre-AAD. This requires the AAD and the
+		 * message to be non-empty.
+		 */
+		br_eax_capture(&ec, &st);
+
+		if (aad_len > 0) {
+			br_eax_reset_pre_aad(&ec, &st, nonce, nonce_len);
+			br_eax_aad_inject(&ec, aad, aad_len);
+			br_eax_flip(&ec);
+			memcpy(tmp, plain, plain_len);
+			br_eax_run(&ec, 1, tmp, plain_len);
+			br_eax_get_tag(&ec, out);
+			check_equals("KAT EAX 9", tmp, cipher, plain_len);
+			check_equals("KAT EAX 10", out, tag, 16);
+
+			br_eax_reset_pre_aad(&ec, &st, nonce, nonce_len);
+			br_eax_aad_inject(&ec, aad, aad_len);
+			br_eax_flip(&ec);
+			br_eax_run(&ec, 0, tmp, plain_len);
+			br_eax_get_tag(&ec, out);
+			check_equals("KAT EAX 11", tmp, plain, plain_len);
+			check_equals("KAT EAX 12", out, tag, 16);
+		}
+
+		/*
+		 * Captured state, post-AAD. This requires the message to
+		 * be non-empty.
+		 */
+		br_eax_reset(&ec, nonce, nonce_len);
+		br_eax_aad_inject(&ec, aad, aad_len);
+		br_eax_flip(&ec);
+		br_eax_get_aad_mac(&ec, &st);
+
+		br_eax_reset_post_aad(&ec, &st, nonce, nonce_len);
+		memcpy(tmp, plain, plain_len);
+		br_eax_run(&ec, 1, tmp, plain_len);
+		br_eax_get_tag(&ec, out);
+		check_equals("KAT EAX 13", tmp, cipher, plain_len);
+		check_equals("KAT EAX 14", out, tag, 16);
+
+		br_eax_reset_post_aad(&ec, &st, nonce, nonce_len);
+		br_eax_run(&ec, 0, tmp, plain_len);
+		br_eax_get_tag(&ec, out);
+		check_equals("KAT EAX 15", tmp, plain, plain_len);
+		check_equals("KAT EAX 16", out, tag, 16);
 
 		printf(".");
 		fflush(stdout);

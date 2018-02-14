@@ -113,9 +113,16 @@ do_pad(br_eax_context *ctx)
 }
 
 /*
- * Apply CBC-MAC on the provided data, with buffering management. This
- * function assumes that on input, ctx->buf contains a full block of
- * unprocessed data.
+ * Apply CBC-MAC on the provided data, with buffering management.
+ *
+ * Upon entry, two situations are acceptable:
+ *
+ *   ctx->ptr == 0: there is no data to process in ctx->buf
+ *   ctx->ptr == 16: there is a full block of unprocessed data in ctx->buf
+ *
+ * Upon exit, ctx->ptr may be zero only if it was already zero on entry,
+ * and len == 0. In all other situations, ctx->ptr will be non-zero on
+ * exit (and may have value 16).
  */
 static void
 do_cbcmac_chunk(br_eax_context *ctx, const void *data, size_t len)
@@ -132,7 +139,10 @@ do_cbcmac_chunk(br_eax_context *ctx, const void *data, size_t len)
 	} else {
 		len -= ptr;
 	}
-	(*ctx->bctx)->mac(ctx->bctx, ctx->cbcmac, ctx->buf, sizeof ctx->buf);
+	if (ctx->ptr == 16) {
+		(*ctx->bctx)->mac(ctx->bctx, ctx->cbcmac,
+			ctx->buf, sizeof ctx->buf);
+	}
 	(*ctx->bctx)->mac(ctx->bctx, ctx->cbcmac, data, len);
 	memcpy(ctx->buf, (const unsigned char *)data + len, ptr);
 	ctx->ptr = ptr;
@@ -159,6 +169,27 @@ br_eax_init(br_eax_context *ctx, const br_block_ctrcbc_class **bctx)
 
 /* see bearssl_aead.h */
 void
+br_eax_capture(const br_eax_context *ctx, br_eax_state *st)
+{
+	/*
+	 * We capture the three OMAC* states _after_ processing the
+	 * initial block (assuming that nonce, message and AAD are
+	 * all non-empty).
+	 */
+	int i;
+
+	memset(st->st, 0, sizeof st->st);
+	for (i = 0; i < 3; i ++) {
+		unsigned char tmp[16];
+
+		memset(tmp, 0, sizeof tmp);
+		tmp[15] = (unsigned char)i;
+		(*ctx->bctx)->mac(ctx->bctx, st->st[i], tmp, sizeof tmp);
+	}
+}
+
+/* see bearssl_aead.h */
+void
 br_eax_reset(br_eax_context *ctx, const void *nonce, size_t len)
 {
 	/*
@@ -173,6 +204,62 @@ br_eax_reset(br_eax_context *ctx, const void *nonce, size_t len)
 	 * Start OMAC^1 for the AAD ("header" in the EAX specification).
 	 */
 	omac_start(ctx, 1);
+
+	/*
+	 * We use ctx->head[0] as temporary flag to mark that we are
+	 * using a "normal" reset().
+	 */
+	ctx->head[0] = 0;
+}
+
+/* see bearssl_aead.h */
+void
+br_eax_reset_pre_aad(br_eax_context *ctx, const br_eax_state *st,
+	const void *nonce, size_t len)
+{
+	if (len == 0) {
+		omac_start(ctx, 0);
+	} else {
+		memcpy(ctx->cbcmac, st->st[0], sizeof ctx->cbcmac);
+		ctx->ptr = 0;
+		do_cbcmac_chunk(ctx, nonce, len);
+	}
+	do_pad(ctx);
+	memcpy(ctx->nonce, ctx->cbcmac, sizeof ctx->cbcmac);
+
+	memcpy(ctx->cbcmac, st->st[1], sizeof ctx->cbcmac);
+	ctx->ptr = 0;
+
+	memcpy(ctx->ctr, st->st[2], sizeof ctx->ctr);
+
+	/*
+	 * We use ctx->head[0] as a flag to indicate that we use a
+	 * a recorded state, with ctx->ctr containing the preprocessed
+	 * first block for OMAC^2.
+	 */
+	ctx->head[0] = 1;
+}
+
+/* see bearssl_aead.h */
+void
+br_eax_reset_post_aad(br_eax_context *ctx, const br_eax_state *st,
+	const void *nonce, size_t len)
+{
+	if (len == 0) {
+		omac_start(ctx, 0);
+	} else {
+		memcpy(ctx->cbcmac, st->st[0], sizeof ctx->cbcmac);
+		ctx->ptr = 0;
+		do_cbcmac_chunk(ctx, nonce, len);
+	}
+	do_pad(ctx);
+	memcpy(ctx->nonce, ctx->cbcmac, sizeof ctx->cbcmac);
+	memcpy(ctx->ctr, ctx->nonce, sizeof ctx->nonce);
+
+	memcpy(ctx->head, st->st[1], sizeof ctx->head);
+
+	memcpy(ctx->cbcmac, st->st[2], sizeof ctx->cbcmac);
+	ctx->ptr = 0;
 }
 
 /* see bearssl_aead.h */
@@ -211,6 +298,15 @@ br_eax_aad_inject(br_eax_context *ctx, const void *data, size_t len)
 void
 br_eax_flip(br_eax_context *ctx)
 {
+	int from_capture;
+
+	/*
+	 * ctx->head[0] may be non-zero if the context was reset with
+	 * a pre-AAD captured state. In that case, ctx->ctr[] contains
+	 * the state for OMAC^2 _after_ processing the first block.
+	 */
+	from_capture = ctx->head[0];
+
 	/*
 	 * Complete the OMAC computation on the AAD.
 	 */
@@ -219,8 +315,15 @@ br_eax_flip(br_eax_context *ctx)
 
 	/*
 	 * Start OMAC^2 for the encrypted data.
+	 * If the context was initialized from a captured state, then
+	 * the OMAC^2 value is in the ctr[] array.
 	 */
-	omac_start(ctx, 2);
+	if (from_capture) {
+		memcpy(ctx->cbcmac, ctx->ctr, sizeof ctx->cbcmac);
+		ctx->ptr = 0;
+	} else {
+		omac_start(ctx, 2);
+	}
 
 	/*
 	 * Initial counter value for CTR is the processed nonce.
@@ -245,7 +348,12 @@ br_eax_run(br_eax_context *ctx, int encrypt, void *data, size_t len)
 	dbuf = data;
 	ptr = ctx->ptr;
 
-	if (ptr != 16) {
+	/*
+	 * We may have ptr == 0 here if we initialized from a captured
+	 * state. In that case, there is no partially consumed block
+	 * or unprocessed data.
+	 */
+	if (ptr != 0 && ptr != 16) {
 		/*
 		 * We have a partially consumed block.
 		 */
@@ -282,8 +390,12 @@ br_eax_run(br_eax_context *ctx, int encrypt, void *data, size_t len)
 	/*
 	 * We now have a complete encrypted block in buf[] that must still
 	 * be processed with OMAC, and this is not the final buf.
+	 * Exception: when ptr == 0, no block has been produced yet.
 	 */
-	(*ctx->bctx)->mac(ctx->bctx, ctx->cbcmac, ctx->buf, sizeof ctx->buf);
+	if (ptr != 0) {
+		(*ctx->bctx)->mac(ctx->bctx, ctx->cbcmac,
+			ctx->buf, sizeof ctx->buf);
+	}
 
 	/*
 	 * Do CTR encryption or decryption and CBC-MAC for all full blocks
