@@ -206,43 +206,50 @@ static int
 verify_SKE_sig(br_ssl_client_context *ctx,
 	int hash, int use_rsa, size_t sig_len)
 {
+	STACK_PROXY_ENTER();
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
-	br_multihash_context mhc;
-	unsigned char hv[64], head[4];
+//	br_multihash_context mhc;
+	STACK_PROXY_ALLOC(br_multihash_context, mhc, 1);
+//	unsigned char hv[64];
+	STACK_PROXY_ALLOC(unsigned char, hv, 64);
+	unsigned char head[4];
 	size_t hv_len;
 
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
-	br_multihash_zero(&mhc);
-	br_multihash_copyimpl(&mhc, &ctx->eng.mhash);
-	br_multihash_init(&mhc);
-	br_multihash_update(&mhc,
+	br_multihash_zero(mhc);
+	br_multihash_copyimpl(mhc, &ctx->eng.mhash);
+	br_multihash_init(mhc);
+	br_multihash_update(mhc,
 		ctx->eng.client_random, sizeof ctx->eng.client_random);
-	br_multihash_update(&mhc,
+	br_multihash_update(mhc,
 		ctx->eng.server_random, sizeof ctx->eng.server_random);
 	head[0] = 3;
 	head[1] = 0;
 	head[2] = ctx->eng.ecdhe_curve;
 	head[3] = ctx->eng.ecdhe_point_len;
-	br_multihash_update(&mhc, head, sizeof head);
-	br_multihash_update(&mhc,
+	br_multihash_update(mhc, head, sizeof head);
+	br_multihash_update(mhc,
 		ctx->eng.ecdhe_point, ctx->eng.ecdhe_point_len);
 	if (hash) {
-		hv_len = br_multihash_out(&mhc, hash, hv);
+		hv_len = br_multihash_out(mhc, hash, hv);
 		if (hv_len == 0) {
+			STACK_PROXY_EXIT();
 			return BR_ERR_INVALID_ALGORITHM;
 		}
 	} else {
-		if (!br_multihash_out(&mhc, br_md5_ID, hv)
-			|| !br_multihash_out(&mhc, br_sha1_ID, hv + 16))
+		if (!br_multihash_out(mhc, br_md5_ID, hv)
+			|| !br_multihash_out(mhc, br_sha1_ID, hv + 16))
 		{
+			STACK_PROXY_EXIT();
 			return BR_ERR_INVALID_ALGORITHM;
 		}
 		hv_len = 36;
 	}
 	if (use_rsa) {
-		unsigned char tmp[64];
+//		unsigned char tmp[64];
+		STACK_PROXY_ALLOC(unsigned char, tmp, 64);
 		const unsigned char *hash_oid;
 
 		if (hash) {
@@ -254,15 +261,18 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 			hash_oid, hv_len, &pk->key.rsa, tmp)
 			|| memcmp(tmp, hv, hv_len) != 0)
 		{
+			STACK_PROXY_EXIT();
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	} else {
 		if (!ctx->eng.iecdsa(ctx->eng.iec, hv, hv_len, &pk->key.ec,
 			ctx->eng.pad, sig_len))
 		{
+			STACK_PROXY_EXIT();
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	}
+	STACK_PROXY_EXIT();
 	return 0;
 }
 
@@ -363,7 +373,9 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 static int
 make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 {
-	unsigned char point[133];
+	STACK_PROXY_ENTER();
+//	unsigned char point[133];
+	STACK_PROXY_ALLOC(unsigned char, point, 133);
 	size_t point_len;
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
@@ -371,17 +383,20 @@ make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	point_len = pk->key.ec.qlen;
-	if (point_len > sizeof point) {
+	if (point_len > 133 * sizeof *point) {
+		STACK_PROXY_EXIT();
 		return -1;
 	}
 	memcpy(point, pk->key.ec.q, point_len);
 	if (!(*ctx->client_auth_vtable)->do_keyx(
 		ctx->client_auth_vtable, point, &point_len))
 	{
+		STACK_PROXY_EXIT();
 		return -1;
 	}
 	br_ssl_engine_compute_master(&ctx->eng,
 		prf_id, point, point_len);
+	STACK_PROXY_EXIT();
 	return 0;
 }
 
@@ -1241,7 +1256,9 @@ br_ssl_hs_client_run(void *t0ctx)
 
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-	unsigned char tmp[48];
+//	unsigned char tmp[48];
+	STACK_PROXY_ENTER();
+	STACK_PROXY_ALLOC(unsigned char, tmp, 48);
 	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
@@ -1257,6 +1274,7 @@ br_ssl_hs_client_run(void *t0ctx)
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
 		1, &seed);
+	STACK_PROXY_EXIT();
 
 				}
 				break;

@@ -1043,12 +1043,14 @@ reduce_f256(uint32_t *d)
 static uint32_t
 reduce_final_f256(uint32_t *d)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
-	uint32_t t[20];
+//	uint32_t t[20];
+	STACK_PROXY_ALLOC(uint32_t, t, 20);
 	uint32_t cc;
 	int i;
 
-	memcpy(t, d, sizeof t);
+	memcpy(t, d, 20 * sizeof *t);
 	cc = 0;
 	for (i = 0; i < 20; i ++) {
 		uint32_t w;
@@ -1058,7 +1060,8 @@ reduce_final_f256(uint32_t *d)
 		t[i] = w & 0x1FFF;
 	}
 	cc ^= 1;
-	CCOPY(cc, d, t, sizeof t);
+	CCOPY(cc, d, t, 20 * sizeof *t);
+	STACK_PROXY_EXIT();
 	return cc;
 }
 
@@ -1280,8 +1283,11 @@ typedef struct {
 static void
 p256_to_affine(p256_jacobian *P)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
-	uint32_t t1[20], t2[20];
+//	uint32_t t1[20], t2[20];
+	STACK_PROXY_ALLOC(uint32_t, t1, 20);
+	STACK_PROXY_ALLOC(uint32_t, t2, 20);
 	int i;
 
 	/*
@@ -1352,6 +1358,7 @@ p256_to_affine(p256_jacobian *P)
 	 */
 	mul_f256(P->z, P->z, t2);
 	reduce_final_f256(P->z);
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -1984,12 +1991,14 @@ static const uint32_t Gwin[15][20] PROGMEM = {
 static void
 lookup_Gwin(p256_jacobian *T, uint32_t idx)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
-	uint32_t xy[20];
+//	uint32_t xy[20];
+	STACK_PROXY_ALLOC(uint32_t, xy, 20);
 	uint32_t k;
 	size_t u;
 
-	memset(xy, 0, sizeof xy);
+	memset(xy, 0, 20 * sizeof *xy);
 	for (k = 0; k < 15; k ++) {
 		uint32_t m;
 
@@ -2006,6 +2015,7 @@ lookup_Gwin(p256_jacobian *T, uint32_t idx)
 	}
 	memset(T->z, 0, sizeof T->z);
 	T->z[0] = 1;
+	STACK_PROXY_EXIT();
 }
 
 /*

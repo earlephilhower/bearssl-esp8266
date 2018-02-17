@@ -61,7 +61,8 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	size_t hash_len, nlen, ulen;
 	uint16_t n0i;
 	uint32_t ctl;
-	br_hmac_drbg_context drbg;
+//	br_hmac_drbg_context drbg;
+	STACK_PROXY_ALLOC(br_hmac_drbg_context, drbg, 1);
 
 	/*
 	 * If the curve is not supported, then exit with an error.
@@ -131,9 +132,9 @@ br_ecdsa_i15_sign_raw(const br_ec_impl *impl,
 	 */
 	br_i15_encode(tt, nlen, x);
 	br_i15_encode(tt + nlen, nlen, m);
-	br_hmac_drbg_init(&drbg, hf, tt, nlen << 1);
+	br_hmac_drbg_init(drbg, hf, tt, nlen << 1);
 	for (;;) {
-		br_hmac_drbg_generate(&drbg, tt, nlen);
+		br_hmac_drbg_generate(drbg, tt, nlen);
 		br_ecdsa_i15_bits2int(k, tt, nlen, n[0]);
 		if (br_i15_iszero(k)) {
 			continue;

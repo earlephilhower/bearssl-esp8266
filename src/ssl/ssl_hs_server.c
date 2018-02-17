@@ -113,8 +113,10 @@ static void
 do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *epms, size_t len)
 {
+	STACK_PROXY_ENTER();
 	uint32_t x;
-	unsigned char rpms[48];
+//	unsigned char rpms[48];
+	STACK_PROXY_ALLOC(unsigned char, rpms, 48);
 
 	/*
 	 * Decrypt the PMS.
@@ -135,7 +137,7 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	 * decryption failed. Note that we use a constant-time conditional
 	 * copy.
 	 */
-	br_hmac_drbg_generate(&ctx->eng.rng, rpms, sizeof rpms);
+	br_hmac_drbg_generate(&ctx->eng.rng, rpms, 48 * sizeof *rpms);
 	br_ccopy(x ^ 1, epms, rpms, sizeof rpms);
 
 	/*
@@ -148,6 +150,7 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	 * in the context, hence potentially long-lived.
 	 */
 	memset(epms, 0, len);
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -241,38 +244,46 @@ static size_t
 hash_data(br_ssl_server_context *ctx,
 	void *dst, int hash_id, const void *src, size_t len)
 {
+	STACK_PROXY_ENTER();
 	const br_hash_class *hf;
-	br_hash_compat_context hc;
+//	br_hash_compat_context hc;
+	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
 
 	if (hash_id == 0) {
-		unsigned char tmp[36];
+//		unsigned char tmp[36];
+		STACK_PROXY_ALLOC(unsigned char, tmp, 36);
 
 		hf = br_multihash_getimpl(&ctx->eng.mhash, br_md5_ID);
 		if (hf == NULL) {
+			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc.vtable);
-		hf->update(&hc.vtable, src, len);
-		hf->out(&hc.vtable, tmp);
+		hf->init(&hc->vtable);
+		hf->update(&hc->vtable, src, len);
+		hf->out(&hc->vtable, tmp);
 		hf = br_multihash_getimpl(&ctx->eng.mhash, br_sha1_ID);
 		if (hf == NULL) {
+			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc.vtable);
-		hf->update(&hc.vtable, src, len);
-		hf->out(&hc.vtable, tmp + 16);
+		hf->init(&hc->vtable);
+		hf->update(&hc->vtable, src, len);
+		hf->out(&hc->vtable, tmp + 16);
 		memcpy(dst, tmp, 36);
+		STACK_PROXY_EXIT();
 		return 36;
 	} else {
 		hf = br_multihash_getimpl(&ctx->eng.mhash, hash_id);
 		if (hf == NULL) {
+			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc.vtable);
-		hf->update(&hc.vtable, src, len);
-		hf->out(&hc.vtable, dst);
+		hf->init(&hc->vtable);
+		hf->update(&hc->vtable, src, len);
+		hf->out(&hc->vtable, dst);
 		return (hf->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK;
 	}
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -1300,7 +1311,9 @@ br_ssl_hs_server_run(void *t0ctx)
 
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-	unsigned char tmp[48];
+//	unsigned char tmp[48];
+	STACK_PROXY_ENTER();
+	STACK_PROXY_ALLOC(unsigned char, tmp, 48);
 	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
@@ -1316,6 +1329,7 @@ br_ssl_hs_server_run(void *t0ctx)
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
 		1, &seed);
+	STACK_PROXY_EXIT();
 
 				}
 				break;

@@ -82,7 +82,9 @@ cbc_check_length(const br_sslrec_in_cbc_context *cc, size_t rlen)
 static void
 cond_rotate(uint32_t ctl, unsigned char *buf, size_t len, size_t num)
 {
-	unsigned char tmp[64];
+	STACK_PROXY_ENTER();
+//	unsigned char tmp[64];
+	STACK_PROXY_ALLOC(unsigned char, tmp, 64);
 	size_t u, v;
 
 	for (u = 0, v = num; u < len; u ++) {
@@ -92,12 +94,14 @@ cond_rotate(uint32_t ctl, unsigned char *buf, size_t len, size_t num)
 		}
 	}
 	memcpy(buf, tmp, len);
+	STACK_PROXY_EXIT();
 }
 
 static unsigned char *
 cbc_decrypt(br_sslrec_in_cbc_context *cc,
 	int record_type, unsigned version, void *data, size_t *data_len)
 {
+	STACK_PROXY_ENTER();
 	/*
 	 * We represent all lengths on 32-bit integers, because:
 	 * -- SSL record lengths always fit in 32 bits;
@@ -106,9 +110,12 @@ cbc_decrypt(br_sslrec_in_cbc_context *cc,
 	unsigned char *buf;
 	uint32_t u, v, len, blen, min_len, max_len;
 	uint32_t good, pad_len, rot_count, len_withmac, len_nomac;
-	unsigned char tmp1[64], tmp2[64];
+//	unsigned char tmp1[64], tmp2[64];
+	STACK_PROXY_ALLOC(unsigned char, tmp1, 64);
+	STACK_PROXY_ALLOC(unsigned char, tmp2, 64);
 	int i;
-	br_hmac_context hc;
+//	br_hmac_context hc;
+	STACK_PROXY_ALLOC(br_hmac_context, hc, 1);
 
 	buf = data;
 	len = *data_len;
@@ -201,9 +208,9 @@ cbc_decrypt(br_sslrec_in_cbc_context *cc,
 	tmp2[8] = (unsigned char)record_type;
 	br_enc16be(tmp2 + 9, version);
 	br_enc16be(tmp2 + 11, len_nomac);
-	br_hmac_init(&hc, &cc->mac, cc->mac_len);
-	br_hmac_update(&hc, tmp2, 13);
-	br_hmac_outCT(&hc, buf, len_nomac, min_len, max_len, tmp2);
+	br_hmac_init(hc, &cc->mac, cc->mac_len);
+	br_hmac_update(hc, tmp2, 13);
+	br_hmac_outCT(hc, buf, len_nomac, min_len, max_len, tmp2);
 
 	/*
 	 * Compare the extracted and recomputed MAC values.
@@ -223,9 +230,11 @@ cbc_decrypt(br_sslrec_in_cbc_context *cc,
 	good &= LE(len_nomac, 16384);
 
 	if (!good) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	*data_len = len_nomac;
+	STACK_PROXY_EXIT();
 	return buf;
 }
 
@@ -310,10 +319,13 @@ static unsigned char *
 cbc_encrypt(br_sslrec_out_cbc_context *cc,
 	int record_type, unsigned version, void *data, size_t *data_len)
 {
+	STACK_PROXY_ENTER();
 	unsigned char *buf, *rbuf;
 	size_t len, blen, plen;
-	unsigned char tmp[13];
-	br_hmac_context hc;
+//	unsigned char tmp[13];
+	STACK_PROXY_ALLOC(unsigned char, tmp, 13);
+//	br_hmac_context hc;
+	STACK_PROXY_ALLOC(br_hmac_context, hc, 1);
 
 	buf = data;
 	len = *data_len;
@@ -340,9 +352,9 @@ cbc_encrypt(br_sslrec_out_cbc_context *cc,
 		 * down to the block size.
 		 */
 		br_enc64be(tmp, cc->seq);
-		br_hmac_init(&hc, &cc->mac, blen);
-		br_hmac_update(&hc, tmp, 8);
-		br_hmac_out(&hc, buf - blen);
+		br_hmac_init(hc, &cc->mac, blen);
+		br_hmac_update(hc, tmp, 8);
+		br_hmac_out(hc, buf - blen);
 		rbuf = buf - blen - 5;
 	} else {
 		if (len > 1 && record_type == BR_SSL_APPLICATION_DATA) {
@@ -381,10 +393,10 @@ cbc_encrypt(br_sslrec_out_cbc_context *cc,
 	tmp[8] = record_type;
 	br_enc16be(tmp + 9, version);
 	br_enc16be(tmp + 11, len);
-	br_hmac_init(&hc, &cc->mac, cc->mac_len);
-	br_hmac_update(&hc, tmp, 13);
-	br_hmac_update(&hc, buf, len);
-	br_hmac_out(&hc, buf + len);
+	br_hmac_init(hc, &cc->mac, cc->mac_len);
+	br_hmac_update(hc, tmp, 13);
+	br_hmac_update(hc, buf, len);
+	br_hmac_out(hc, buf + len);
 	len += cc->mac_len;
 
 	/*
@@ -418,6 +430,7 @@ cbc_encrypt(br_sslrec_out_cbc_context *cc,
 	br_enc16be(buf - 4, version);
 	br_enc16be(buf - 2, len);
 	*data_len = (size_t)((buf + len) - rbuf);
+	STACK_PROXY_EXIT();
 	return rbuf;
 }
 

@@ -1051,12 +1051,14 @@ square20(uint32_t *d, const uint32_t *a)
 static uint32_t
 reduce_final_f255(uint32_t *d)
 {
+	STACK_PROXY_ENTER()
 	dumpstack();
-	uint32_t t[20];
+//	uint32_t t[20];
+	STACK_PROXY_ALLOC(uint32_t, t, 20);
 	uint32_t cc;
 	int i;
 
-	memcpy(t, d, sizeof t);
+	memcpy(t, d, 20 * sizeof *t);
 	cc = 19;
 	for (i = 0; i < 20; i ++) {
 		uint32_t w;
@@ -1067,15 +1069,19 @@ reduce_final_f255(uint32_t *d)
 	}
 	cc = t[19] >> 8;
 	t[19] &= 0xFF;
-	CCOPY(cc, d, t, sizeof t);
+	CCOPY(cc, d, t, 20 * sizeof *t);
+	STACK_PROXY_EXIT();
 	return cc;
 }
 
 static void
 f255_mulgen(uint32_t *d, const uint32_t *a, const uint32_t *b, int square)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
-	uint32_t t[40], cc, w;
+//	uint32_t t[40];
+	STACK_PROXY_ALLOC(uint32_t, t, 40);
+	uint32_t cc, w;
 
 	/*
 	 * Compute raw multiplication. All result words fit in 13 bits
@@ -1158,6 +1164,7 @@ f255_mulgen(uint32_t *d, const uint32_t *a, const uint32_t *b, int square)
 	MM2(19);
 
 #undef MM2
+	STACK_PROXY_EXIT();
 }
 
 /*
@@ -1329,7 +1336,8 @@ api_mul(unsigned char *G, size_t Glen,
 	STACK_PROXY_ALLOC(uint32_t, e, 20);
 	STACK_PROXY_ALLOC(uint32_t, da, 20);
 	STACK_PROXY_ALLOC(uint32_t, cb, 20);
-	unsigned char k[32];
+//	unsigned char k[32];
+	STACK_PROXY_ALLOC(unsigned char, k, 32);
 	uint32_t swap;
 	int i;
 
@@ -1360,7 +1368,7 @@ api_mul(unsigned char *G, size_t Glen,
 	z3[0] = 1;
 
 	memcpy(k, kb, kblen);
-	memset(k + kblen, 0, (sizeof k) - kblen);
+	memset(k + kblen, 0, (32 * sizeof *k) - kblen);
 	k[0] &= 0xF8;
 	k[31] &= 0x7F;
 	k[31] |= 0x40;

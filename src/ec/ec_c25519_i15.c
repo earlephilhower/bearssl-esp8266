@@ -132,33 +132,42 @@ cswap(uint16_t *a, uint16_t *b, uint32_t ctl)
 static void
 c255_add(uint16_t *d, const uint16_t *a, const uint16_t *b)
 {
+	STACK_PROXY_ENTER();
 	uint32_t ctl;
-	uint16_t t[18];
+//	uint16_t t[18];
+	STACK_PROXY_ALLOC(uint16_t, t, 18);
 
-	memcpy(t, a, sizeof t);
+	memcpy(t, a, 18 * sizeof *t);
 	ctl = br_i15_add(t, b, 1);
 	ctl |= NOT(br_i15_sub(t, C255_P, 0));
 	br_i15_sub(t, C255_P, ctl);
-	memcpy(d, t, sizeof t);
+	memcpy(d, t, 18 * sizeof *t);
+	STACK_PROXY_EXIT();
 }
 
 static void
 c255_sub(uint16_t *d, const uint16_t *a, const uint16_t *b)
 {
-	uint16_t t[18];
+	STACK_PROXY_ENTER();
+//	uint16_t t[18];
+	STACK_PROXY_ALLOC(uint16_t, t, 18);
 
-	memcpy(t, a, sizeof t);
+	memcpy(t, a, 18 * sizeof *t);
 	br_i15_add(t, C255_P, br_i15_sub(t, b, 1));
-	memcpy(d, t, sizeof t);
+	memcpy(d, t, 18 * sizeof *t);
+	STACK_PROXY_EXIT();
 }
 
 static void
 c255_mul(uint16_t *d, const uint16_t *a, const uint16_t *b)
 {
-	uint16_t t[18];
+	STACK_PROXY_ENTER();
+//	uint16_t t[18];
+	STACK_PROXY_ALLOC(uint16_t, t, 18);
 
 	br_i15_montymul(t, a, b, C255_P, P0I);
-	memcpy(d, t, sizeof t);
+	memcpy(d, t, 18 * sizeof *t);
+	STACK_PROXY_EXIT();
 }
 
 static void
@@ -204,7 +213,8 @@ api_mul(unsigned char *G, size_t Glen,
 	STACK_PROXY_ALLOC(uint16_t, e, 18);
 	STACK_PROXY_ALLOC(uint16_t, da, 18);
 	STACK_PROXY_ALLOC(uint16_t, cb, 18);
-	unsigned char k[32];
+//	unsigned char k[32];
+	STACK_PROXY_ALLOC(unsigned char, k, 32);
 	uint32_t swap;
 	int i;
 
@@ -257,7 +267,7 @@ api_mul(unsigned char *G, size_t Glen,
 	memcpy(z3, x2, ILEN);
 
 	memcpy(k, kb, kblen);
-	memset(k + kblen, 0, (sizeof k) - kblen);
+	memset(k + kblen, 0, (32 * sizeof *k) - kblen);
 	k[0] &= 0xF8;
 	k[31] &= 0x7F;
 	k[31] |= 0x40;

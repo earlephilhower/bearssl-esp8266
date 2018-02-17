@@ -458,7 +458,8 @@ run_code(jacobian *P1, const jacobian *P2,
 	uint32_t r;
 //	uint16_t t[13][I15_LEN];
 	STACK_PROXY_ALLOC(uint16_t, t_buff, 13 * I15_LEN);
-	uint16_t *t[13];
+//	uint16_t *t[13];
+	STACK_PROXY_ALLOC(uint16_t *, t, 13);
 	size_t it;
 	for (it=0; it<13; it++) {
 		t[it] = &t_buff[it * I15_LEN];

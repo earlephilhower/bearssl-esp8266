@@ -43,24 +43,27 @@ br_hmac_drbg_init(br_hmac_drbg_context *ctx,
 void
 br_hmac_drbg_generate(br_hmac_drbg_context *ctx, void *out, size_t len)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
 	const br_hash_class *dig;
-	br_hmac_key_context kc;
-	br_hmac_context hc;
+//	br_hmac_key_context kc;
+	STACK_PROXY_ALLOC(br_hmac_key_context, kc, 1);
+//	br_hmac_context hc;
+	STACK_PROXY_ALLOC(br_hmac_context, hc, 1);
 	size_t hlen;
 	unsigned char *buf;
 	unsigned char x;
 
 	dig = ctx->digest_class;
 	hlen = br_digest_size(dig);
-	br_hmac_key_init(&kc, dig, ctx->K, hlen);
+	br_hmac_key_init(kc, dig, ctx->K, hlen);
 	buf = out;
 	while (len > 0) {
 		size_t clen;
 
-		br_hmac_init(&hc, &kc, 0);
-		br_hmac_update(&hc, ctx->V, hlen);
-		br_hmac_out(&hc, ctx->V);
+		br_hmac_init(hc, kc, 0);
+		br_hmac_update(hc, ctx->V, hlen);
+		br_hmac_out(hc, ctx->V);
 		clen = hlen;
 		if (clen > len) {
 			clen = len;
@@ -77,25 +80,29 @@ br_hmac_drbg_generate(br_hmac_drbg_context *ctx, void *out, size_t len)
 	 * initial key, and we don't want to push another one on the
 	 * stack, so we inline that update() call here.
 	 */
-	br_hmac_init(&hc, &kc, 0);
-	br_hmac_update(&hc, ctx->V, hlen);
+	br_hmac_init(hc, kc, 0);
+	br_hmac_update(hc, ctx->V, hlen);
 	x = 0x00;
-	br_hmac_update(&hc, &x, 1);
-	br_hmac_out(&hc, ctx->K);
-	br_hmac_key_init(&kc, dig, ctx->K, hlen);
-	br_hmac_init(&hc, &kc, 0);
-	br_hmac_update(&hc, ctx->V, hlen);
-	br_hmac_out(&hc, ctx->V);
+	br_hmac_update(hc, &x, 1);
+	br_hmac_out(hc, ctx->K);
+	br_hmac_key_init(kc, dig, ctx->K, hlen);
+	br_hmac_init(hc, kc, 0);
+	br_hmac_update(hc, ctx->V, hlen);
+	br_hmac_out(hc, ctx->V);
+	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */
 void
 br_hmac_drbg_update(br_hmac_drbg_context *ctx, const void *seed, size_t len)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
 	const br_hash_class *dig;
-	br_hmac_key_context kc;
-	br_hmac_context hc;
+//	br_hmac_key_context kc;
+	STACK_PROXY_ALLOC(br_hmac_key_context, kc, 1);
+//	br_hmac_context hc;
+	STACK_PROXY_ALLOC(br_hmac_context, hc, 1);
 	size_t hlen;
 	unsigned char x;
 
@@ -105,46 +112,48 @@ br_hmac_drbg_update(br_hmac_drbg_context *ctx, const void *seed, size_t len)
 	/*
 	 * 1. K = HMAC(K, V || 0x00 || seed)
 	 */
-	br_hmac_key_init(&kc, dig, ctx->K, hlen);
-	br_hmac_init(&hc, &kc, 0);
-	br_hmac_update(&hc, ctx->V, hlen);
+	br_hmac_key_init(kc, dig, ctx->K, hlen);
+	br_hmac_init(hc, kc, 0);
+	br_hmac_update(hc, ctx->V, hlen);
 	x = 0x00;
-	br_hmac_update(&hc, &x, 1);
-	br_hmac_update(&hc, seed, len);
-	br_hmac_out(&hc, ctx->K);
-	br_hmac_key_init(&kc, dig, ctx->K, hlen);
+	br_hmac_update(hc, &x, 1);
+	br_hmac_update(hc, seed, len);
+	br_hmac_out(hc, ctx->K);
+	br_hmac_key_init(kc, dig, ctx->K, hlen);
 
 	/*
 	 * 2. V = HMAC(K, V)
 	 */
-	br_hmac_init(&hc, &kc, 0);
-	br_hmac_update(&hc, ctx->V, hlen);
-	br_hmac_out(&hc, ctx->V);
+	br_hmac_init(hc, kc, 0);
+	br_hmac_update(hc, ctx->V, hlen);
+	br_hmac_out(hc, ctx->V);
 
 	/*
 	 * 3. If the additional seed is empty, then stop here.
 	 */
 	if (len == 0) {
+		STACK_PROXY_EXIT();
 		return;
 	}
 
 	/*
 	 * 4. K = HMAC(K, V || 0x01 || seed)
 	 */
-	br_hmac_init(&hc, &kc, 0);
-	br_hmac_update(&hc, ctx->V, hlen);
+	br_hmac_init(hc, kc, 0);
+	br_hmac_update(hc, ctx->V, hlen);
 	x = 0x01;
-	br_hmac_update(&hc, &x, 1);
-	br_hmac_update(&hc, seed, len);
-	br_hmac_out(&hc, ctx->K);
-	br_hmac_key_init(&kc, dig, ctx->K, hlen);
+	br_hmac_update(hc, &x, 1);
+	br_hmac_update(hc, seed, len);
+	br_hmac_out(hc, ctx->K);
+	br_hmac_key_init(kc, dig, ctx->K, hlen);
 
 	/*
 	 * 5. V = HMAC(K, V)
 	 */
-	br_hmac_init(&hc, &kc, 0);
-	br_hmac_update(&hc, ctx->V, hlen);
-	br_hmac_out(&hc, ctx->V);
+	br_hmac_init(hc, kc, 0);
+	br_hmac_update(hc, ctx->V, hlen);
+	br_hmac_out(hc, ctx->V);
+	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */

@@ -47,6 +47,7 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	const void *data, size_t len, size_t min_len, size_t max_len,
 	void *out)
 {
+	STACK_PROXY_ENTER();
 	/*
 	 * Method implemented here is inspired from the descriptions on:
 	 *    https://www.imperialviolet.org/2013/02/04/luckythirteen.html
@@ -63,23 +64,26 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	 */
 
 	const br_hash_class *dig;
-	br_hash_compat_context hc;
+//	br_hash_compat_context hc;
+	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
 	int be;
 	uint32_t po, bs;
 	uint32_t kr, km, kl, kz, u;
 	uint64_t count, ncount, bit_len;
-	unsigned char tmp1[64], tmp2[64];
+//	unsigned char tmp1[64], tmp2[64];
+	STACK_PROXY_ALLOC(unsigned char, tmp1, 64);
+	STACK_PROXY_ALLOC(unsigned char, tmp2, 64);
 	size_t hlen;
 
 	/*
 	 * Copy the current hash context.
 	 */
-	hc = ctx->dig;
+	*hc = ctx->dig;
 
 	/*
 	 * Get function-specific information.
 	 */
-	dig = hc.vtable;
+	dig = hc->vtable;
 	be = (dig->desc & BR_HASHDESC_MD_PADDING_BE) != 0;
 	po = 9;
 	if (dig->desc & BR_HASHDESC_MD_PADDING_128) {
@@ -91,7 +95,7 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	/*
 	 * Get current input length and compute total bit length.
 	 */
-	count = dig->state(&hc.vtable, tmp1);
+	count = dig->state(&hc->vtable, tmp1);
 	bit_len = (count + (uint64_t)len) << 3;
 
 	/*
@@ -104,7 +108,7 @@ br_hmac_outCT(const br_hmac_context *ctx,
 		size_t zlen;
 
 		zlen = (size_t)(ncount - count);
-		dig->update(&hc.vtable, data, zlen);
+		dig->update(&hc->vtable, data, zlen);
 		data = (const unsigned char *)data + zlen;
 		len -= zlen;
 		max_len -= zlen;
@@ -150,7 +154,7 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	 * Hash state is obtained whenever we reach a full block. This
 	 * is the result we want if and only if u == kz.
 	 */
-	memset(tmp2, 0, sizeof tmp2);
+	memset(tmp2, 0, 64 * sizeof *tmp2);
 	for (u = 0; u < km; u ++) {
 		uint32_t v;
 		uint32_t d, e, x0, x1;
@@ -174,9 +178,9 @@ br_hmac_outCT(const br_hmac_context *ctx,
 		x0 = MUX(EQ(u, (uint32_t)len), 0x80, d);
 		x1 = MUX(LT(u, kl), 0x00, e);
 		x[0] = MUX(LE(u, (uint32_t)len), x0, x1);
-		dig->update(&hc.vtable, x, 1);
+		dig->update(&hc->vtable, x, 1);
 		if (v == (bs - 1)) {
-			dig->state(&hc.vtable, tmp1);
+			dig->state(&hc->vtable, tmp1);
 			CCOPY(EQ(u, kz), tmp2, tmp1, hlen);
 		}
 	}
@@ -184,10 +188,11 @@ br_hmac_outCT(const br_hmac_context *ctx,
 	/*
 	 * Inner hash output is in tmp2[]; we finish processing.
 	 */
-	dig->init(&hc.vtable);
-	dig->set_state(&hc.vtable, ctx->kso, (uint64_t)bs);
-	dig->update(&hc.vtable, tmp2, hlen);
-	dig->out(&hc.vtable, tmp2);
+	dig->init(&hc->vtable);
+	dig->set_state(&hc->vtable, ctx->kso, (uint64_t)bs);
+	dig->update(&hc->vtable, tmp2, hlen);
+	dig->out(&hc->vtable, tmp2);
 	memcpy(out, tmp2, ctx->out_len);
+	STACK_PROXY_EXIT();
 	return ctx->out_len;
 }

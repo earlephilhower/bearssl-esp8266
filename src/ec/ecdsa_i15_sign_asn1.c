@@ -32,8 +32,10 @@ br_ecdsa_i15_sign_asn1(const br_ec_impl *impl,
 	const br_hash_class *hf, const void *hash_value,
 	const br_ec_private_key *sk, void *sig)
 {
+	STACK_PROXY_ENTER();
 	dumpstack();
-	unsigned char rsig[(ORDER_LEN << 1) + 12];
+//	unsigned char rsig[(ORDER_LEN << 1) + 12];
+	STACK_PROXY_ALLOC(unsigned char, rsig, (ORDER_LEN << 1) + 12);
 	size_t sig_len;
 
 	sig_len = br_ecdsa_i15_sign_raw(impl, hf, hash_value, sk, rsig);
@@ -42,5 +44,6 @@ br_ecdsa_i15_sign_asn1(const br_ec_impl *impl,
 	}
 	sig_len = br_ecdsa_raw_to_asn1(rsig, sig_len);
 	memcpy(sig, rsig, sig_len);
+	STACK_PROXY_EXIT();
 	return sig_len;
 }
