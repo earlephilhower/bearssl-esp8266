@@ -37,6 +37,11 @@ size_t br_esp8266_stack_proxy_max()
 	return stack_proxy_max_ptr;
 }
 
+size_t br_esp8266_stack_proxy_usage()
+{
+	return stack_proxy_ptr;
+}
+
 void br_esp8266_stack_proxy_deinit()
 {
 	stack_proxy = NULL;

@@ -44,6 +44,7 @@ br_tls_phash(void *dst, size_t len,
 	size_t label_len, hlen, u;
 
 	if (len == 0) {
+		STACK_PROXY_EXIT();
 		return;
 	}
 	buf = dst;
