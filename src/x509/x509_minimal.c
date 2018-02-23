@@ -1248,6 +1248,7 @@ br_x509_minimal_run(void *t0ctx)
 			 * Direct trust match!
 			 */
 			CTX->err = BR_ERR_X509_OK;
+			STACK_PROXY_EXIT();
 			T0_CO();
 		}
 	}
@@ -1264,6 +1265,7 @@ br_x509_minimal_run(void *t0ctx)
 				 * Direct trust match!
 				 */
 				CTX->err = BR_ERR_X509_OK;
+				STACK_PROXY_EXIT();
 				T0_CO();
 			}
 		}
@@ -1286,6 +1288,7 @@ br_x509_minimal_run(void *t0ctx)
 		hash_dn(CTX, ta->dn.data, ta->dn.len, hashed_DN);
 		if (check_single_trust_anchor_CA(CTX, hashed_DN, ta)) {
 			CTX->err = BR_ERR_X509_OK;
+			STACK_PROXY_EXIT();
 			T0_CO();
 		}
 	}
@@ -1300,6 +1303,7 @@ br_x509_minimal_run(void *t0ctx)
 			}
 			if (ret) {
 				CTX->err = BR_ERR_X509_OK;
+				STACK_PROXY_EXIT();
 				T0_CO();
 			}
 		}
