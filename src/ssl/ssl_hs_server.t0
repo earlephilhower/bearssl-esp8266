@@ -211,6 +211,7 @@ hash_data(br_ssl_server_context *ctx,
 		hf->init(&hc->vtable);
 		hf->update(&hc->vtable, src, len);
 		hf->out(&hc->vtable, dst);
+		STACK_PROXY_EXIT();
 		return (hf->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK;
 	}
 	STACK_PROXY_EXIT();

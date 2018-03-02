@@ -64,6 +64,7 @@ void *br_stack_proxy_alloc(size_t bytes)
 
 	if (stack_proxy_ptr + bytes <= stack_proxy_size) {
 		uint8_t *ptr = &stack_proxy[stack_proxy_ptr];
+//		{char a[32]; sprintf(a,"%p, %d\n", ptr, bytes); PRINTIT(a);}
 		stack_proxy_ptr += bytes;
 		if (stack_proxy_max_ptr < stack_proxy_ptr) {
 			stack_proxy_max_ptr = stack_proxy_ptr;
