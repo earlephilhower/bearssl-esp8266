@@ -584,11 +584,19 @@ cc: eqOID ( addrConst -- bool ) {
 	const unsigned char *a1 = &CTX->pad[0];
 	size_t len = a1[0];
 	int x;
+#ifdef ESP8266
+	if (len == pgm_read_byte(&a2[0])) {
+		x = -(memcmp_P(a1 + 1, a2 + 1, len) == 0);
+	} else {
+		x = 0;
+	}
+#else
 	if (len == a2[0]) {
 		x = -(memcmp(a1 + 1, a2 + 1, len) == 0);
 	} else {
 		x = 0;
 	}
+#endif
 	T0_PUSH((uint32_t)x);
 }
 

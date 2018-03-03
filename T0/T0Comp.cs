@@ -1788,8 +1788,13 @@ t0_parse7E_signed(const unsigned char **p)
 
 			BlobWriter bw;
 			tw.WriteLine();
-			tw.Write("static const unsigned char"
-				+ " t0_datablock[] = {");
+			tw.Write("#ifdef ESP8266\n"
+				+ "static const unsigned char"
+				+ " t0_datablock[] PROGMEM = {\n"
+				+ "#else\n"
+                                + "static const unsigned char"
+                                + " t0_datablock[] = {\n"
+				+ "#endif\n");
 			bw = new BlobWriter(tw, 78, 1);
 			bw.Append((byte)0);
 			foreach (ConstData cd in blocks.Values) {

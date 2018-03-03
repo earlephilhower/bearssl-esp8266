@@ -116,7 +116,12 @@ br_skey_decoder_push(br_skey_decoder_context *ctx,
 
 
 
+#ifdef ESP8266
+static const unsigned char t0_datablock[] PROGMEM = {
+#else
 static const unsigned char t0_datablock[] = {
+#endif
+
 	0x00, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x07,
 	0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, 0x08, 0x2A, 0x86, 0x48, 0xCE,
 	0x3D, 0x03, 0x01, 0x07, 0x05, 0x2B, 0x81, 0x04, 0x00, 0x22, 0x05, 0x2B,
@@ -540,11 +545,19 @@ br_skey_decoder_run(void *t0ctx)
 	const unsigned char *a1 = &CTX->pad[0];
 	size_t len = a1[0];
 	int x;
+#ifdef ESP8266
+	if (len == pgm_read_byte(&a2[0])) {
+		x = -(memcmp_P(a1 + 1, a2 + 1, len) == 0);
+	} else {
+		x = 0;
+	}
+#else
 	if (len == a2[0]) {
 		x = -(memcmp(a1 + 1, a2 + 1, len) == 0);
 	} else {
 		x = 0;
 	}
+#endif
 	T0_PUSH((uint32_t)x);
 
 				}

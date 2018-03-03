@@ -83,7 +83,7 @@ static inline uint16_t pgm_read_word_inlined(const void* addr) {
 #define pgm_read_ptr_far(addr)          pgm_read_ptr(addr)
 
 extern void *memcpy_P(void *dest, const void *src, int n);
-
+extern int memcmp_P(const void* buf1, PGM_VOID_P buf2P, unsigned size);
 
 /* TODO: Are the following used anywhere?  If not, remove */
 #define _SFR_BYTE(n) (n)

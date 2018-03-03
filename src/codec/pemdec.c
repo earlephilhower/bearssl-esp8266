@@ -124,7 +124,12 @@ br_pem_decoder_event(br_pem_decoder_context *ctx)
 
 
 
+#ifdef ESP8266
+static const unsigned char t0_datablock[] PROGMEM = {
+#else
 static const unsigned char t0_datablock[] = {
+#endif
+
 	0x00, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x42, 0x45, 0x47, 0x49, 0x4E, 0x20,
 	0x00, 0x2D, 0x2D, 0x2D, 0x2D, 0x45, 0x4E, 0x44, 0x20, 0x00
 };
@@ -462,7 +467,11 @@ br_pem_decoder_run(void *t0ctx)
 				/* data-get8 */
 
 	size_t addr = T0_POP();
+#ifdef ESP8266
+	T0_PUSH(pgm_read_byte(&t0_datablock[addr]));
+#else
 	T0_PUSH(t0_datablock[addr]);
+#endif
 
 				}
 				break;

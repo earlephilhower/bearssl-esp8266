@@ -456,6 +456,8 @@ verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
 	dumpstack();
 //	unsigned char tmp[64];
 	STACK_PROXY_ALLOC(unsigned char, tmp, 64);
+	// TODO - verify the exact maximum len of the cert_sig_hash_oid
+	STACK_PROXY_ALLOC(unsigned char, tmp2, 64);
 	int kt;
 
 	kt = ctx->cert_signer_key_type;
@@ -470,8 +472,13 @@ verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
 			STACK_PROXY_EXIT();
 			return BR_ERR_X509_UNSUPPORTED;
 		}
+#ifdef ESP8266
+		memcpy_P(tmp2, &t0_datablock[ctx->cert_sig_hash_oid], ctx->cert_sig_hash_len);
+#else
+		memcpy(tmp2, &t0_datablock[ctx->cert_sig_hash_oid], ctx->cert_sig_hash_len);
+#endif
 		if (!ctx->irsa(ctx->cert_sig, ctx->cert_sig_len,
-			&t0_datablock[ctx->cert_sig_hash_oid],
+			tmp2, //&t0_datablock[ctx->cert_sig_hash_oid],
 			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))
 		{
 			STACK_PROXY_EXIT();

@@ -283,7 +283,11 @@ add-cc: u>> {
 }
 add-cc: data-get8 {
 	size_t addr = T0_POP();
+#ifdef ESP8266
+	T0_PUSH(pgm_read_byte(&t0_datablock[addr]));
+#else
 	T0_PUSH(t0_datablock[addr]);
+#endif
 }
 
 add-cc: . {
@@ -305,5 +309,5 @@ add-cc: cr {
 add-cc: eqstr {
 	const void *b = &t0_datablock[T0_POPi()];
 	const void *a = &t0_datablock[T0_POPi()];
-	T0_PUSH(-(int32_t)(strcmp(a, b) == 0));
+	T0_PUSH(-(int32_t)(strcmp_P(a, b) == 0));
 }
