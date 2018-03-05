@@ -37,7 +37,7 @@
 #define K4     ((uint32_t)0xCA62C1D6)
 
 /* see inner.h */
-const uint32_t br_sha1_IV[5] = {
+const uint32_t br_sha1_IV[5] PROGMEM = {
 	0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0
 };
 
