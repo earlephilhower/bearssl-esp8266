@@ -400,32 +400,12 @@ static const unsigned char HASH_PAD_OFF[] = { 0, 16, 36, 64, 96, 144, 208 };
 /*
  * OID for hash functions in RSA signatures.
  */
-static const unsigned char HASH_OID_SHA1[] = {
-	0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A
-};
-
-static const unsigned char HASH_OID_SHA224[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04
-};
-
-static const unsigned char HASH_OID_SHA256[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01
-};
-
-static const unsigned char HASH_OID_SHA384[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02
-};
-
-static const unsigned char HASH_OID_SHA512[] = {
-	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03
-};
-
-static const unsigned char *HASH_OID[] = {
-	HASH_OID_SHA1,
-	HASH_OID_SHA224,
-	HASH_OID_SHA256,
-	HASH_OID_SHA384,
-	HASH_OID_SHA512
+static const unsigned char HASH_OID[][10] PROGMEM = {
+	{ 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A },                         //HASH_OID_SHA1,
+	{ 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04 }, // HASH_OID_SHA224,
+	{ 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01 }, // HASH_OID_SHA256,
+	{ 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02 }, // HASH_OID_SHA384,
+	{ 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03 }  // HASH_OID_SHA512
 };
 
 /*
@@ -447,12 +427,20 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 	pk = (*xc)->get_pkey(xc, NULL);
 	if (pk->key_type == BR_KEYTYPE_RSA) {
 		unsigned char tmp[64];
+#ifdef ESP8266
+		unsigned char hash_oid_ram[10];
+#endif
 		const unsigned char *hash_oid;
 
 		if (id == 0) {
 			hash_oid = NULL;
 		} else {
+#ifdef ESP8266
+			memcpy_P(hash_oid_ram, HASH_OID[id - 2], sizeof(HASH_OID[0]));
+			hash_oid = hash_oid_ram; //HASH_OID[id - 2];
+#else
 			hash_oid = HASH_OID[id - 2];
+#endif
 		}
 		if (ctx->eng.irsavrfy == 0) {
 			return BR_ERR_BAD_SIGNATURE;
