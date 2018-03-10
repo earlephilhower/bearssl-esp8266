@@ -11,7 +11,7 @@ BUILD = esp8266
 # TODO - when GCC jump tables are moved to inline, remove the -fno-jump-tables.  This setting saves ~1.3KB RAM at the cose of 1.3KB of flash, but is slower by a bit
 TOOLCHAIN_PREFIX := xtensa-lx106-elf-
 CC := $(TOOLCHAIN_PREFIX)gcc
-CFLAGS = -W -Wall -Os -g -O2 -Wpointer-arith -Wl,-EL -nostdlib -mlongcalls -mno-text-section-literals -ffunction-sections -fdata-sections -fno-jump-tables
+CFLAGS = -W -Wall -g -Os -O3 -Wpointer-arith -Wl,-EL -nostdlib -mlongcalls -mno-text-section-literals -ffunction-sections -fdata-sections -fno-jump-tables
 CFLAGS += -D__ets__ -DICACHE_FLASH -DESP8266
 LD := $(TOOLCHAIN_PREFIX)ld
 AR := $(TOOLCHAIN_PREFIX)ar

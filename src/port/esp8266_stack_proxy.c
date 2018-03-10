@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include "inner.h"
 
 static uint8_t *stack_proxy = NULL;
 static uint16_t stack_proxy_size = 0;
@@ -64,20 +65,19 @@ void *br_stack_proxy_alloc(size_t bytes)
 
 	if (stack_proxy_ptr + bytes <= stack_proxy_size) {
 		uint8_t *ptr = &stack_proxy[stack_proxy_ptr];
-//		{char a[32]; sprintf(a,"%p, %d\n", ptr, bytes); PRINTIT(a);}
 		stack_proxy_ptr += bytes;
 		if (stack_proxy_max_ptr < stack_proxy_ptr) {
 			stack_proxy_max_ptr = stack_proxy_ptr;
 		}
 		while (stack_proxy_ptr&0x3) stack_proxy_ptr++; // Align 32-bits
-#if ESP8266DEBUG
-		//{char a[32]; sprintf(a,"a%dp\n", bytes); PRINTIT(a);}
-#endif
 		return (void*)ptr;
 	}
-#if ESP8266DEBUG
-	//{char a[32]; sprintf(a,"a%dF\n", bytes); PRINTIT(a);}
-#endif
+	// If we're here, the 2nd stack allocation failed.  Record if in debug mode
+	if (_debugBearSSL) {
+		char a[32];
+		sprintf(a,"stack2 alloc %d fail\n", bytes);
+		_BearSSLSerialPrint(a);
+	}
 	return NULL;
 }
 
