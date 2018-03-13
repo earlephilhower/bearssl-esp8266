@@ -700,10 +700,12 @@ typedef struct {
 	const br_x509_trust_anchor *trust_anchors;
 	size_t trust_anchors_num;
 
+        /* private context for dynamic callbacks */
+	void *trust_anchor_dynamic_ctx;
 	/* Dynamic trust anchor, for on-the-fly loading of TAs */
-	const br_x509_trust_anchor* (*trust_anchor_dynamic)(void *hashed_dn, size_t hashed_dn_len);
+	const br_x509_trust_anchor* (*trust_anchor_dynamic)(void *ctx, void *hashed_dn, size_t hashed_dn_len);
 	/* And a chance to free any dynamically allocated TA returned from above */
-	void (*trust_anchor_dynamic_free)(const br_x509_trust_anchor *ta);
+	void (*trust_anchor_dynamic_free)(void *ctx, const br_x509_trust_anchor *ta);
 
 	/*
 	 * Multi-hasher for the TBS.
@@ -779,14 +781,16 @@ void br_x509_minimal_init(br_x509_minimal_context *ctx,
  * chance to deallocate its memory, if needed.
  *
  * \param ctx                   context to initialise.
+ * \param dynamic_ctx           private context for the dynamic callback
  * \param trust_anchor_dynamic  provides a trust_anchor* for a hashed_dn
  * \param trust_anchor_dynamic_free  allows deallocation of returned TA
  */
 static inline void
-br_x509_minimal_set_dynamic(br_x509_minimal_context *ctx,
-	const br_x509_trust_anchor* (*dynamic)(void *hashed_dn, size_t hashed_dn_len),
-        void (*dynamic_free)(const br_x509_trust_anchor *ta))
+br_x509_minimal_set_dynamic(br_x509_minimal_context *ctx, void *dynamic_ctx,
+	const br_x509_trust_anchor* (*dynamic)(void *ctx, void *hashed_dn, size_t hashed_dn_len),
+        void (*dynamic_free)(void *ctx, const br_x509_trust_anchor *ta))
 {
+	ctx->trust_anchor_dynamic_ctx = dynamic_ctx;
 	ctx->trust_anchor_dynamic = dynamic;
 	ctx->trust_anchor_dynamic_free = dynamic_free;
 }
