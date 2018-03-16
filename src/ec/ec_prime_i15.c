@@ -480,6 +480,8 @@ run_code(jacobian *P1, const jacobian *P2,
 	for (u = 0;; u ++) {
 		unsigned op, d, a, b;
 
+		yield();
+
 		op = code[u];
 		if (op == 0) {
 			break;

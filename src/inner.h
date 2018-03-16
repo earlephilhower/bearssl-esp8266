@@ -2358,6 +2358,7 @@ br_cpuid(uint32_t mask_eax, uint32_t mask_ebx,
   #endif
 
   #define _debugBearSSL (0)
+  extern void yield();
   extern void br_stack_proxy_enter();
   extern void *br_stack_proxy_alloc(size_t bytes);
   extern void br_stack_proxy_exit();
@@ -2380,6 +2381,7 @@ br_cpuid(uint32_t mask_eax, uint32_t mask_ebx,
   #define STACK_PROXY_EXIT()
   #define STACK_PROXY_ALLOC(type, name, count) type name[count]
   #define dumpstack()
+  #define yield()
 #endif
 
 

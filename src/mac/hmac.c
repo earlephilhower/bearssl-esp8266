@@ -51,8 +51,11 @@ process_key(const br_hash_class **hc, void *ks,
 	}
 	memset(tmp + key_len, bb, blen - key_len);
 	(*hc)->init(hc);
+	yield();
 	(*hc)->update(hc, tmp, blen);
+	yield();
 	(*hc)->state(hc, ks);
+	yield();
 	STACK_PROXY_EXIT();
 }
 
