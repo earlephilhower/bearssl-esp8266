@@ -474,13 +474,13 @@ run_code(jacobian *P1, const jacobian *P2,
 	memcpy(t[P1x], P1->c, 3 * I15_LEN * sizeof(uint16_t));
 	memcpy(t[P2x], P2->c, 3 * I15_LEN * sizeof(uint16_t));
 
+	optimistic_yield(10000);
+
 	/*
 	 * Run formulas.
 	 */
 	for (u = 0;; u ++) {
 		unsigned op, d, a, b;
-
-		yield();
 
 		op = code[u];
 		if (op == 0) {

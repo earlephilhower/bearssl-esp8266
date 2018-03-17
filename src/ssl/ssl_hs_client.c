@@ -216,8 +216,6 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 	unsigned char head[4];
 	size_t hv_len;
 
-	yield();
-
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	br_multihash_zero(mhc);
@@ -249,8 +247,6 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 		}
 		hv_len = 36;
 	}
-
-	yield();
 
 	if (use_rsa) {
 //		unsigned char tmp[64];
@@ -303,8 +299,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	size_t glen, olen, point_len, xoff, xlen;
 	unsigned char mask;
 
-	yield();
-
 	if (ecdhe) {
 		curve = ctx->eng.ecdhe_curve;
 		point_src = ctx->eng.ecdhe_point;
@@ -339,8 +333,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	key[0] &= mask;
 	key[olen - 1] |= 0x01;
 
-	yield();
-
 	/*
 	 * Compute the common ECDH point, whose X coordinate is the
 	 * pre-master secret.
@@ -357,8 +349,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
-	yield();
-
 	/*
 	 * The pre-master secret is the X coordinate.
 	 */
@@ -367,8 +357,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 
 	ctx->eng.iec->mulgen(point, key, olen, curve);
 	memcpy(ctx->eng.pad, point, glen);
-
-	yield();
 
 	STACK_PROXY_EXIT();
 	return (int)glen;
