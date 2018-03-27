@@ -211,7 +211,7 @@ typedef struct {
  *
  * Cost: 8 multiplications
  */
-static const uint16_t code_double[] = {
+static const uint16_t code_double[] PROGMEM = {
 	/*
 	 * Compute z^2 (in t1).
 	 */
@@ -317,7 +317,7 @@ static const uint16_t code_double[] = {
  *
  * Cost: 16 multiplications
  */
-static const uint16_t code_add[] = {
+static const uint16_t code_add[] PROGMEM = {
 	/*
 	 * Compute u1 = x1*z2^2 (in t1) and s1 = y1*z2^3 (in t3).
 	 */
@@ -385,7 +385,7 @@ static const uint16_t code_add[] = {
  * converted to Montgomery coordinates yet).
  * -- P2x, P2y and P2z are set to, respectively, R^2, b*R and 1.
  */
-static const uint16_t code_check[] = {
+static const uint16_t code_check[] PROGMEM = {
 
 	/* Convert x and y to Montgomery representation. */
 	MMUL(t1, P1x, P2x),
@@ -422,7 +422,7 @@ static const uint16_t code_check[] = {
  * Conversion back to affine coordinates. This code snippet assumes that
  * the z coordinate of P2 is set to 1 (not in Montgomery representation).
  */
-static const uint16_t code_affine[] = {
+static const uint16_t code_affine[] PROGMEM = {
 
 	/* Save z*R in t1. */
 	MSET(t1, P1z),
@@ -482,7 +482,11 @@ run_code(jacobian *P1, const jacobian *P2,
 	for (u = 0;; u ++) {
 		unsigned op, d, a, b;
 
+#ifdef ESP8266
+		op = pgm_read_word(&code[u]);
+#else
 		op = code[u];
+#endif
 		if (op == 0) {
 			break;
 		}
