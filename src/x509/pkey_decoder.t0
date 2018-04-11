@@ -105,17 +105,13 @@ cc: set-rsa-key ( nlen elen -- ) {
 	CTX->key.rsa.elen = elen;
 }
 
-\ Set the private key (EC). - TODO what is format in ASN.1???
-cc: set-ec-key ( curve xlen -- ) {
-	size_t xlen = T0_POP();
+\ Set the private key (EC).
+cc: set-ec-key ( curve qlen -- ) {
+	size_t qlen = T0_POP();
 	uint32_t curve = T0_POP();
-	(void) xlen;
-	(void) curve;
-/*
 	CTX->key.ec.curve = curve;
-	CTX->key.ec.x = CTX->key_data;
-	CTX->key.ec.xlen = xlen;
-*/
+	CTX->key.ec.q = CTX->key_data;
+	CTX->key.ec.qlen = qlen;
 }
 
 cc: print-out ( val -- ) {
@@ -141,8 +137,9 @@ cc: print-out ( val -- ) {
 
 \ Decode RSA key, starting with the SEQUENCE tag.
 : decode-RSA ( lim -- lim )
-	\ TODO - this is probably nonsensical, but we need to skip 1 byte to get to encoded key
-	read-tag drop drop
+	\ We are inside the Bit String at the # of unused bits value
+	\ There better no unused bits, we should be pow(2)
+	read8 if ERR_X509_UNSUPPORTED fail then
 
 	read-sequence-open
 	
@@ -170,62 +167,35 @@ cc: print-out ( val -- ) {
 \ Decode an EC key, starting with the SEQUENCE tag.
 : decode-EC ( lim curve -- lim )
 	{ curve }
-	read-sequence-open
 
-	\ Version should be 1.
-	read-tag 0x02 check-tag-primitive read-small-int-value 1- if
-		ERR_X509_UNSUPPORTED fail
-	then
+	\ We are inside the Bit String at the # of unused bits value
+	\ There better no unused bits, we should be pow(2)
+	read8 if ERR_X509_UNSUPPORTED fail then
 
-	\ Read tag for the private key; should be OCTET STRING. Then use the
-	\ decode-EC-next function for the remainder of the key.
-	read-tag 0x04 check-tag-primitive
+        \ Read tag for the private key; should be OCTET STRING. Then use the
+        \ decode-EC-next function for the remainder of the key.
+        read-tag 0x04 check-tag-primitive
+
 	curve decode-EC-next
-
-	\ Close the SEQUENCE.
-	close-elt ;
+	;
+ 
 
 \ Decode an EC key; the version, and the tag for the OCTET STRING, have
 \ already been read. The curve ID is provided (0 if unknown).
 : decode-EC-next ( lim curve -- lim )
 	{ curve }
 
-	\ Read the private key proper.
-	read-length-open-elt
-	dup dup { xlen } len-key_data > if ERR_X509_UNSUPPORTED fail then
-	addr-key_data read-blob
-
-	\ Next element might be the curve identifier.
-	read-tag-or-end
-	case
-
-		\ End of structure.
-		-1 of drop endof
-
-		\ Curve parameters; we support only named curves.
-		0x20 of
-			check-constructed read-length-open-elt
-			read-curve-ID
-			curve if
-				curve <> if ERR_X509_INVALID_VALUE fail then
-			else
-				>curve
-			then
-			close-elt
-		endof
-
-		\ Public key. We ignore it.
-		0x21 of check-constructed endof
-
-		ERR_X509_UNSUPPORTED fail
-	endcase
-	skip-remaining
+	\ Read the public key proper.
+	dup { qlen }
+	qlen len-key_data > if ERR_X509_UNSUPPORTED fail then
+	qlen addr-key_data read-blob
+	drop 0
 
 	\ The curve must have been defined one way or another.
 	curve ifnot ERR_X509_UNSUPPORTED fail then
 
 	\ Set the EC key.
-	curve xlen set-ec-key
+	curve qlen set-ec-key
 
 	\ The caller will close the sequence.
 	;
@@ -248,7 +218,6 @@ cc: print-out ( val -- ) {
 			0 >is-rsa
 			dup if read-curve-ID else 0 then >curve
 		enduf
-
 		ERR_X509_UNSUPPORTED fail
 	endchoice
 	close-elt
@@ -256,16 +225,15 @@ cc: print-out ( val -- ) {
 	\ Open public key value and decode it. Should be bit-string (0x03)
 	read-tag 0x03 check-tag-primitive
 	read-length-open-elt
+
 	is-rsa if
 		decode-RSA
 	else
 		curve decode-EC
 	then
 	close-elt
-
 	\ We ignore any extra field, i.e. attributes or public key.
 	skip-remaining
-
 	\ Return the key type.
 	is-rsa if KEYTYPE_RSA else KEYTYPE_EC then
 	;
@@ -312,10 +280,8 @@ cc: print-out ( val -- ) {
 
 	\ Close the SEQUENCE.
 	close-elt
-
 	\ Set the key type, which marks the decoding as a success.
 	key-type addr-key_type set8
-
 	\ Read one byte, then fail: if the read succeeds, then there is
 	\ some trailing byte.
 	read8-nc ERR_X509_EXTRA_ELEMENT fail
