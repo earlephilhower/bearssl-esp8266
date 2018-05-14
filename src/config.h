@@ -227,7 +227,7 @@
 
 /*
  * When BR_BE_UNALIGNED is enabled, then the current architecture is
- * assumed to use little-endian encoding for integers, and to tolerate
+ * assumed to use big-endian encoding for integers, and to tolerate
  * unaligned accesses with no or minimal time penalty.
  *
 #define BR_BE_UNALIGNED   1
