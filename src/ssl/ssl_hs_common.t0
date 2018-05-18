@@ -879,6 +879,16 @@ hexb| 0000 | \ List terminator.
 : prf-id ( suite -- id )
 	cipher-suite-to-elements 15 and ;
 
+\ Test whether a cipher suite is only for TLS-1.2. Cipher suites that
+\ can be used with TLS-1.0 or 1.1 use HMAC/SHA-1. RFC do not formally
+\ forbid using a CBC-based TLS-1.2 cipher suite, e.g. based on HMAC/SHA-256,
+\ with older protocol versions; however, servers should not do that, since
+\ it may confuse clients. Since the server code does not try such games,
+\ for consistency, the client should reject it as well (normal servers
+\ don't do that, so any attempt is a sign of foul play).
+: use-tls12? ( suite -- bool )
+	cipher-suite-to-elements 0xF0 and 0x20 <> ;
+
 \ Switch to negotiated security parameters for input or output.
 : switch-encryption ( is-client for-input -- )
 	{ for-input }

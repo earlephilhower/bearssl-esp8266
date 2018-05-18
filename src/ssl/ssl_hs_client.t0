@@ -686,16 +686,12 @@ cc: DEBUG-BLOB ( addr len -- ) {
 
 	\ Cipher suite. We check that it is part of the list of cipher
 	\ suites that we advertised.
-	\ read16 { suite ; found }
-	\ 0 >found
-	\ addr-suites_buf dup addr-suites_num get8 1 << +
-	\ begin dup2 < while
-	\ 	2 - dup get16
-	\ 	suite = found or >found
-	\ repeat
-	\ 2drop found ifnot ERR_BAD_CIPHER_SUITE fail then
 	read16
 	dup scan-suite 0< if ERR_BAD_CIPHER_SUITE fail then
+	\ Also check that the cipher suite is compatible with the
+	\ announced version: suites that don't use HMAC/SHA-1 are
+	\ for TLS-1.2 only, not older versions.
+	dup use-tls12? version 0x0303 < and if ERR_BAD_CIPHER_SUITE fail then
 	addr-cipher_suite resume check-resume
 
 	\ Compression method. Should be 0 (no compression).
