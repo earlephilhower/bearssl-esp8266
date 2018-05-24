@@ -1899,6 +1899,31 @@ uint32_t br_rsa_pkcs1_sig_unpad(const unsigned char *sig, size_t sig_len,
 	const unsigned char *hash_oid, size_t hash_len,
 	unsigned char *hash_out);
 
+/*
+ * Apply OAEP padding. Returned value is the actual padded string length,
+ * or zero on error.
+ */
+size_t br_rsa_oaep_pad(const br_prng_class **rnd, const br_hash_class *dig,
+	const void *label, size_t label_len, const br_rsa_public_key *pk,
+	void *dst, size_t dst_nax_len, const void *src, size_t src_len);
+
+/*
+ * Unravel and check OAEP padding. If the padding is correct, then 1 is
+ * returned, '*len' is adjusted to the length of the message, and the
+ * data is moved to the start of the 'data' buffer. If the padding is
+ * incorrect, then 0 is returned and '*len' is untouched. Either way,
+ * the complete buffer contents are altered.
+ */
+uint32_t br_rsa_oaep_unpad(const br_hash_class *dig,
+	const void *label, size_t label_len, void *data, size_t *len);
+
+/*
+ * Compute MGF1 for a given seed, and XOR the output into the provided
+ * buffer.
+ */
+void br_mgf1_xor(void *data, size_t len,
+	const br_hash_class *dig, const void *seed, size_t seed_len);
+
 /* ==================================================================== */
 /*
  * Elliptic curves.
