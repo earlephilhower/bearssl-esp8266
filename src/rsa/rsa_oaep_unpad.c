@@ -138,7 +138,7 @@ br_rsa_oaep_unpad(const br_hash_class *dig,
 
 		plen = 2 + hlen + zlen;
 		k -= plen;
-		memmove(data, data + plen, k);
+		memmove(buf, buf + plen, k);
 		*len = k;
 	}
 	return s;
