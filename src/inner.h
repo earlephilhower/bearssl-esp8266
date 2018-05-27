@@ -85,7 +85,7 @@
  *
  * The test on 'unsigned long' should already catch most cases, the one
  * notable exception being Windows code where 'unsigned long' is kept to
- * 32-bit for compatbility with all the legacy code that liberally uses
+ * 32-bit for compatibility with all the legacy code that liberally uses
  * the 'DWORD' type for 32-bit values.
  *
  * Macro names are taken from: http://nadeausoftware.com/articles/2012/02/c_c_tip_how_detect_processor_type_using_compiler_predefined_macros

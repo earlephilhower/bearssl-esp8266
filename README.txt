@@ -112,7 +112,7 @@ Dependencies are simple and systematic:
 
 I follow this simple version numbering scheme:
 
- - Version numbers are `x.y` or `x.y.z` where `x`, `y` ans `z` are
+ - Version numbers are `x.y` or `x.y.z` where `x`, `y` and `z` are
    decimal integers (possibly greater than 10). When the `.z` part is
    missing, it is equivalent to `.0`.
 

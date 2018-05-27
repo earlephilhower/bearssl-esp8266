@@ -31,7 +31,7 @@ preamble {
  * specific name. It must be noted that since the engine context is the
  * first field of the br_ssl_client_context structure ('eng'), then
  * pointers values of both types are interchangeable, modulo an
- * appropriate cast. This also means that "adresses" computed as offsets
+ * appropriate cast. This also means that "addresses" computed as offsets
  * within the structure work for both kinds of context.
  */
 #define CTX  ((br_ssl_client_context *)ENG)
@@ -969,7 +969,7 @@ cc: get-client-chain ( auth_types -- ) {
 
 \ Parse CertificateRequest. Header has already been read.
 : read-contents-CertificateRequest ( lim -- )
-	\ Read supported client authentification types. We keep only
+	\ Read supported client authentication types. We keep only
 	\ RSA, ECDSA, and ECDH.
 	0 { auth_types }
 	read8 open-elt

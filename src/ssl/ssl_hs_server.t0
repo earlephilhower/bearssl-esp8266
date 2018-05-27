@@ -31,7 +31,7 @@ preamble {
  * specific name. It must be noted that since the engine context is the
  * first field of the br_ssl_server_context structure ('eng'), then
  * pointers values of both types are interchangeable, modulo an
- * appropriate cast. This also means that "adresses" computed as offsets
+ * appropriate cast. This also means that "addresses" computed as offsets
  * within the structure work for both kinds of context.
  */
 #define CTX  ((br_ssl_server_context *)ENG)
@@ -864,7 +864,7 @@ cc: save-session ( -- ) {
 	\ suites are filtered out. In particular:
 	\ -- ECDHE suites are removed if there is no common hash function
 	\    (for the relevant signature algorithm) or no common curve.
-	\ -- TLS-1.2-only suites are removed if the negociated version is
+	\ -- TLS-1.2-only suites are removed if the negotiated version is
 	\    TLS-1.1 or lower.
 	addr-client_suites dup >css-off
 	begin dup css-max < while
