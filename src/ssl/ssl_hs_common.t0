@@ -589,7 +589,7 @@ cc: more-incoming-bytes? ( -- bool ) {
 	read16 skip-blob ;
 
 \ Open a substructure: the inner structure length is checked against,
-\ and substracted, from the output structure current limit.
+\ and subtracted, from the output structure current limit.
 : open-elt ( lim len -- lim-outer lim-inner )
 	dup { len }
 	- dup 0< if ERR_BAD_PARAM fail then

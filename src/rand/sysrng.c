@@ -158,7 +158,8 @@ seeder_esp8266(const br_prng_class **ctx)
 }
 #endif
 
-/* see bearssl_rand.h.h */
+/* see bearssl_rand.h */
+
 br_prng_seeder
 br_prng_seeder_system(const char **name)
 {

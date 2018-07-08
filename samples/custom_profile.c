@@ -181,7 +181,7 @@ example_client_profile(br_ssl_client_context *cc
 	 * -- ECDSA signature verification is needed for "ECDHE_ECDSA"
 	 *    cipher suites (but not for ECDHE_RSA, ECDH_ECDSA or ECDH_RSA).
 	 *
-	 * Normaly, you use the "default" implementations, obtained
+	 * Normally, you use the "default" implementations, obtained
 	 * through relevant function calls. These functions return
 	 * implementations that are deemed "best" for the current
 	 * platform, where "best" means "fastest within constant-time
@@ -196,7 +196,7 @@ example_client_profile(br_ssl_client_context *cc
 	 * "i32". The "i31" code is somewhat faster than the "i32" code.
 	 * Usually, "i31" is faster than "i15", except on some specific
 	 * architectures (ARM Cortex M0, M0+, M1 and M3) where the "i15"
-	 * should be prefered (the "i15" code is constant-time, while
+	 * should be preferred (the "i15" code is constant-time, while
 	 * the "i31" is not, and the "i15" code is faster anyway).
 	 *
 	 * ECDSA code also comes in "i15" and "i31" variants. As in the
@@ -359,7 +359,7 @@ example_client_profile(br_ssl_client_context *cc
 	 *    ctmul64   Uses 64-bit multiplications with a 64-bit result.
 	 *
 	 * On 64-bit platforms, ctmul64 is the smallest and fastest of
-	 * the three. On 32-bit systems, ctmul should be prefered. The
+	 * the three. On 32-bit systems, ctmul should be preferred. The
 	 * ctmul32 implementation is meant to be used for the specific
 	 * 32-bit systems that do not have a 32x32->64 multiplier (i.e.
 	 * the ARM Cortex-M0 and Cortex-M0+).

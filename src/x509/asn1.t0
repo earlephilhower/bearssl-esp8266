@@ -278,7 +278,7 @@ cc: get32 ( addr -- val ) {
 	0x80 - dup ifnot ERR_X509_INDEFINITE_LENGTH fail then
 
 	\ Masking out bit 7, this yields the number of bytes over which
-	\ the value is encoded. Since the total certicate length must
+	\ the value is encoded. Since the total certificate length must
 	\ fit over 3 bytes (this is a consequence of SSL/TLS message
 	\ format), we can reject big lengths and keep the length in a
 	\ single integer.

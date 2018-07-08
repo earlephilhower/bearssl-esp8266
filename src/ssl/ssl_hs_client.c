@@ -101,7 +101,7 @@ void br_ssl_hs_client_run(void *t0ctx);
  * specific name. It must be noted that since the engine context is the
  * first field of the br_ssl_client_context structure ('eng'), then
  * pointers values of both types are interchangeable, modulo an
- * appropriate cast. This also means that "adresses" computed as offsets
+ * appropriate cast. This also means that "addresses" computed as offsets
  * within the structure work for both kinds of context.
  */
 #define CTX  ((br_ssl_client_context *)ENG)

@@ -489,7 +489,9 @@ br_pem_decoder_run(void *t0ctx)
 				/* flush-buf */
 
 	if (CTX->ptr > 0) {
-		CTX->dest(CTX->dest_ctx, CTX->buf, CTX->ptr);
+		if (CTX->dest) {
+			CTX->dest(CTX->dest_ctx, CTX->buf, CTX->ptr);
+		}
 		CTX->ptr = 0;
 	}
 
