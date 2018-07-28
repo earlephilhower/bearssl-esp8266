@@ -2105,8 +2105,8 @@ typedef union {
 	br_aes_small_ctrcbc_keys c_small;
 	br_aes_ct_ctrcbc_keys c_ct;
 	br_aes_ct64_ctrcbc_keys c_ct64;
-	/* FIXME
 	br_aes_x86ni_ctrcbc_keys c_x86ni;
+	/* FIXME
 	br_aes_pwr8_ctrcbc_keys c_pwr8;
 	*/
 } br_aes_gen_ctrcbc_keys;

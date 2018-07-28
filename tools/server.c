@@ -1058,6 +1058,9 @@ do_server(int argc, char *argv[])
 		if ((req & REQ_AESCBC) != 0) {
 			br_ssl_engine_set_default_aes_cbc(&cc.eng);
 		}
+		if ((req & REQ_AESCCM) != 0) {
+			br_ssl_engine_set_default_aes_ccm(&cc.eng);
+		}
 		if ((req & REQ_AESGCM) != 0) {
 			br_ssl_engine_set_default_aes_gcm(&cc.eng);
 		}

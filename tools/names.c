@@ -83,6 +83,30 @@ const cipher_suite cipher_suites[] = {
 		"ECDHE with RSA, AES-256/GCM encryption (TLS 1.2+)"
 	},
 	{
+		"ECDHE_ECDSA_WITH_AES_128_CCM",
+		BR_TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
+		REQ_ECDHE_ECDSA | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"ECDHE with ECDSA, AES-128/CCM encryption (TLS 1.2+)"
+	},
+	{
+		"ECDHE_ECDSA_WITH_AES_256_CCM",
+		BR_TLS_ECDHE_ECDSA_WITH_AES_256_CCM,
+		REQ_ECDHE_ECDSA | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"ECDHE with ECDSA, AES-256/CCM encryption (TLS 1.2+)"
+	},
+	{
+		"ECDHE_ECDSA_WITH_AES_128_CCM_8",
+		BR_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+		REQ_ECDHE_ECDSA | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"ECDHE with ECDSA, AES-128/CCM_8 encryption (TLS 1.2+)"
+	},
+	{
+		"ECDHE_ECDSA_WITH_AES_256_CCM_8",
+		BR_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
+		REQ_ECDHE_ECDSA | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"ECDHE with ECDSA, AES-256/CCM_8 encryption (TLS 1.2+)"
+	},
+	{
 		"ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
 		BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 		REQ_ECDHE_ECDSA | REQ_AESCBC | REQ_SHA256 | REQ_TLS12,
@@ -213,6 +237,30 @@ const cipher_suite cipher_suites[] = {
 		BR_TLS_RSA_WITH_AES_256_GCM_SHA384,
 		REQ_RSAKEYX | REQ_AESGCM | REQ_SHA384 | REQ_TLS12,
 		"RSA key exchange, AES-256/GCM encryption (TLS 1.2+)"
+	},
+	{
+		"RSA_WITH_AES_128_CCM",
+		BR_TLS_RSA_WITH_AES_128_CCM,
+		REQ_RSAKEYX | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"RSA key exchange, AES-128/CCM encryption (TLS 1.2+)"
+	},
+	{
+		"RSA_WITH_AES_256_CCM",
+		BR_TLS_RSA_WITH_AES_256_CCM,
+		REQ_RSAKEYX | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"RSA key exchange, AES-256/CCM encryption (TLS 1.2+)"
+	},
+	{
+		"RSA_WITH_AES_128_CCM_8",
+		BR_TLS_RSA_WITH_AES_128_CCM_8,
+		REQ_RSAKEYX | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"RSA key exchange, AES-128/CCM_8 encryption (TLS 1.2+)"
+	},
+	{
+		"RSA_WITH_AES_256_CCM_8",
+		BR_TLS_RSA_WITH_AES_256_CCM_8,
+		REQ_RSAKEYX | REQ_AESCCM | REQ_SHA256 | REQ_TLS12,
+		"RSA key exchange, AES-256/CCM_8 encryption (TLS 1.2+)"
 	},
 	{
 		"RSA_WITH_AES_128_CBC_SHA256",
@@ -347,15 +395,19 @@ static const struct {
 	{ "aes_big_cbcenc",    "big",         &br_aes_big_cbcenc_vtable },
 	{ "aes_big_cbcdec",    "big",         &br_aes_big_cbcdec_vtable },
 	{ "aes_big_ctr",       "big",         &br_aes_big_ctr_vtable },
+	{ "aes_big_ctrcbc",    "big",         &br_aes_big_ctrcbc_vtable },
 	{ "aes_small_cbcenc",  "small",       &br_aes_small_cbcenc_vtable },
 	{ "aes_small_cbcdec",  "small",       &br_aes_small_cbcdec_vtable },
 	{ "aes_small_ctr",     "small",       &br_aes_small_ctr_vtable },
+	{ "aes_small_ctrcbc",  "small",       &br_aes_small_ctrcbc_vtable },
 	{ "aes_ct_cbcenc",     "ct",          &br_aes_ct_cbcenc_vtable },
 	{ "aes_ct_cbcdec",     "ct",          &br_aes_ct_cbcdec_vtable },
 	{ "aes_ct_ctr",        "ct",          &br_aes_ct_ctr_vtable },
+	{ "aes_ct_ctrcbc",     "ct",          &br_aes_ct_ctrcbc_vtable },
 	{ "aes_ct64_cbcenc",   "ct64",        &br_aes_ct64_cbcenc_vtable },
 	{ "aes_ct64_cbcdec",   "ct64",        &br_aes_ct64_cbcdec_vtable },
 	{ "aes_ct64_ctr",      "ct64",        &br_aes_ct64_ctr_vtable },
+	{ "aes_ct64_ctrcbc",   "ct64",        &br_aes_ct64_ctrcbc_vtable },
 
 	{ "des_tab_cbcenc",    "tab",         &br_des_tab_cbcenc_vtable },
 	{ "des_tab_cbcdec",    "tab",         &br_des_tab_cbcdec_vtable },
@@ -418,6 +470,8 @@ static const struct {
 		(const void *(*)(void))&br_aes_x86ni_cbcdec_get_vtable },
 	{ "aes_x86ni_ctr",        "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_ctr_get_vtable },
+	{ "aes_x86ni_ctrcbc",     "x86ni",
+		(const void *(*)(void))&br_aes_x86ni_ctrcbc_get_vtable },
 	{ "chacha20_sse2",        "sse2",
 		(const void *(*)(void))&br_chacha20_sse2_get },
 	{ "ghash_pclmul",         "pclmul",

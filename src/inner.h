@@ -2148,6 +2148,34 @@ void br_ssl_engine_switch_chapol_out(br_ssl_engine_context *cc,
 	int is_client, int prf_id);
 
 /*
+ * Switch to CCM decryption for incoming records.
+ *    cc               the engine context
+ *    is_client        non-zero for a client, zero for a server
+ *    prf_id           id of hash function for PRF
+ *    bc_impl          block cipher implementation (CTR+CBC)
+ *    cipher_key_len   block cipher key length (in bytes)
+ *    tag_len          tag length (in bytes)
+ */
+void br_ssl_engine_switch_ccm_in(br_ssl_engine_context *cc,
+	int is_client, int prf_id,
+	const br_block_ctrcbc_class *bc_impl,
+	size_t cipher_key_len, size_t tag_len);
+
+/*
+ * Switch to GCM encryption for outgoing records.
+ *    cc               the engine context
+ *    is_client        non-zero for a client, zero for a server
+ *    prf_id           id of hash function for PRF
+ *    bc_impl          block cipher implementation (CTR+CBC)
+ *    cipher_key_len   block cipher key length (in bytes)
+ *    tag_len          tag length (in bytes)
+ */
+void br_ssl_engine_switch_ccm_out(br_ssl_engine_context *cc,
+	int is_client, int prf_id,
+	const br_block_ctrcbc_class *bc_impl,
+	size_t cipher_key_len, size_t tag_len);
+
+/*
  * Calls to T0-generated code.
  */
 void br_ssl_hs_client_init_main(void *ctx);

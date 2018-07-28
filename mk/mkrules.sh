@@ -216,6 +216,7 @@ coresrc=" \
 	src/ssl/ssl_client_full.c \
 	src/ssl/ssl_engine.c \
 	src/ssl/ssl_engine_default_aescbc.c \
+	src/ssl/ssl_engine_default_aesccm.c \
 	src/ssl/ssl_engine_default_aesgcm.c \
 	src/ssl/ssl_engine_default_chapol.c \
 	src/ssl/ssl_engine_default_descbc.c \
@@ -229,6 +230,7 @@ coresrc=" \
 	src/ssl/ssl_keyexport.c \
 	src/ssl/ssl_lru.c \
 	src/ssl/ssl_rec_cbc.c \
+	src/ssl/ssl_rec_ccm.c \
 	src/ssl/ssl_rec_chapol.c \
 	src/ssl/ssl_rec_gcm.c \
 	src/ssl/ssl_scert_single_ec.c \

@@ -168,6 +168,7 @@ OBJ = \
  $(OBJDIR)$Pssl_client_full$O \
  $(OBJDIR)$Pssl_engine$O \
  $(OBJDIR)$Pssl_engine_default_aescbc$O \
+ $(OBJDIR)$Pssl_engine_default_aesccm$O \
  $(OBJDIR)$Pssl_engine_default_aesgcm$O \
  $(OBJDIR)$Pssl_engine_default_chapol$O \
  $(OBJDIR)$Pssl_engine_default_descbc$O \
@@ -181,6 +182,7 @@ OBJ = \
  $(OBJDIR)$Pssl_keyexport$O \
  $(OBJDIR)$Pssl_lru$O \
  $(OBJDIR)$Pssl_rec_cbc$O \
+ $(OBJDIR)$Pssl_rec_ccm$O \
  $(OBJDIR)$Pssl_rec_chapol$O \
  $(OBJDIR)$Pssl_rec_gcm$O \
  $(OBJDIR)$Pssl_scert_single_ec$O \
@@ -830,6 +832,9 @@ $(OBJDIR)$Pssl_engine$O: src$Pssl$Pssl_engine.c $(HEADERSPRIV)
 $(OBJDIR)$Pssl_engine_default_aescbc$O: src$Pssl$Pssl_engine_default_aescbc.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pssl_engine_default_aescbc$O src$Pssl$Pssl_engine_default_aescbc.c
 
+$(OBJDIR)$Pssl_engine_default_aesccm$O: src$Pssl$Pssl_engine_default_aesccm.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pssl_engine_default_aesccm$O src$Pssl$Pssl_engine_default_aesccm.c
+
 $(OBJDIR)$Pssl_engine_default_aesgcm$O: src$Pssl$Pssl_engine_default_aesgcm.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pssl_engine_default_aesgcm$O src$Pssl$Pssl_engine_default_aesgcm.c
 
@@ -868,6 +873,9 @@ $(OBJDIR)$Pssl_lru$O: src$Pssl$Pssl_lru.c $(HEADERSPRIV)
 
 $(OBJDIR)$Pssl_rec_cbc$O: src$Pssl$Pssl_rec_cbc.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pssl_rec_cbc$O src$Pssl$Pssl_rec_cbc.c
+
+$(OBJDIR)$Pssl_rec_ccm$O: src$Pssl$Pssl_rec_ccm.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pssl_rec_ccm$O src$Pssl$Pssl_rec_ccm.c
 
 $(OBJDIR)$Pssl_rec_chapol$O: src$Pssl$Pssl_rec_chapol.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pssl_rec_chapol$O src$Pssl$Pssl_rec_chapol.c
