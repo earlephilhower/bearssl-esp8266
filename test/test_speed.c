@@ -684,7 +684,11 @@ test_speed_rsa_inner(char *name,
 	unsigned char tmp[sizeof RSA_N];
 	int i;
 	long num;
+	/*
 	br_hmac_drbg_context rng;
+	*/
+	br_aesctr_drbg_context rng;
+	const br_block_ctr_class *ictr;
 
 	memset(tmp, 'R', sizeof tmp);
 	tmp[0] = 0;
@@ -744,7 +748,21 @@ test_speed_rsa_inner(char *name,
 		fflush(stdout);
 		return;
 	}
+	/*
 	br_hmac_drbg_init(&rng, &br_sha256_vtable, "RSA keygen seed", 15);
+	*/
+	ictr = br_aes_x86ni_ctr_get_vtable();
+	if (ictr == NULL) {
+		ictr = br_aes_pwr8_ctr_get_vtable();
+		if (ictr == NULL) {
+#if BR_64
+			ictr = &br_aes_ct64_ctr_vtable;
+#else
+			ictr = &br_aes_ct_ctr_vtable;
+#endif
+		}
+	}
+	br_aesctr_drbg_init(&rng, ictr, "RSA keygen seed", 15);
 
 	num = 10;
 	for (;;) {

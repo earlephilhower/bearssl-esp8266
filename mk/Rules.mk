@@ -122,6 +122,7 @@ OBJ = \
  $(OBJDIR)$Pi62_modpow2$O \
  $(OBJDIR)$Phmac$O \
  $(OBJDIR)$Phmac_ct$O \
+ $(OBJDIR)$Paesctr_drbg$O \
  $(OBJDIR)$Phmac_drbg$O \
  $(OBJDIR)$Psysrng$O \
  $(OBJDIR)$Prsa_default_keygen$O \
@@ -700,6 +701,9 @@ $(OBJDIR)$Phmac$O: src$Pmac$Phmac.c $(HEADERSPRIV)
 
 $(OBJDIR)$Phmac_ct$O: src$Pmac$Phmac_ct.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Phmac_ct$O src$Pmac$Phmac_ct.c
+
+$(OBJDIR)$Paesctr_drbg$O: src$Prand$Paesctr_drbg.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Paesctr_drbg$O src$Prand$Paesctr_drbg.c
 
 $(OBJDIR)$Phmac_drbg$O: src$Prand$Phmac_drbg.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Phmac_drbg$O src$Prand$Phmac_drbg.c

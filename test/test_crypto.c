@@ -1075,6 +1075,41 @@ test_HMAC_DRBG(void)
 }
 
 static void
+test_AESCTR_DRBG(void)
+{
+	br_aesctr_drbg_context ctx;
+	const br_block_ctr_class *ictr;
+	unsigned char tmp1[64], tmp2[64];
+
+	printf("Test AESCTR_DRBG: ");
+	fflush(stdout);
+
+	ictr = br_aes_x86ni_ctr_get_vtable();
+	if (ictr == NULL) {
+		ictr = br_aes_pwr8_ctr_get_vtable();
+		if (ictr == NULL) {
+#if BR_64
+			ictr = &br_aes_ct64_ctr_vtable;
+#else
+			ictr = &br_aes_ct_ctr_vtable;
+#endif
+		}
+	}
+	br_aesctr_drbg_init(&ctx, ictr, NULL, 0);
+	ctx.vtable->generate(&ctx.vtable, tmp1, sizeof tmp1);
+	ctx.vtable->update(&ctx.vtable, "new seed", 8);
+	ctx.vtable->generate(&ctx.vtable, tmp2, sizeof tmp2);
+
+	if (memcmp(tmp1, tmp2, sizeof tmp1) == 0) {
+		fprintf(stderr, "AESCTR_DRBG failure\n");
+		exit(EXIT_FAILURE);
+	}
+
+	printf("done.\n");
+	fflush(stdout);
+}
+
+static void
 do_KAT_PRF(br_tls_prf_impl prf,
 	const char *ssecret, const char *label, const char *sseed,
 	const char *sref)
@@ -7965,6 +8000,7 @@ static const struct {
 	STU(multihash),
 	STU(HMAC),
 	STU(HMAC_DRBG),
+	STU(AESCTR_DRBG),
 	STU(PRF),
 	STU(AES_big),
 	STU(AES_small),
