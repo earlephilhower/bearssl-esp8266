@@ -5686,6 +5686,122 @@ test_RSA_OAEP(const char *name,
 }
 
 static void
+test_RSA_keygen(const char *name, br_rsa_keygen kg,
+	br_rsa_pkcs1_sign sign, br_rsa_pkcs1_vrfy vrfy)
+{
+	br_hmac_drbg_context rng;
+	int i;
+
+	printf("Test %s: ", name);
+	fflush(stdout);
+
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, "seed for RSA keygen", 19);
+
+	for (i = 0; i < 40; i ++) {
+		unsigned size;
+		uint32_t pubexp;
+		br_rsa_private_key sk;
+		br_rsa_public_key pk;
+		unsigned char kbuf_priv[BR_RSA_KBUF_PRIV_SIZE(2048)];
+		unsigned char kbuf_pub[BR_RSA_KBUF_PUB_SIZE(2048)];
+		uint32_t mod[256];
+		uint32_t cc;
+		size_t u, v;
+		unsigned char sig[257], hv[32], hv2[sizeof hv];
+		unsigned mask1, mask2;
+
+		if (i <= 35) {
+			size = 1024 + i;
+			pubexp = 17;
+		} else {
+			size = 2048;
+			pubexp = (i << 1) - 69;
+		}
+
+		if (!kg(&rng.vtable,
+			&sk, kbuf_priv, &pk, kbuf_pub, size, pubexp))
+		{
+			fprintf(stderr, "RSA key pair generation failure\n");
+			exit(EXIT_FAILURE);
+		}
+
+		for (u = pk.elen; u > 0; u --) {
+			if (pk.e[u - 1] != (pubexp & 0xFF)) {
+				fprintf(stderr, "wrong public exponent\n");
+				exit(EXIT_FAILURE);
+			}
+			pubexp >>= 8;
+		}
+		if (pubexp != 0) {
+			fprintf(stderr, "truncated public exponent\n");
+			exit(EXIT_FAILURE);
+		}
+
+		memset(mod, 0, sizeof mod);
+		for (u = 0; u < sk.plen; u ++) {
+			for (v = 0; v < sk.qlen; v ++) {
+				mod[u + v] += (uint32_t)sk.p[sk.plen - 1 - u]
+					* (uint32_t)sk.q[sk.qlen - 1 - v];
+			}
+		}
+		cc = 0;
+		for (u = 0; u < sk.plen + sk.qlen; u ++) {
+			mod[u] += cc;
+			cc = mod[u] >> 8;
+			mod[u] &= 0xFF;
+		}
+		for (u = 0; u < pk.nlen; u ++) {
+			if (mod[pk.nlen - 1 - u] != pk.n[u]) {
+				fprintf(stderr, "wrong modulus\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		if (sk.n_bitlen != size) {
+			fprintf(stderr, "wrong key size\n");
+			exit(EXIT_FAILURE);
+		}
+		if (pk.nlen != (size + 7) >> 3) {
+			fprintf(stderr, "wrong modulus size (bytes)\n");
+			exit(EXIT_FAILURE);
+		}
+		mask1 = 0x01 << ((size + 7) & 7);
+		mask2 = 0xFF & -mask1;
+		if ((pk.n[0] & mask2) != mask1) {
+			fprintf(stderr, "wrong modulus size (bits)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		rng.vtable->generate(&rng.vtable, hv, sizeof hv);
+		memset(sig, 0, sizeof sig);
+		sig[pk.nlen] = 0x00;
+		if (!sign(BR_HASH_OID_SHA256, hv, sizeof hv, &sk, sig)) {
+			fprintf(stderr, "signature error\n");
+			exit(EXIT_FAILURE);
+		}
+		if (sig[pk.nlen] != 0x00) {
+			fprintf(stderr, "signature length error\n");
+			exit(EXIT_FAILURE);
+		}
+		if (!vrfy(sig, pk.nlen, BR_HASH_OID_SHA256, sizeof hv,
+			&pk, hv2))
+		{
+			fprintf(stderr, "signature verification error (1)\n");
+			exit(EXIT_FAILURE);
+		}
+		if (memcmp(hv, hv2, sizeof hv) != 0) {
+			fprintf(stderr, "signature verification error (2)\n");
+			exit(EXIT_FAILURE);
+		}
+
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
+static void
 test_RSA_i15(void)
 {
 	test_RSA_core("RSA i15 core", &br_rsa_i15_public, &br_rsa_i15_private);
@@ -5693,6 +5809,8 @@ test_RSA_i15(void)
 		&br_rsa_i15_pkcs1_sign, &br_rsa_i15_pkcs1_vrfy);
 	test_RSA_OAEP("RSA i15 OAEP",
 		&br_rsa_i15_oaep_encrypt, &br_rsa_i15_oaep_decrypt);
+	test_RSA_keygen("RSA i15 keygen", &br_rsa_i15_keygen,
+		&br_rsa_i15_pkcs1_sign, &br_rsa_i15_pkcs1_vrfy);
 }
 
 static void
@@ -5703,6 +5821,8 @@ test_RSA_i31(void)
 		&br_rsa_i31_pkcs1_sign, &br_rsa_i31_pkcs1_vrfy);
 	test_RSA_OAEP("RSA i31 OAEP",
 		&br_rsa_i31_oaep_encrypt, &br_rsa_i31_oaep_decrypt);
+	test_RSA_keygen("RSA i31 keygen", &br_rsa_i31_keygen,
+		&br_rsa_i31_pkcs1_sign, &br_rsa_i31_pkcs1_vrfy);
 }
 
 static void
@@ -5724,6 +5844,7 @@ test_RSA_i62(void)
 	br_rsa_pkcs1_vrfy vrfy;
 	br_rsa_oaep_encrypt menc;
 	br_rsa_oaep_decrypt mdec;
+	br_rsa_keygen kgen;
 
 	pub = br_rsa_i62_public_get();
 	priv = br_rsa_i62_private_get();
@@ -5731,16 +5852,18 @@ test_RSA_i62(void)
 	vrfy = br_rsa_i62_pkcs1_vrfy_get();
 	menc = br_rsa_i62_oaep_encrypt_get();
 	mdec = br_rsa_i62_oaep_decrypt_get();
+	kgen = br_rsa_i62_keygen_get();
 	if (pub) {
-		if (!priv || !sign || !vrfy || !menc || !mdec) {
+		if (!priv || !sign || !vrfy || !menc || !mdec || !kgen) {
 			fprintf(stderr, "Inconsistent i62 availability\n");
 			exit(EXIT_FAILURE);
 		}
 		test_RSA_core("RSA i62 core", pub, priv);
 		test_RSA_sign("RSA i62 sign", priv, sign, vrfy);
 		test_RSA_OAEP("RSA i62 OAEP", menc, mdec);
+		test_RSA_keygen("RSA i62 keygen", kgen, sign, vrfy);
 	} else {
-		if (priv || sign || vrfy || menc || mdec) {
+		if (priv || sign || vrfy || menc || mdec || kgen) {
 			fprintf(stderr, "Inconsistent i62 availability\n");
 			exit(EXIT_FAILURE);
 		}

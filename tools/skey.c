@@ -106,6 +106,90 @@ print_ec(const br_ec_private_key *sk, int print_text, int print_C)
 }
 
 static int
+parse_rsa_spec(const char *kgen_spec, unsigned *size, uint32_t *pubexp)
+{
+	const char *p;
+	char *end;
+	unsigned long ul;
+
+	p = kgen_spec;
+	if (*p != 'r' && *p != 'R') {
+		return 0;
+	}
+	p ++;
+	if (*p != 's' && *p != 'S') {
+		return 0;
+	}
+	p ++;
+	if (*p != 'a' && *p != 'A') {
+		return 0;
+	}
+	p ++;
+	if (*p == 0) {
+		*size = 2048;
+		*pubexp = 3;
+		return 1;
+	} else if (*p != ':') {
+		return 0;
+	}
+	p ++;
+	ul = strtoul(p, &end, 10);
+	if (ul < 512 || ul > 32768) {
+		return 0;
+	}
+	*size = ul;
+	p = end;
+	if (*p == 0) {
+		*pubexp = 3;
+		return 1;
+	} else if (*p != ':') {
+		return 0;
+	}
+	p ++;
+	ul = strtoul(p, &end, 10);
+	if ((ul & 1) == 0 || ul == 1 || ((ul >> 30) >> 2) != 0) {
+		return 0;
+	}
+	*pubexp = ul;
+	if (*end != 0) {
+		return 0;
+	}
+	return 1;
+}
+
+static int
+keygen_rsa(unsigned size, uint32_t pubexp, int print_text, int print_C)
+{
+	br_hmac_drbg_context rng;
+	br_prng_seeder seeder;
+	br_rsa_keygen kg;
+	br_rsa_private_key sk;
+	unsigned char *kbuf_priv;
+	uint32_t r;
+
+	seeder = br_prng_seeder_system(NULL);
+	if (seeder == 0) {
+		fprintf(stderr, "ERROR: no system source of randomness\n");
+		return 0;
+	}
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, NULL, 0);
+	if (!seeder(&rng.vtable)) {
+		fprintf(stderr, "ERROR: system source of randomness failed\n");
+		return 0;
+	}
+	kbuf_priv = xmalloc(BR_RSA_KBUF_PRIV_SIZE(size));
+	kg = br_rsa_keygen_get_default();
+	r = kg(&rng.vtable, &sk, kbuf_priv, NULL, NULL, size, pubexp);
+	if (!r) {
+		fprintf(stderr, "ERROR: RSA key pair generation failed\n");
+	} else {
+		print_rsa(&sk, print_text, print_C);
+	}
+	xfree(kbuf_priv);
+	return r;
+}
+
+static int
 decode_key(const unsigned char *buf, size_t len, int print_text, int print_C)
 {
 	br_skey_decoder_context dc;
@@ -165,6 +249,14 @@ usage_skey(void)
 "   -text         print public key details (human-readable)\n");
 	fprintf(stderr,
 "   -C            print public key details (C code)\n");
+	fprintf(stderr,
+"   -gen spec     generate a new key using the provided key specification\n");
+	fprintf(stderr,
+"Key specification begins with a key type, followed by optional parameters\n");
+	fprintf(stderr,
+"that depend on the key type, separated by colon characters:\n");
+	fprintf(stderr,
+"   rsa[:size[:pubexep]]   RSA key (defaults: size = 2048, pubexp = 3)\n");
 }
 
 /* see brssl.h */
@@ -178,6 +270,7 @@ do_skey(int argc, char *argv[])
 	unsigned char *buf;
 	size_t len;
 	pem_object *pos;
+	const char *kgen_spec;
 
 	retcode = 0;
 	verbose = 1;
@@ -186,6 +279,7 @@ do_skey(int argc, char *argv[])
 	num_files = 0;
 	buf = NULL;
 	pos = NULL;
+	kgen_spec = NULL;
 	for (i = 0; i < argc; i ++) {
 		const char *arg;
 
@@ -203,13 +297,48 @@ do_skey(int argc, char *argv[])
 			print_text = 1;
 		} else if (eqstr(arg, "-C")) {
 			print_C = 1;
+		} else if (eqstr(arg, "-gen")) {
+			if (++ i >= argc) {
+				fprintf(stderr,
+					"ERROR: no argument for '-gen'\n");
+				usage_skey();
+				goto skey_exit_error;
+			}
+			if (kgen_spec != NULL) {
+				fprintf(stderr,
+					"ERROR: multiple '-gen' options\n");
+				usage_skey();
+				goto skey_exit_error;
+			}
+			kgen_spec = argv[i];
+			argv[i] = NULL;
 		} else {
 			fprintf(stderr, "ERROR: unknown option: '%s'\n", arg);
 			usage_skey();
 			goto skey_exit_error;
 		}
 	}
-	if (num_files == 0) {
+	if (kgen_spec != NULL) {
+		unsigned rsa_size;
+		uint32_t rsa_pubexp;
+
+		if (num_files != 0) {
+			fprintf(stderr,
+				"ERROR: key files provided while generating\n");
+			usage_skey();
+			goto skey_exit_error;
+		}
+
+		if (parse_rsa_spec(kgen_spec, &rsa_size, &rsa_pubexp)) {
+			keygen_rsa(rsa_size, rsa_pubexp, print_text, print_C);
+		} else {
+			fprintf(stderr,
+				"ERROR: unknown key specification: '%s'\n",
+				kgen_spec);
+			usage_skey();
+			goto skey_exit_error;
+		}
+	} else if (num_files == 0) {
 		fprintf(stderr, "ERROR: no private key provided\n");
 		usage_skey();
 		goto skey_exit_error;

@@ -72,6 +72,7 @@ OBJ = \
  $(OBJDIR)$Pi15_encode$O \
  $(OBJDIR)$Pi15_fmont$O \
  $(OBJDIR)$Pi15_iszero$O \
+ $(OBJDIR)$Pi15_moddiv$O \
  $(OBJDIR)$Pi15_modpow$O \
  $(OBJDIR)$Pi15_modpow2$O \
  $(OBJDIR)$Pi15_montmul$O \
@@ -90,6 +91,7 @@ OBJ = \
  $(OBJDIR)$Pi31_encode$O \
  $(OBJDIR)$Pi31_fmont$O \
  $(OBJDIR)$Pi31_iszero$O \
+ $(OBJDIR)$Pi31_moddiv$O \
  $(OBJDIR)$Pi31_modpow$O \
  $(OBJDIR)$Pi31_modpow2$O \
  $(OBJDIR)$Pi31_montmul$O \
@@ -122,18 +124,22 @@ OBJ = \
  $(OBJDIR)$Phmac_ct$O \
  $(OBJDIR)$Phmac_drbg$O \
  $(OBJDIR)$Psysrng$O \
+ $(OBJDIR)$Prsa_default_keygen$O \
  $(OBJDIR)$Prsa_default_oaep_decrypt$O \
  $(OBJDIR)$Prsa_default_oaep_encrypt$O \
  $(OBJDIR)$Prsa_default_pkcs1_sign$O \
  $(OBJDIR)$Prsa_default_pkcs1_vrfy$O \
  $(OBJDIR)$Prsa_default_priv$O \
  $(OBJDIR)$Prsa_default_pub$O \
+ $(OBJDIR)$Prsa_i15_keygen$O \
  $(OBJDIR)$Prsa_i15_oaep_decrypt$O \
  $(OBJDIR)$Prsa_i15_oaep_encrypt$O \
  $(OBJDIR)$Prsa_i15_pkcs1_sign$O \
  $(OBJDIR)$Prsa_i15_pkcs1_vrfy$O \
  $(OBJDIR)$Prsa_i15_priv$O \
  $(OBJDIR)$Prsa_i15_pub$O \
+ $(OBJDIR)$Prsa_i31_keygen$O \
+ $(OBJDIR)$Prsa_i31_keygen_inner$O \
  $(OBJDIR)$Prsa_i31_oaep_decrypt$O \
  $(OBJDIR)$Prsa_i31_oaep_encrypt$O \
  $(OBJDIR)$Prsa_i31_pkcs1_sign$O \
@@ -146,6 +152,7 @@ OBJ = \
  $(OBJDIR)$Prsa_i32_pkcs1_vrfy$O \
  $(OBJDIR)$Prsa_i32_priv$O \
  $(OBJDIR)$Prsa_i32_pub$O \
+ $(OBJDIR)$Prsa_i62_keygen$O \
  $(OBJDIR)$Prsa_i62_oaep_decrypt$O \
  $(OBJDIR)$Prsa_i62_oaep_encrypt$O \
  $(OBJDIR)$Prsa_i62_pkcs1_sign$O \
@@ -544,6 +551,9 @@ $(OBJDIR)$Pi15_fmont$O: src$Pint$Pi15_fmont.c $(HEADERSPRIV)
 $(OBJDIR)$Pi15_iszero$O: src$Pint$Pi15_iszero.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi15_iszero$O src$Pint$Pi15_iszero.c
 
+$(OBJDIR)$Pi15_moddiv$O: src$Pint$Pi15_moddiv.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi15_moddiv$O src$Pint$Pi15_moddiv.c
+
 $(OBJDIR)$Pi15_modpow$O: src$Pint$Pi15_modpow.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi15_modpow$O src$Pint$Pi15_modpow.c
 
@@ -597,6 +607,9 @@ $(OBJDIR)$Pi31_fmont$O: src$Pint$Pi31_fmont.c $(HEADERSPRIV)
 
 $(OBJDIR)$Pi31_iszero$O: src$Pint$Pi31_iszero.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi31_iszero$O src$Pint$Pi31_iszero.c
+
+$(OBJDIR)$Pi31_moddiv$O: src$Pint$Pi31_moddiv.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi31_moddiv$O src$Pint$Pi31_moddiv.c
 
 $(OBJDIR)$Pi31_modpow$O: src$Pint$Pi31_modpow.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi31_modpow$O src$Pint$Pi31_modpow.c
@@ -694,6 +707,9 @@ $(OBJDIR)$Phmac_drbg$O: src$Prand$Phmac_drbg.c $(HEADERSPRIV)
 $(OBJDIR)$Psysrng$O: src$Prand$Psysrng.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Psysrng$O src$Prand$Psysrng.c
 
+$(OBJDIR)$Prsa_default_keygen$O: src$Prsa$Prsa_default_keygen.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_default_keygen$O src$Prsa$Prsa_default_keygen.c
+
 $(OBJDIR)$Prsa_default_oaep_decrypt$O: src$Prsa$Prsa_default_oaep_decrypt.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_default_oaep_decrypt$O src$Prsa$Prsa_default_oaep_decrypt.c
 
@@ -712,6 +728,9 @@ $(OBJDIR)$Prsa_default_priv$O: src$Prsa$Prsa_default_priv.c $(HEADERSPRIV)
 $(OBJDIR)$Prsa_default_pub$O: src$Prsa$Prsa_default_pub.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_default_pub$O src$Prsa$Prsa_default_pub.c
 
+$(OBJDIR)$Prsa_i15_keygen$O: src$Prsa$Prsa_i15_keygen.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i15_keygen$O src$Prsa$Prsa_i15_keygen.c
+
 $(OBJDIR)$Prsa_i15_oaep_decrypt$O: src$Prsa$Prsa_i15_oaep_decrypt.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i15_oaep_decrypt$O src$Prsa$Prsa_i15_oaep_decrypt.c
 
@@ -729,6 +748,12 @@ $(OBJDIR)$Prsa_i15_priv$O: src$Prsa$Prsa_i15_priv.c $(HEADERSPRIV)
 
 $(OBJDIR)$Prsa_i15_pub$O: src$Prsa$Prsa_i15_pub.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i15_pub$O src$Prsa$Prsa_i15_pub.c
+
+$(OBJDIR)$Prsa_i31_keygen$O: src$Prsa$Prsa_i31_keygen.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i31_keygen$O src$Prsa$Prsa_i31_keygen.c
+
+$(OBJDIR)$Prsa_i31_keygen_inner$O: src$Prsa$Prsa_i31_keygen_inner.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i31_keygen_inner$O src$Prsa$Prsa_i31_keygen_inner.c
 
 $(OBJDIR)$Prsa_i31_oaep_decrypt$O: src$Prsa$Prsa_i31_oaep_decrypt.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i31_oaep_decrypt$O src$Prsa$Prsa_i31_oaep_decrypt.c
@@ -765,6 +790,9 @@ $(OBJDIR)$Prsa_i32_priv$O: src$Prsa$Prsa_i32_priv.c $(HEADERSPRIV)
 
 $(OBJDIR)$Prsa_i32_pub$O: src$Prsa$Prsa_i32_pub.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i32_pub$O src$Prsa$Prsa_i32_pub.c
+
+$(OBJDIR)$Prsa_i62_keygen$O: src$Prsa$Prsa_i62_keygen.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i62_keygen$O src$Prsa$Prsa_i62_keygen.c
 
 $(OBJDIR)$Prsa_i62_oaep_decrypt$O: src$Prsa$Prsa_i62_oaep_decrypt.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Prsa_i62_oaep_decrypt$O src$Prsa$Prsa_i62_oaep_decrypt.c

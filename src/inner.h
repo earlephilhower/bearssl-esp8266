@@ -48,9 +48,21 @@
  * already set their root keys to RSA-4096, so we should be able to
  * process such keys.
  *
- * This value MUST be a multiple of 64.
+ * This value MUST be a multiple of 64. This value MUST NOT exceed 47666
+ * (some computations in RSA key generation rely on the factor size being
+ * no more than 23833 bits). RSA key sizes beyond 3072 bits don't make a
+ * lot of sense anyway.
  */
 #define BR_MAX_RSA_SIZE   4096
+
+/*
+ * Minimum size for a RSA modulus (in bits); this value is used only to
+ * filter out invalid parameters for key pair generation. Normally,
+ * applications should not use RSA keys smaller than 2048 bits; but some
+ * specific cases might need shorter keys, for legacy or research
+ * purposes.
+ */
+#define BR_MIN_RSA_SIZE   512
 
 /*
  * Maximum size for a RSA factor (in bits). This is for RSA private-key
@@ -1474,6 +1486,23 @@ uint32_t br_i31_modpow_opt(uint32_t *x, const unsigned char *e, size_t elen,
  */
 void br_i31_mulacc(uint32_t *d, const uint32_t *a, const uint32_t *b);
 
+/*
+ * Compute x/y mod m, result in x. Values x and y must be between 0 and
+ * m-1, and have the same announced bit length as m. Modulus m must be
+ * odd. The "m0i" parameter is equal to -1/m mod 2^31. The array 't'
+ * must point to a temporary area that can hold at least three integers
+ * of the size of m.
+ *
+ * m may not overlap x and y. x and y may overlap each other (this can
+ * be useful to test whether a value is invertible modulo m). t must be
+ * disjoint from all other arrays.
+ *
+ * Returned value is 1 on success, 0 otherwise. Success is attained if
+ * y is invertible modulo m.
+ */
+uint32_t br_i31_moddiv(uint32_t *x, const uint32_t *y,
+	const uint32_t *m, uint32_t m0i, uint32_t *t);
+
 /* ==================================================================== */
 
 /*
@@ -1528,8 +1557,35 @@ void br_i15_reduce(uint16_t *x, const uint16_t *a, const uint16_t *m);
 
 void br_i15_mulacc(uint16_t *d, const uint16_t *a, const uint16_t *b);
 
+uint32_t br_i15_moddiv(uint16_t *x, const uint16_t *y,
+	const uint16_t *m, uint16_t m0i, uint16_t *t);
+
+/*
+ * Variant of br_i31_modpow_opt() that internally uses 64x64->128
+ * multiplications. It expects the same parameters as br_i31_modpow_opt(),
+ * except that the temporaries should be 64-bit integers, not 32-bit
+ * integers.
+ */
 uint32_t br_i62_modpow_opt(uint32_t *x31, const unsigned char *e, size_t elen,
 	const uint32_t *m31, uint32_t m0i31, uint64_t *tmp, size_t twlen);
+
+/*
+ * Type for a function with the same API as br_i31_modpow_opt() (some
+ * implementations of this type may have stricter alignment requirements
+ * on the temporaries).
+ */
+typedef uint32_t (*br_i31_modpow_opt_type)(uint32_t *x,
+	const unsigned char *e, size_t elen,
+	const uint32_t *m, uint32_t m0i, uint32_t *tmp, size_t twlen);
+
+/*
+ * Wrapper for br_i62_modpow_opt() that uses the same type as
+ * br_i31_modpow_opt(); however, it requires its 'tmp' argument to the
+ * 64-bit aligned.
+ */
+uint32_t br_i62_modpow_opt_as_i31(uint32_t *x,
+	const unsigned char *e, size_t elen,
+	const uint32_t *m, uint32_t m0i, uint32_t *tmp, size_t twlen);
 
 /* ==================================================================== */
 
@@ -1911,6 +1967,15 @@ uint32_t br_rsa_oaep_unpad(const br_hash_class *dig,
  */
 void br_mgf1_xor(void *data, size_t len,
 	const br_hash_class *dig, const void *seed, size_t seed_len);
+
+/*
+ * Inner function for RSA key generation; used by the "i31" and "i62"
+ * implementations.
+ */
+uint32_t br_rsa_i31_keygen_inner(const br_prng_class **rng,
+	br_rsa_private_key *sk, unsigned char *kbuf_priv,
+	br_rsa_public_key *pk, unsigned char *kbuf_pub,
+	unsigned size, uint32_t pubexp, br_i31_modpow_opt_type mp31);
 
 /* ==================================================================== */
 /*

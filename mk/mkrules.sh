@@ -120,6 +120,7 @@ coresrc=" \
 	src/int/i15_encode.c \
 	src/int/i15_fmont.c \
 	src/int/i15_iszero.c \
+	src/int/i15_moddiv.c \
 	src/int/i15_modpow.c \
 	src/int/i15_modpow2.c \
 	src/int/i15_montmul.c \
@@ -138,6 +139,7 @@ coresrc=" \
 	src/int/i31_encode.c \
 	src/int/i31_fmont.c \
 	src/int/i31_iszero.c \
+	src/int/i31_moddiv.c \
 	src/int/i31_modpow.c \
 	src/int/i31_modpow2.c \
 	src/int/i31_montmul.c \
@@ -170,18 +172,22 @@ coresrc=" \
 	src/mac/hmac_ct.c \
 	src/rand/hmac_drbg.c \
 	src/rand/sysrng.c \
+	src/rsa/rsa_default_keygen.c \
 	src/rsa/rsa_default_oaep_decrypt.c \
 	src/rsa/rsa_default_oaep_encrypt.c \
 	src/rsa/rsa_default_pkcs1_sign.c \
 	src/rsa/rsa_default_pkcs1_vrfy.c \
 	src/rsa/rsa_default_priv.c \
 	src/rsa/rsa_default_pub.c \
+	src/rsa/rsa_i15_keygen.c \
 	src/rsa/rsa_i15_oaep_decrypt.c \
 	src/rsa/rsa_i15_oaep_encrypt.c \
 	src/rsa/rsa_i15_pkcs1_sign.c \
 	src/rsa/rsa_i15_pkcs1_vrfy.c \
 	src/rsa/rsa_i15_priv.c \
 	src/rsa/rsa_i15_pub.c \
+	src/rsa/rsa_i31_keygen.c \
+	src/rsa/rsa_i31_keygen_inner.c \
 	src/rsa/rsa_i31_oaep_decrypt.c \
 	src/rsa/rsa_i31_oaep_encrypt.c \
 	src/rsa/rsa_i31_pkcs1_sign.c \
@@ -194,6 +200,7 @@ coresrc=" \
 	src/rsa/rsa_i32_pkcs1_vrfy.c \
 	src/rsa/rsa_i32_priv.c \
 	src/rsa/rsa_i32_pub.c \
+	src/rsa/rsa_i62_keygen.c \
 	src/rsa/rsa_i62_oaep_decrypt.c \
 	src/rsa/rsa_i62_oaep_encrypt.c \
 	src/rsa/rsa_i62_pkcs1_sign.c \

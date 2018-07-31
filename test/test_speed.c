@@ -679,11 +679,12 @@ static const br_rsa_private_key RSA_SK = {
 
 static void
 test_speed_rsa_inner(char *name,
-	br_rsa_public fpub, br_rsa_private fpriv)
+	br_rsa_public fpub, br_rsa_private fpriv, br_rsa_keygen kgen)
 {
 	unsigned char tmp[sizeof RSA_N];
 	int i;
 	long num;
+	br_hmac_drbg_context rng;
 
 	memset(tmp, 'R', sizeof tmp);
 	tmp[0] = 0;
@@ -737,27 +738,82 @@ test_speed_rsa_inner(char *name,
 		}
 		num <<= 1;
 	}
+
+	if (kgen == 0) {
+		printf("%-30s KEYGEN UNAVAILABLE\n", name);
+		fflush(stdout);
+		return;
+	}
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, "RSA keygen seed", 15);
+
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_rsa_private_key sk;
+			unsigned char kbuf[BR_RSA_KBUF_PRIV_SIZE(1024)];
+
+			kgen(&rng.vtable, &sk, kbuf, NULL, NULL, 1024, 0);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 10.0) {
+			printf("%-30s %8.2f kgen[1024]/s\n", name,
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_rsa_private_key sk;
+			unsigned char kbuf[BR_RSA_KBUF_PRIV_SIZE(2048)];
+
+			kgen(&rng.vtable, &sk, kbuf, NULL, NULL, 2048, 0);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 10.0) {
+			printf("%-30s %8.2f kgen[2048]/s\n", name,
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
 }
 
 static void
 test_speed_rsa_i15(void)
 {
 	test_speed_rsa_inner("RSA i15",
-		&br_rsa_i15_public, &br_rsa_i15_private);
+		&br_rsa_i15_public, &br_rsa_i15_private, &br_rsa_i15_keygen);
 }
 
 static void
 test_speed_rsa_i31(void)
 {
 	test_speed_rsa_inner("RSA i31",
-		&br_rsa_i31_public, &br_rsa_i31_private);
+		&br_rsa_i31_public, &br_rsa_i31_private, &br_rsa_i31_keygen);
 }
 
 static void
 test_speed_rsa_i32(void)
 {
 	test_speed_rsa_inner("RSA i32",
-		&br_rsa_i32_public, &br_rsa_i32_private);
+		&br_rsa_i32_public, &br_rsa_i32_private, 0);
 }
 
 static void
@@ -765,11 +821,13 @@ test_speed_rsa_i62(void)
 {
 	br_rsa_public pub;
 	br_rsa_private priv;
+	br_rsa_keygen kgen;
 
 	pub = br_rsa_i62_public_get();
 	priv = br_rsa_i62_private_get();
+	kgen = br_rsa_i62_keygen_get();
 	if (pub) {
-		test_speed_rsa_inner("RSA i62", pub, priv);
+		test_speed_rsa_inner("RSA i62", pub, priv, kgen);
 	} else {
 		printf("%-30s UNAVAILABLE\n", "RSA i62");
 	}
