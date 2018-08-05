@@ -5721,8 +5721,9 @@ test_RSA_OAEP(const char *name,
 }
 
 static void
-test_RSA_keygen(const char *name, br_rsa_keygen kg,
-	br_rsa_pkcs1_sign sign, br_rsa_pkcs1_vrfy vrfy)
+test_RSA_keygen(const char *name, br_rsa_keygen kg, br_rsa_compute_modulus cm,
+	br_rsa_compute_pubexp ce, br_rsa_compute_privexp cd,
+	br_rsa_public pub, br_rsa_pkcs1_sign sign, br_rsa_pkcs1_vrfy vrfy)
 {
 	br_hmac_drbg_context rng;
 	int i;
@@ -5732,25 +5733,30 @@ test_RSA_keygen(const char *name, br_rsa_keygen kg,
 
 	br_hmac_drbg_init(&rng, &br_sha256_vtable, "seed for RSA keygen", 19);
 
-	for (i = 0; i < 40; i ++) {
+	for (i = 0; i <= 42; i ++) {
 		unsigned size;
-		uint32_t pubexp;
+		uint32_t pubexp, z;
 		br_rsa_private_key sk;
-		br_rsa_public_key pk;
+		br_rsa_public_key pk, pk2;
 		unsigned char kbuf_priv[BR_RSA_KBUF_PRIV_SIZE(2048)];
 		unsigned char kbuf_pub[BR_RSA_KBUF_PUB_SIZE(2048)];
+		unsigned char n2[256], d[256], msg1[256], msg2[256];
 		uint32_t mod[256];
 		uint32_t cc;
 		size_t u, v;
 		unsigned char sig[257], hv[32], hv2[sizeof hv];
 		unsigned mask1, mask2;
+		int j;
 
 		if (i <= 35) {
 			size = 1024 + i;
 			pubexp = 17;
-		} else {
+		} else if (i <= 40) {
 			size = 2048;
 			pubexp = (i << 1) - 69;
+		} else {
+			size = 2048;
+			pubexp = 0xFFFFFFFF;
 		}
 
 		if (!kg(&rng.vtable,
@@ -5760,14 +5766,15 @@ test_RSA_keygen(const char *name, br_rsa_keygen kg,
 			exit(EXIT_FAILURE);
 		}
 
+		z = pubexp;
 		for (u = pk.elen; u > 0; u --) {
-			if (pk.e[u - 1] != (pubexp & 0xFF)) {
+			if (pk.e[u - 1] != (z & 0xFF)) {
 				fprintf(stderr, "wrong public exponent\n");
 				exit(EXIT_FAILURE);
 			}
-			pubexp >>= 8;
+			z >>= 8;
 		}
-		if (pubexp != 0) {
+		if (z != 0) {
 			fprintf(stderr, "truncated public exponent\n");
 			exit(EXIT_FAILURE);
 		}
@@ -5806,26 +5813,84 @@ test_RSA_keygen(const char *name, br_rsa_keygen kg,
 			exit(EXIT_FAILURE);
 		}
 
-		rng.vtable->generate(&rng.vtable, hv, sizeof hv);
-		memset(sig, 0, sizeof sig);
-		sig[pk.nlen] = 0x00;
-		if (!sign(BR_HASH_OID_SHA256, hv, sizeof hv, &sk, sig)) {
-			fprintf(stderr, "signature error\n");
+		if (cm(NULL, &sk) != pk.nlen) {
+			fprintf(stderr, "wrong recomputed modulus length\n");
 			exit(EXIT_FAILURE);
 		}
-		if (sig[pk.nlen] != 0x00) {
-			fprintf(stderr, "signature length error\n");
+		if (cm(n2, &sk) != pk.nlen || memcmp(pk.n, n2, pk.nlen) != 0) {
+			fprintf(stderr, "wrong recomputed modulus value\n");
 			exit(EXIT_FAILURE);
 		}
-		if (!vrfy(sig, pk.nlen, BR_HASH_OID_SHA256, sizeof hv,
-			&pk, hv2))
-		{
-			fprintf(stderr, "signature verification error (1)\n");
+
+		z = ce(&sk);
+		if (z != pubexp) {
+			fprintf(stderr,
+				"wrong recomputed pubexp: %lu (exp: %lu)\n",
+				(unsigned long)z, (unsigned long)pubexp);
 			exit(EXIT_FAILURE);
 		}
-		if (memcmp(hv, hv2, sizeof hv) != 0) {
-			fprintf(stderr, "signature verification error (2)\n");
+
+		if (cd(NULL, &sk, pubexp) != pk.nlen) {
+			fprintf(stderr,
+				"wrong recomputed privexp length (1)\n");
 			exit(EXIT_FAILURE);
+		}
+		if (cd(d, &sk, pubexp) != pk.nlen) {
+			fprintf(stderr,
+				"wrong recomputed privexp length (2)\n");
+			exit(EXIT_FAILURE);
+		}
+		/*
+		 * To check that the private exponent is correct, we make
+		 * it into a _public_ key, and use the public-key operation
+		 * to perform the modular exponentiation.
+		 */
+		pk2 = pk;
+		pk2.e = d;
+		pk2.elen = pk.nlen;
+		rng.vtable->generate(&rng.vtable, msg1, pk.nlen);
+		msg1[0] = 0x00;
+		memcpy(msg2, msg1, pk.nlen);
+		if (!pub(msg2, pk.nlen, &pk2) || !pub(msg2, pk.nlen, &pk)) {
+			fprintf(stderr, "public-key operation error\n");
+			exit(EXIT_FAILURE);
+		}
+		if (memcmp(msg1, msg2, pk.nlen) != 0) {
+			fprintf(stderr, "wrong recomputed privexp\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/*
+		 * We test the RSA operation over a some random messages.
+		 */
+		for (j = 0; j < 20; j ++) {
+			rng.vtable->generate(&rng.vtable, hv, sizeof hv);
+			memset(sig, 0, sizeof sig);
+			sig[pk.nlen] = 0x00;
+			if (!sign(BR_HASH_OID_SHA256,
+				hv, sizeof hv, &sk, sig))
+			{
+				fprintf(stderr,
+					"signature error (%d)\n", j);
+				exit(EXIT_FAILURE);
+			}
+			if (sig[pk.nlen] != 0x00) {
+				fprintf(stderr,
+					"signature length error (%d)\n", j);
+				exit(EXIT_FAILURE);
+			}
+			if (!vrfy(sig, pk.nlen, BR_HASH_OID_SHA256, sizeof hv,
+				&pk, hv2))
+			{
+				fprintf(stderr,
+					"signature verif error (%d)\n", j);
+				exit(EXIT_FAILURE);
+			}
+			if (memcmp(hv, hv2, sizeof hv) != 0) {
+				fprintf(stderr,
+					"signature extract error (%d)\n", j);
+				exit(EXIT_FAILURE);
+			}
 		}
 
 		printf(".");
@@ -5845,6 +5910,8 @@ test_RSA_i15(void)
 	test_RSA_OAEP("RSA i15 OAEP",
 		&br_rsa_i15_oaep_encrypt, &br_rsa_i15_oaep_decrypt);
 	test_RSA_keygen("RSA i15 keygen", &br_rsa_i15_keygen,
+		&br_rsa_i15_compute_modulus, &br_rsa_i15_compute_pubexp,
+		&br_rsa_i15_compute_privexp, &br_rsa_i15_public,
 		&br_rsa_i15_pkcs1_sign, &br_rsa_i15_pkcs1_vrfy);
 }
 
@@ -5857,6 +5924,8 @@ test_RSA_i31(void)
 	test_RSA_OAEP("RSA i31 OAEP",
 		&br_rsa_i31_oaep_encrypt, &br_rsa_i31_oaep_decrypt);
 	test_RSA_keygen("RSA i31 keygen", &br_rsa_i31_keygen,
+		&br_rsa_i31_compute_modulus, &br_rsa_i31_compute_pubexp,
+		&br_rsa_i31_compute_privexp, &br_rsa_i31_public,
 		&br_rsa_i31_pkcs1_sign, &br_rsa_i31_pkcs1_vrfy);
 }
 
@@ -5896,7 +5965,10 @@ test_RSA_i62(void)
 		test_RSA_core("RSA i62 core", pub, priv);
 		test_RSA_sign("RSA i62 sign", priv, sign, vrfy);
 		test_RSA_OAEP("RSA i62 OAEP", menc, mdec);
-		test_RSA_keygen("RSA i62 keygen", kgen, sign, vrfy);
+		test_RSA_keygen("RSA i62 keygen", kgen,
+			&br_rsa_i31_compute_modulus, &br_rsa_i31_compute_pubexp,
+			&br_rsa_i31_compute_privexp, pub,
+			sign, vrfy);
 	} else {
 		if (priv || sign || vrfy || menc || mdec || kgen) {
 			fprintf(stderr, "Inconsistent i62 availability\n");
@@ -7209,7 +7281,6 @@ test_EC_P256_carry(const br_ec_impl *impl)
 static void
 test_EC_KAT(const char *name, const br_ec_impl *impl, uint32_t curve_mask)
 {
-
 	printf("Test %s: ", name);
 	fflush(stdout);
 
@@ -7238,9 +7309,162 @@ test_EC_KAT(const char *name, const br_ec_impl *impl, uint32_t curve_mask)
 }
 
 static void
+test_EC_keygen(const char *name, const br_ec_impl *impl, uint32_t curves)
+{
+	int curve;
+	br_hmac_drbg_context rng;
+
+	printf("Test %s keygen: ", name);
+	fflush(stdout);
+
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, "seed for EC keygen", 18);
+	br_hmac_drbg_update(&rng, name, strlen(name));
+
+	for (curve = -1; curve <= 35; curve ++) {
+		br_ec_private_key sk;
+		br_ec_public_key pk;
+		unsigned char kbuf_priv[BR_EC_KBUF_PRIV_MAX_SIZE];
+		unsigned char kbuf_pub[BR_EC_KBUF_PUB_MAX_SIZE];
+
+		if (curve < 0 || curve >= 32 || ((curves >> curve) & 1) == 0) {
+			if (br_ec_keygen(&rng.vtable, impl,
+				&sk, kbuf_priv, curve) != 0)
+			{
+				fprintf(stderr, "br_ec_keygen() did not"
+					" reject unsupported curve %d\n",
+					curve);
+				exit(EXIT_FAILURE);
+			}
+			sk.curve = curve;
+			if (br_ec_compute_pub(impl, NULL, NULL, &sk) != 0) {
+				fprintf(stderr, "br_ec_keygen() did not"
+					" reject unsupported curve %d\n",
+					curve);
+				exit(EXIT_FAILURE);
+			}
+		} else {
+			size_t len, u;
+			unsigned char tmp_priv[sizeof kbuf_priv];
+			unsigned char tmp_pub[sizeof kbuf_pub];
+			unsigned z;
+
+			len = br_ec_keygen(&rng.vtable, impl,
+				NULL, NULL, curve);
+			if (len == 0) {
+				fprintf(stderr, "br_ec_keygen() rejects"
+					" supported curve %d\n", curve);
+				exit(EXIT_FAILURE);
+			}
+			if (len > sizeof kbuf_priv) {
+				fprintf(stderr, "oversized kbuf_priv\n");
+				exit(EXIT_FAILURE);
+			}
+			memset(kbuf_priv, 0, sizeof kbuf_priv);
+			if (br_ec_keygen(&rng.vtable, impl,
+				NULL, kbuf_priv, curve) != len)
+			{
+				fprintf(stderr, "kbuf_priv length mismatch\n");
+				exit(EXIT_FAILURE);
+			}
+			z = 0;
+			for (u = 0; u < len; u ++) {
+				z |= kbuf_priv[u];
+			}
+			if (z == 0) {
+				fprintf(stderr, "kbuf_priv not initialized\n");
+				exit(EXIT_FAILURE);
+			}
+			for (u = len; u < sizeof kbuf_priv; u ++) {
+				if (kbuf_priv[u] != 0) {
+					fprintf(stderr, "kbuf_priv overflow\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+			if (br_ec_keygen(&rng.vtable, impl,
+				NULL, tmp_priv, curve) != len)
+			{
+				fprintf(stderr, "tmp_priv length mismatch\n");
+				exit(EXIT_FAILURE);
+			}
+			if (memcmp(kbuf_priv, tmp_priv, len) == 0) {
+				fprintf(stderr, "keygen stutter\n");
+				exit(EXIT_FAILURE);
+			}
+			memset(&sk, 0, sizeof sk);
+			if (br_ec_keygen(&rng.vtable, impl,
+				&sk, kbuf_priv, curve) != len)
+			{
+				fprintf(stderr,
+					"kbuf_priv length mismatch (2)\n");
+				exit(EXIT_FAILURE);
+			}
+			if (sk.curve != curve || sk.x != kbuf_priv
+				|| sk.xlen != len)
+			{
+				fprintf(stderr, "sk not initialized\n");
+				exit(EXIT_FAILURE);
+			}
+
+			len = br_ec_compute_pub(impl, NULL, NULL, &sk);
+			if (len > sizeof kbuf_pub) {
+				fprintf(stderr, "oversized kbuf_pub\n");
+				exit(EXIT_FAILURE);
+			}
+			memset(kbuf_pub, 0, sizeof kbuf_pub);
+			if (br_ec_compute_pub(impl, NULL,
+				kbuf_pub, &sk) != len)
+			{
+				fprintf(stderr, "kbuf_pub length mismatch\n");
+				exit(EXIT_FAILURE);
+			}
+			for (u = len; u < sizeof kbuf_pub; u ++) {
+				if (kbuf_pub[u] != 0) {
+					fprintf(stderr, "kbuf_pub overflow\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+			memset(&pk, 0, sizeof pk);
+			if (br_ec_compute_pub(impl, &pk,
+				tmp_pub, &sk) != len)
+			{
+				fprintf(stderr, "tmp_pub length mismatch\n");
+				exit(EXIT_FAILURE);
+			}
+			if (memcmp(kbuf_pub, tmp_pub, len) != 0) {
+				fprintf(stderr, "pubkey mismatch\n");
+				exit(EXIT_FAILURE);
+			}
+			if (pk.curve != curve || pk.q != tmp_pub
+				|| pk.qlen != len)
+			{
+				fprintf(stderr, "pk not initialized\n");
+				exit(EXIT_FAILURE);
+			}
+
+			if (impl->mulgen(kbuf_pub,
+				sk.x, sk.xlen, curve) != len
+				|| memcmp(pk.q, kbuf_pub, len) != 0)
+			{
+				fprintf(stderr, "wrong pubkey\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		printf(".");
+		fflush(stdout);
+	}
+
+	printf(" done.\n");
+	fflush(stdout);
+}
+
+static void
 test_EC_prime_i15(void)
 {
 	test_EC_KAT("EC_prime_i15", &br_ec_prime_i15,
+		(uint32_t)1 << BR_EC_secp256r1
+		| (uint32_t)1 << BR_EC_secp384r1
+		| (uint32_t)1 << BR_EC_secp521r1);
+	test_EC_keygen("EC_prime_i15", &br_ec_prime_i15,
 		(uint32_t)1 << BR_EC_secp256r1
 		| (uint32_t)1 << BR_EC_secp384r1
 		| (uint32_t)1 << BR_EC_secp521r1);
@@ -7253,6 +7477,10 @@ test_EC_prime_i31(void)
 		(uint32_t)1 << BR_EC_secp256r1
 		| (uint32_t)1 << BR_EC_secp384r1
 		| (uint32_t)1 << BR_EC_secp521r1);
+	test_EC_keygen("EC_prime_i31", &br_ec_prime_i31,
+		(uint32_t)1 << BR_EC_secp256r1
+		| (uint32_t)1 << BR_EC_secp384r1
+		| (uint32_t)1 << BR_EC_secp521r1);
 }
 
 static void
@@ -7260,12 +7488,16 @@ test_EC_p256_m15(void)
 {
 	test_EC_KAT("EC_p256_m15", &br_ec_p256_m15,
 		(uint32_t)1 << BR_EC_secp256r1);
+	test_EC_keygen("EC_p256_m15", &br_ec_p256_m15,
+		(uint32_t)1 << BR_EC_secp256r1);
 }
 
 static void
 test_EC_p256_m31(void)
 {
 	test_EC_KAT("EC_p256_m31", &br_ec_p256_m31,
+		(uint32_t)1 << BR_EC_secp256r1);
+	test_EC_keygen("EC_p256_m31", &br_ec_p256_m31,
 		(uint32_t)1 << BR_EC_secp256r1);
 }
 
@@ -7353,24 +7585,32 @@ static void
 test_EC_c25519_i15(void)
 {
 	test_EC_c25519("EC_c25519_i15", &br_ec_c25519_i15);
+	test_EC_keygen("EC_c25519_i15", &br_ec_c25519_i15,
+		(uint32_t)1 << BR_EC_curve25519);
 }
 
 static void
 test_EC_c25519_i31(void)
 {
 	test_EC_c25519("EC_c25519_i31", &br_ec_c25519_i31);
+	test_EC_keygen("EC_c25519_i31", &br_ec_c25519_i31,
+		(uint32_t)1 << BR_EC_curve25519);
 }
 
 static void
 test_EC_c25519_m15(void)
 {
 	test_EC_c25519("EC_c25519_m15", &br_ec_c25519_m15);
+	test_EC_keygen("EC_c25519_m15", &br_ec_c25519_m15,
+		(uint32_t)1 << BR_EC_curve25519);
 }
 
 static void
 test_EC_c25519_m31(void)
 {
 	test_EC_c25519("EC_c25519_m31", &br_ec_c25519_m31);
+	test_EC_keygen("EC_c25519_m31", &br_ec_c25519_m31,
+		(uint32_t)1 << BR_EC_curve25519);
 }
 
 static const unsigned char EC_P256_PUB_POINT[] = {

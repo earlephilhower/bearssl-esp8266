@@ -456,8 +456,8 @@ bufswap(void *b1, void *b2, size_t len)
 /* see inner.h */
 uint32_t
 br_rsa_i31_keygen_inner(const br_prng_class **rng,
-	br_rsa_private_key *sk, unsigned char *kbuf_priv,
-	br_rsa_public_key *pk, unsigned char *kbuf_pub,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
 	unsigned size, uint32_t pubexp, br_i31_modpow_opt_type mp31)
 {
 	uint32_t esize_p, esize_q;

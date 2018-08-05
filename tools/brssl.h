@@ -299,9 +299,20 @@ int uses_ecdhe(unsigned suite);
 void list_names(void);
 
 /*
+ * Print out all known elliptic curve names.
+ */
+void list_curves(void);
+
+/*
  * Get the symbolic name for an elliptic curve (by ID).
  */
 const char *ec_curve_name(int curve);
+
+/*
+ * Get a curve by symbolic name. If the name is not recognized, -1 is
+ * returned.
+ */
+int get_curve_by_name(const char *str);
 
 /*
  * Get the symbolic name for a hash function name (by ID).

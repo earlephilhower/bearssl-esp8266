@@ -29,8 +29,8 @@
 /* see bearssl_rsa.h */
 uint32_t
 br_rsa_i62_keygen(const br_prng_class **rng,
-	br_rsa_private_key *sk, unsigned char *kbuf_priv,
-	br_rsa_public_key *pk, unsigned char *kbuf_pub,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
 	unsigned size, uint32_t pubexp)
 {
 	return br_rsa_i31_keygen_inner(rng,

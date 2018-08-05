@@ -67,6 +67,7 @@ coresrc=" \
 	src/codec/enc64be.c \
 	src/codec/enc64le.c \
 	src/codec/pemdec.c \
+	src/codec/pemenc.c \
 	src/ec/ec_all_m15.c \
 	src/ec/ec_all_m31.c \
 	src/ec/ec_c25519_i15.c \
@@ -75,10 +76,12 @@ coresrc=" \
 	src/ec/ec_c25519_m31.c \
 	src/ec/ec_curve25519.c \
 	src/ec/ec_default.c \
+	src/ec/ec_keygen.c \
 	src/ec/ec_p256_m15.c \
 	src/ec/ec_p256_m31.c \
 	src/ec/ec_prime_i15.c \
 	src/ec/ec_prime_i31.c \
+	src/ec/ec_pubkey.c \
 	src/ec/ec_secp256r1.c \
 	src/ec/ec_secp384r1.c \
 	src/ec/ec_secp521r1.c \
@@ -174,27 +177,36 @@ coresrc=" \
 	src/rand/hmac_drbg.c \
 	src/rand/sysrng.c \
 	src/rsa/rsa_default_keygen.c \
+	src/rsa/rsa_default_modulus.c \
 	src/rsa/rsa_default_oaep_decrypt.c \
 	src/rsa/rsa_default_oaep_encrypt.c \
 	src/rsa/rsa_default_pkcs1_sign.c \
 	src/rsa/rsa_default_pkcs1_vrfy.c \
 	src/rsa/rsa_default_priv.c \
+	src/rsa/rsa_default_privexp.c \
 	src/rsa/rsa_default_pub.c \
+	src/rsa/rsa_default_pubexp.c \
 	src/rsa/rsa_i15_keygen.c \
+	src/rsa/rsa_i15_modulus.c \
 	src/rsa/rsa_i15_oaep_decrypt.c \
 	src/rsa/rsa_i15_oaep_encrypt.c \
 	src/rsa/rsa_i15_pkcs1_sign.c \
 	src/rsa/rsa_i15_pkcs1_vrfy.c \
 	src/rsa/rsa_i15_priv.c \
+	src/rsa/rsa_i15_privexp.c \
 	src/rsa/rsa_i15_pub.c \
+	src/rsa/rsa_i15_pubexp.c \
 	src/rsa/rsa_i31_keygen.c \
 	src/rsa/rsa_i31_keygen_inner.c \
+	src/rsa/rsa_i31_modulus.c \
 	src/rsa/rsa_i31_oaep_decrypt.c \
 	src/rsa/rsa_i31_oaep_encrypt.c \
 	src/rsa/rsa_i31_pkcs1_sign.c \
 	src/rsa/rsa_i31_pkcs1_vrfy.c \
 	src/rsa/rsa_i31_priv.c \
+	src/rsa/rsa_i31_privexp.c \
 	src/rsa/rsa_i31_pub.c \
+	src/rsa/rsa_i31_pubexp.c \
 	src/rsa/rsa_i32_oaep_decrypt.c \
 	src/rsa/rsa_i32_oaep_encrypt.c \
 	src/rsa/rsa_i32_pkcs1_sign.c \
@@ -302,6 +314,11 @@ coresrc=" \
 	src/symcipher/poly1305_ctmul32.c \
 	src/symcipher/poly1305_ctmulq.c \
 	src/symcipher/poly1305_i15.c \
+	src/x509/asn1enc.c \
+	src/x509/encode_ec_pk8der.c \
+	src/x509/encode_ec_rawder.c \
+	src/x509/encode_rsa_pk8der.c \
+	src/x509/encode_rsa_rawder.c \
 	src/x509/skey_decoder.c \
 	src/x509/x509_decoder.c \
 	src/x509/x509_knownkey.c \

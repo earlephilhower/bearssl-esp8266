@@ -1973,8 +1973,8 @@ void br_mgf1_xor(void *data, size_t len,
  * implementations.
  */
 uint32_t br_rsa_i31_keygen_inner(const br_prng_class **rng,
-	br_rsa_private_key *sk, unsigned char *kbuf_priv,
-	br_rsa_public_key *pk, unsigned char *kbuf_pub,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
 	unsigned size, uint32_t pubexp, br_i31_modpow_opt_type mp31);
 
 /* ==================================================================== */
@@ -2026,6 +2026,72 @@ void br_ecdsa_i31_bits2int(uint32_t *x,
  */
 void br_ecdsa_i15_bits2int(uint16_t *x,
 	const void *src, size_t len, uint32_t ebitlen);
+
+/* ==================================================================== */
+/*
+ * ASN.1 support functions.
+ */
+
+/*
+ * A br_asn1_uint structure contains encoding information about an
+ * INTEGER nonnegative value: pointer to the integer contents (unsigned
+ * big-endian representation), length of the integer contents,
+ * and length of the encoded value. The data shall have minimal length:
+ *  - If the integer value is zero, then 'len' must be zero.
+ *  - If the integer value is not zero, then data[0] must be non-zero.
+ *
+ * Under these conditions, 'asn1len' is necessarily equal to either len
+ * or len+1.
+ */
+typedef struct {
+	const unsigned char *data;
+	size_t len;
+	size_t asn1len;
+} br_asn1_uint;
+
+/*
+ * Given an encoded integer (unsigned big-endian, with possible leading
+ * bytes of value 0), returned the "prepared INTEGER" structure.
+ */
+br_asn1_uint br_asn1_uint_prepare(const void *xdata, size_t xlen);
+
+/*
+ * Encode an ASN.1 length. The length of the encoded length is returned.
+ * If 'dest' is NULL, then no encoding is performed, but the length of
+ * the encoded length is still computed and returned.
+ */
+size_t br_asn1_encode_length(void *dest, size_t len);
+
+/*
+ * Convenient macro for computing lengths of lengths.
+ */
+#define len_of_len(len)   br_asn1_encode_length(NULL, len)
+
+/*
+ * Encode a (prepared) ASN.1 INTEGER. The encoded length is returned.
+ * If 'dest' is NULL, then no encoding is performed, but the length of
+ * the encoded integer is still computed and returned.
+ */
+size_t br_asn1_encode_uint(void *dest, br_asn1_uint pp);
+
+/*
+ * Get the OID that identifies an elliptic curve. Returned value is
+ * the DER-encoded OID, with the length (always one byte) but without
+ * the tag. Thus, the first byte of the returned buffer contains the
+ * number of subsequent bytes in the value. If the curve is not
+ * recognised, NULL is returned.
+ */
+const unsigned char *br_get_curve_OID(int curve);
+
+/*
+ * Inner function for EC private key encoding. This is equivalent to
+ * the API function br_encode_ec_raw_der(), except for an extra
+ * parameter: if 'include_curve_oid' is zero, then the curve OID is
+ * _not_ included in the output blob (this is for PKCS#8 support).
+ */
+size_t br_encode_ec_raw_der_inner(void *dest,
+	const br_ec_private_key *sk, const br_ec_public_key *pk,
+	int include_curve_oid);
 
 /* ==================================================================== */
 /*

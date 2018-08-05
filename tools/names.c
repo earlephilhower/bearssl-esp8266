@@ -322,68 +322,99 @@ const cipher_suite cipher_suites[] = {
 static const struct {
 	int id;
 	const char *name;
+	const char *sid[4];
 } curves[] = {
 	{ BR_EC_sect163k1,
-	  "sect163k1" },
+	  "sect163k1",
+	  { "sect163k1", "K-163", NULL, NULL } },
 	{ BR_EC_sect163r1,
-	  "sect163r1" },
+	  "sect163r1",
+	  { "sect163r1", NULL, NULL, NULL } },
 	{ BR_EC_sect163r2,
-	  "sect163r2" },
+	  "sect163r2",
+	  { "sect163r2", "B-163", NULL, NULL } },
 	{ BR_EC_sect193r1,
-	  "sect193r1" },
+	  "sect193r1",
+	  { "sect193r1", NULL, NULL, NULL } },
 	{ BR_EC_sect193r2,
-	  "sect193r2" },
+	  "sect193r2",
+	  { "sect193r2", NULL, NULL, NULL } },
 	{ BR_EC_sect233k1,
-	  "sect233k1" },
+	  "sect233k1",
+	  { "sect233k1", "K-233", NULL, NULL } },
 	{ BR_EC_sect233r1,
-	  "sect233r1" },
+	  "sect233r1",
+	  { "sect233r1", "B-233", NULL, NULL } },
 	{ BR_EC_sect239k1,
-	  "sect239k1" },
+	  "sect239k1",
+	  { "sect239k1", NULL, NULL, NULL } },
 	{ BR_EC_sect283k1,
-	  "sect283k1" },
+	  "sect283k1",
+	  { "sect283k1", "K-283", NULL, NULL } },
 	{ BR_EC_sect283r1,
-	  "sect283r1" },
+	  "sect283r1",
+	  { "sect283r1", "B-283", NULL, NULL } },
 	{ BR_EC_sect409k1,
-	  "sect409k1" },
+	  "sect409k1",
+	  { "sect409k1", "K-409", NULL, NULL } },
 	{ BR_EC_sect409r1,
-	  "sect409r1" },
+	  "sect409r1",
+	  { "sect409r1", "B-409", NULL, NULL } },
 	{ BR_EC_sect571k1,
-	  "sect571k1" },
+	  "sect571k1",
+	  { "sect571k1", "K-571", NULL, NULL } },
 	{ BR_EC_sect571r1,
-	  "sect571r1" },
+	  "sect571r1",
+	  { "sect571r1", "B-571", NULL, NULL } },
 	{ BR_EC_secp160k1,
-	  "secp160k1" },
+	  "secp160k1",
+	  { "secp160k1", NULL, NULL, NULL } },
 	{ BR_EC_secp160r1,
-	  "secp160r1" },
+	  "secp160r1",
+	  { "secp160r1", NULL, NULL, NULL } },
 	{ BR_EC_secp160r2,
-	  "secp160r2" },
+	  "secp160r2",
+	  { "secp160r2", NULL, NULL, NULL } },
 	{ BR_EC_secp192k1,
-	  "secp192k1" },
+	  "secp192k1",
+	  { "secp192k1", NULL, NULL, NULL } },
 	{ BR_EC_secp192r1,
-	  "secp192r1" },
+	  "secp192r1",
+	  { "secp192r1", "P-192", NULL, NULL } },
 	{ BR_EC_secp224k1,
-	  "secp224k1" },
+	  "secp224k1",
+	  { "secp224k1", NULL, NULL, NULL } },
 	{ BR_EC_secp224r1,
-	  "secp224r1" },
+	  "secp224r1",
+	  { "secp224r1", "P-224", NULL, NULL } },
 	{ BR_EC_secp256k1,
-	  "secp256k1" },
+	  "secp256k1",
+	  { "secp256k1", NULL, NULL, NULL } },
 	{ BR_EC_secp256r1,
-	  "secp256r1 (P-256)" },
+	  "secp256r1 (P-256)",
+	  { "secp256r1", "P-256", "prime256v1", NULL } },
 	{ BR_EC_secp384r1,
-	  "secp384r1 (P-384)" },
+	  "secp384r1 (P-384)",
+	  { "secp384r1", "P-384", NULL, NULL } },
 	{ BR_EC_secp521r1,
-	  "secp521r1 (P-521)" },
+	  "secp521r1 (P-521)",
+	  { "secp521r1", "P-521", NULL, NULL } },
 	{ BR_EC_brainpoolP256r1,
-	  "brainpoolP256r1" },
+	  "brainpoolP256r1",
+	  { "brainpoolP256r1", NULL, NULL, NULL } },
 	{ BR_EC_brainpoolP384r1,
-	  "brainpoolP384r1" },
+	  "brainpoolP384r1",
+	  { "brainpoolP384r1", NULL, NULL, NULL } },
 	{ BR_EC_brainpoolP512r1,
-	  "brainpoolP512r1" },
+	  "brainpoolP512r1",
+	  { "brainpoolP512r1", NULL, NULL, NULL } },
 	{ BR_EC_curve25519,
-	  "Curve25519" },
+	  "Curve25519",
+	  { "curve25519", "c25519", NULL, NULL } },
 	{ BR_EC_curve448,
-	  "Curve448" },
-	{ 0, 0 }
+	  "Curve448",
+	  { "curve448", "c448", NULL, NULL } },
+	{ 0, 0, { 0, 0, 0, 0 } }
 };
 
 static const struct {
@@ -624,6 +655,31 @@ list_names(void)
 		printf("   %s\n        %s\n",
 			cipher_suites[u].name,
 			cipher_suites[u].comment);
+	}
+}
+
+/* see brssl.h */
+void
+list_curves(void)
+{
+	size_t u;
+	for (u = 0; curves[u].name; u ++) {
+		size_t v;
+
+		for (v = 0; curves[u].sid[v]; v ++) {
+			if (v == 0) {
+				printf("   ");
+			} else if (v == 1) {
+				printf(" (");
+			} else {
+				printf(", ");
+			}
+			printf("%s", curves[u].sid[v]);
+		}
+		if (v > 1) {
+			printf(")");
+		}
+		printf("\n");
 	}
 }
 
@@ -954,6 +1010,22 @@ ec_curve_name(int curve)
 	default:
 		return "unknown";
 	}
+}
+
+/* see brssl.h */
+int
+get_curve_by_name(const char *str)
+{
+	size_t u, v;
+
+	for (u = 0; curves[u].name; u ++) {
+		for (v = 0; curves[u].sid[v]; v ++) {
+			if (eqstr(curves[u].sid[v], str)) {
+				return curves[u].id;
+			}
+		}
+	}
+	return -1;
 }
 
 /* see brssl.h */

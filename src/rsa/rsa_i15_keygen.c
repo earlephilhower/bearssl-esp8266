@@ -435,8 +435,8 @@ bufswap(void *b1, void *b2, size_t len)
 /* see bearssl_rsa.h */
 uint32_t
 br_rsa_i15_keygen(const br_prng_class **rng,
-	br_rsa_private_key *sk, unsigned char *kbuf_priv,
-	br_rsa_public_key *pk, unsigned char *kbuf_pub,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
 	unsigned size, uint32_t pubexp)
 {
 	uint32_t esize_p, esize_q;
