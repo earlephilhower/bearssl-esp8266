@@ -495,6 +495,8 @@ static const struct {
 		(const void *(*)(void))&br_aes_pwr8_cbcdec_get_vtable },
 	{ "aes_pwr8_ctr",         "pwr8",
 		(const void *(*)(void))&br_aes_pwr8_ctr_get_vtable },
+	{ "aes_pwr8_ctrcbc",      "pwr8",
+		(const void *(*)(void))&br_aes_pwr8_ctrcbc_get_vtable },
 	{ "aes_x86ni_cbcenc",     "x86ni",
 		(const void *(*)(void))&br_aes_x86ni_cbcenc_get_vtable },
 	{ "aes_x86ni_cbcdec",     "x86ni",

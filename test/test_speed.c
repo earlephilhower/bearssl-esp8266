@@ -518,16 +518,19 @@ SPEED_EAX(AES, aes, 128, small)
 SPEED_EAX(AES, aes, 128, ct)
 SPEED_EAX(AES, aes, 128, ct64)
 SPEED_EAX(AES, aes, 128, x86ni)
+SPEED_EAX(AES, aes, 128, pwr8)
 SPEED_EAX(AES, aes, 192, big)
 SPEED_EAX(AES, aes, 192, small)
 SPEED_EAX(AES, aes, 192, ct)
 SPEED_EAX(AES, aes, 192, ct64)
 SPEED_EAX(AES, aes, 192, x86ni)
+SPEED_EAX(AES, aes, 192, pwr8)
 SPEED_EAX(AES, aes, 256, big)
 SPEED_EAX(AES, aes, 256, small)
 SPEED_EAX(AES, aes, 256, ct)
 SPEED_EAX(AES, aes, 256, ct64)
 SPEED_EAX(AES, aes, 256, x86ni)
+SPEED_EAX(AES, aes, 256, pwr8)
 
 static const unsigned char RSA_N[] = {
 	0xE9, 0xF2, 0x4A, 0x2F, 0x96, 0xDF, 0x0A, 0x23,
@@ -1477,6 +1480,9 @@ static const struct {
 	STU(eax_aes128_x86ni),
 	STU(eax_aes192_x86ni),
 	STU(eax_aes256_x86ni),
+	STU(eax_aes128_pwr8),
+	STU(eax_aes192_pwr8),
+	STU(eax_aes256_pwr8),
 
 	STU(rsa_i15),
 	STU(rsa_i31),

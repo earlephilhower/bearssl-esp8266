@@ -290,6 +290,7 @@ coresrc=" \
 	src/symcipher/aes_pwr8_cbcdec.c \
 	src/symcipher/aes_pwr8_cbcenc.c \
 	src/symcipher/aes_pwr8_ctr.c \
+	src/symcipher/aes_pwr8_ctrcbc.c \
 	src/symcipher/aes_small_cbcdec.c \
 	src/symcipher/aes_small_cbcenc.c \
 	src/symcipher/aes_small_ctr.c \

@@ -283,6 +283,10 @@ run_ssl_engine(br_ssl_engine_context *cc, unsigned long fd, unsigned flags)
 			fprintf(stderr, "   AES/CTR:       %s\n",
 				get_algo_name(cc->iaes_cbcdec, 0));
 		}
+		if (cc->iaes_ctrcbc != 0) {
+			fprintf(stderr, "   AES/CCM:       %s\n",
+				get_algo_name(cc->iaes_ctrcbc, 0));
+		}
 		if (cc->ides_cbcenc != 0) {
 			fprintf(stderr, "   DES/CBC (enc): %s\n",
 				get_algo_name(cc->ides_cbcenc, 0));

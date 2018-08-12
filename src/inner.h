@@ -2337,6 +2337,7 @@ int br_ssl_choose_hash(unsigned bf);
 #define stxvw4x(xt, ra, rb)       stxvw4x_(xt, ra, rb)
 
 #define bdnz(foo)                 bdnz_(foo)
+#define bdz(foo)                  bdz_(foo)
 #define beq(foo)                  beq_(foo)
 
 #define li(rx, value)             li_(rx, value)
@@ -2355,6 +2356,7 @@ int br_ssl_choose_hash(unsigned bf);
 #define vsl(vrt, vra, vrb)        vsl_(vrt, vra, vrb)
 #define vsldoi(vt, va, vb, sh)    vsldoi_(vt, va, vb, sh)
 #define vsr(vrt, vra, vrb)        vsr_(vrt, vra, vrb)
+#define vaddcuw(vrt, vra, vrb)    vaddcuw_(vrt, vra, vrb)
 #define vadduwm(vrt, vra, vrb)    vadduwm_(vrt, vra, vrb)
 #define vsububm(vrt, vra, vrb)    vsububm_(vrt, vra, vrb)
 #define vsubuwm(vrt, vra, vrb)    vsubuwm_(vrt, vra, vrb)
@@ -2372,6 +2374,7 @@ int br_ssl_choose_hash(unsigned bf);
 
 #define label(foo)                #foo "%=:\n"
 #define bdnz_(foo)                "\tbdnz\t" #foo "%=\n"
+#define bdz_(foo)                 "\tbdz\t" #foo "%=\n"
 #define beq_(foo)                 "\tbeq\t" #foo "%=\n"
 
 #define li_(rx, value)            "\tli\t" #rx "," #value "\n"
@@ -2390,6 +2393,7 @@ int br_ssl_choose_hash(unsigned bf);
 #define vsl_(vrt, vra, vrb)       "\tvsl\t" #vrt "," #vra "," #vrb "\n"
 #define vsldoi_(vt, va, vb, sh)   "\tvsldoi\t" #vt "," #va "," #vb "," #sh "\n"
 #define vsr_(vrt, vra, vrb)       "\tvsr\t" #vrt "," #vra "," #vrb "\n"
+#define vaddcuw_(vrt, vra, vrb)   "\tvaddcuw\t" #vrt "," #vra "," #vrb "\n"
 #define vadduwm_(vrt, vra, vrb)   "\tvadduwm\t" #vrt "," #vra "," #vrb "\n"
 #define vsububm_(vrt, vra, vrb)   "\tvsububm\t" #vrt "," #vra "," #vrb "\n"
 #define vsubuwm_(vrt, vra, vrb)   "\tvsubuwm\t" #vrt "," #vra "," #vrb "\n"

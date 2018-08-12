@@ -3664,6 +3664,19 @@ test_AES_CTRCBC_x86ni(void)
 	}
 }
 
+static void
+test_AES_CTRCBC_pwr8(void)
+{
+	const br_block_ctrcbc_class *vt;
+
+	vt = br_aes_pwr8_ctrcbc_get_vtable();
+	if (vt != NULL) {
+		test_AES_CTRCBC_inner("pwr8", vt);
+	} else {
+		printf("Test AES CTR/CBC-MAC pwr8: UNAVAILABLE\n");
+	}
+}
+
 /*
  * DES known-answer tests. Order: plaintext, key, ciphertext.
  * (mostly from NIST SP 800-20).
@@ -6839,6 +6852,13 @@ test_EAX(void)
 	} else {
 		printf("Test EAX aes_x86ni: UNAVAILABLE\n");
 	}
+
+	x_ctrcbc = br_aes_pwr8_ctrcbc_get_vtable();
+	if (x_ctrcbc != NULL) {
+		test_EAX_inner("aes_pwr8", x_ctrcbc);
+	} else {
+		printf("Test EAX aes_pwr8: UNAVAILABLE\n");
+	}
 }
 
 /*
@@ -7050,6 +7070,13 @@ test_CCM(void)
 		test_CCM_inner("aes_x86ni", x_ctrcbc);
 	} else {
 		printf("Test CCM aes_x86ni: UNAVAILABLE\n");
+	}
+
+	x_ctrcbc = br_aes_pwr8_ctrcbc_get_vtable();
+	if (x_ctrcbc != NULL) {
+		test_CCM_inner("aes_pwr8", x_ctrcbc);
+	} else {
+		printf("Test CCM aes_pwr8: UNAVAILABLE\n");
 	}
 }
 
@@ -8253,6 +8280,7 @@ static const struct {
 	STU(AES_CTRCBC_ct),
 	STU(AES_CTRCBC_ct64),
 	STU(AES_CTRCBC_x86ni),
+	STU(AES_CTRCBC_pwr8),
 	STU(DES_tab),
 	STU(DES_ct),
 	STU(ChaCha20_ct),

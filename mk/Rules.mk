@@ -242,6 +242,7 @@ OBJ = \
  $(OBJDIR)$Paes_pwr8_cbcdec$O \
  $(OBJDIR)$Paes_pwr8_cbcenc$O \
  $(OBJDIR)$Paes_pwr8_ctr$O \
+ $(OBJDIR)$Paes_pwr8_ctrcbc$O \
  $(OBJDIR)$Paes_small_cbcdec$O \
  $(OBJDIR)$Paes_small_cbcenc$O \
  $(OBJDIR)$Paes_small_ctr$O \
@@ -1078,6 +1079,9 @@ $(OBJDIR)$Paes_pwr8_cbcenc$O: src$Psymcipher$Paes_pwr8_cbcenc.c $(HEADERSPRIV)
 
 $(OBJDIR)$Paes_pwr8_ctr$O: src$Psymcipher$Paes_pwr8_ctr.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Paes_pwr8_ctr$O src$Psymcipher$Paes_pwr8_ctr.c
+
+$(OBJDIR)$Paes_pwr8_ctrcbc$O: src$Psymcipher$Paes_pwr8_ctrcbc.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Paes_pwr8_ctrcbc$O src$Psymcipher$Paes_pwr8_ctrcbc.c
 
 $(OBJDIR)$Paes_small_cbcdec$O: src$Psymcipher$Paes_small_cbcdec.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Paes_small_cbcdec$O src$Psymcipher$Paes_small_cbcdec.c
