@@ -1315,8 +1315,9 @@ br_rsa_compute_pubexp br_rsa_compute_pubexp_get_default(void);
  * Not all error conditions are detected when `d` is `NULL`; therefore, the
  * returned value shall be checked also when actually producing the value.
  *
- * \param d    destination buffer (or `NULL`).
- * \param sk   RSA private key.
+ * \param d        destination buffer (or `NULL`).
+ * \param sk       RSA private key.
+ * \param pubexp   the public exponent.
  * \return  the private exponent length (in bytes), or 0.
  */
 typedef size_t (*br_rsa_compute_privexp)(void *d,
@@ -1327,8 +1328,9 @@ typedef size_t (*br_rsa_compute_privexp)(void *d,
  *
  * \see br_rsa_compute_privexp
  *
- * \param d    destination buffer (or `NULL`).
- * \param sk   RSA private key.
+ * \param d        destination buffer (or `NULL`).
+ * \param sk       RSA private key.
+ * \param pubexp   the public exponent.
  * \return  the private exponent length (in bytes), or 0.
  */
 size_t br_rsa_i15_compute_privexp(void *d,
@@ -1339,8 +1341,9 @@ size_t br_rsa_i15_compute_privexp(void *d,
  *
  * \see br_rsa_compute_privexp
  *
- * \param d    destination buffer (or `NULL`).
- * \param sk   RSA private key.
+ * \param d        destination buffer (or `NULL`).
+ * \param sk       RSA private key.
+ * \param pubexp   the public exponent.
  * \return  the private exponent length (in bytes), or 0.
  */
 size_t br_rsa_i31_compute_privexp(void *d,

@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include "bearssl_block.h"
+#include "bearssl_hash.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -353,10 +354,10 @@ extern const br_prng_class br_aesctr_drbg_vtable;
  *
  * The `aesctr` parameter defines the underlying AES/CTR implementation.
  *
- * \param ctx            HMAC_DRBG context to initialise.
- * \param digest_class   vtable for the underlying hash function.
- * \param seed           initial seed (can be `NULL` if `seed_len` is zero).
- * \param seed_len       initial seed length (in bytes).
+ * \param ctx        AESCTR_DRBG context to initialise.
+ * \param aesctr     vtable for the AES/CTR implementation.
+ * \param seed       initial seed (can be `NULL` if `seed_len` is zero).
+ * \param seed_len   initial seed length (in bytes).
  */
 void br_aesctr_drbg_init(br_aesctr_drbg_context *ctx,
 	const br_block_ctr_class *aesctr, const void *seed, size_t seed_len);
