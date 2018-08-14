@@ -171,6 +171,7 @@ coresrc=" \
 	src/int/i32_sub.c \
 	src/int/i32_tmont.c \
 	src/int/i62_modpow2.c \
+	src/kdf/hkdf.c \
 	src/mac/hmac.c \
 	src/mac/hmac_ct.c \
 	src/rand/aesctr_drbg.c \
@@ -366,6 +367,7 @@ headerspub=" \
 	inc/bearssl_ec.h \
 	inc/bearssl_hash.h \
 	inc/bearssl_hmac.h \
+	inc/bearssl_kdf.h \
 	inc/bearssl_pem.h \
 	inc/bearssl_prf.h \
 	inc/bearssl_rand.h \

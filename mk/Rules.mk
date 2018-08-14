@@ -123,6 +123,7 @@ OBJ = \
  $(OBJDIR)$Pi32_sub$O \
  $(OBJDIR)$Pi32_tmont$O \
  $(OBJDIR)$Pi62_modpow2$O \
+ $(OBJDIR)$Phkdf$O \
  $(OBJDIR)$Phmac$O \
  $(OBJDIR)$Phmac_ct$O \
  $(OBJDIR)$Paesctr_drbg$O \
@@ -301,7 +302,7 @@ OBJTESTSPEED = \
  $(OBJDIR)$Ptest_speed$O
 OBJTESTX509 = \
  $(OBJDIR)$Ptest_x509$O
-HEADERSPUB = inc$Pbearssl.h inc$Pbearssl_aead.h inc$Pbearssl_block.h inc$Pbearssl_ec.h inc$Pbearssl_hash.h inc$Pbearssl_hmac.h inc$Pbearssl_pem.h inc$Pbearssl_prf.h inc$Pbearssl_rand.h inc$Pbearssl_rsa.h inc$Pbearssl_ssl.h inc$Pbearssl_x509.h
+HEADERSPUB = inc$Pbearssl.h inc$Pbearssl_aead.h inc$Pbearssl_block.h inc$Pbearssl_ec.h inc$Pbearssl_hash.h inc$Pbearssl_hmac.h inc$Pbearssl_kdf.h inc$Pbearssl_pem.h inc$Pbearssl_prf.h inc$Pbearssl_rand.h inc$Pbearssl_rsa.h inc$Pbearssl_ssl.h inc$Pbearssl_x509.h
 HEADERSPRIV = $(HEADERSPUB) src$Pconfig.h src$Pinner.h
 HEADERSTOOLS = $(HEADERSPUB) tools$Pbrssl.h
 T0SRC = T0$PBlobWriter.cs T0$PCPU.cs T0$PCodeElement.cs T0$PCodeElementJump.cs T0$PCodeElementUInt.cs T0$PCodeElementUIntExpr.cs T0$PCodeElementUIntInt.cs T0$PCodeElementUIntUInt.cs T0$PConstData.cs T0$POpcode.cs T0$POpcodeCall.cs T0$POpcodeConst.cs T0$POpcodeGetLocal.cs T0$POpcodeJump.cs T0$POpcodeJumpIf.cs T0$POpcodeJumpIfNot.cs T0$POpcodeJumpUncond.cs T0$POpcodePutLocal.cs T0$POpcodeRet.cs T0$PSType.cs T0$PT0Comp.cs T0$PTPointerBase.cs T0$PTPointerBlob.cs T0$PTPointerExpr.cs T0$PTPointerNull.cs T0$PTPointerXT.cs T0$PTValue.cs T0$PWord.cs T0$PWordBuilder.cs T0$PWordData.cs T0$PWordInterpreted.cs T0$PWordNative.cs
@@ -722,6 +723,9 @@ $(OBJDIR)$Pi32_tmont$O: src$Pint$Pi32_tmont.c $(HEADERSPRIV)
 
 $(OBJDIR)$Pi62_modpow2$O: src$Pint$Pi62_modpow2.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pi62_modpow2$O src$Pint$Pi62_modpow2.c
+
+$(OBJDIR)$Phkdf$O: src$Pkdf$Phkdf.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Phkdf$O src$Pkdf$Phkdf.c
 
 $(OBJDIR)$Phmac$O: src$Pmac$Phmac.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Phmac$O src$Pmac$Phmac.c
