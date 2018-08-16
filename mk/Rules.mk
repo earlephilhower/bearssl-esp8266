@@ -124,6 +124,7 @@ OBJ = \
  $(OBJDIR)$Pi32_tmont$O \
  $(OBJDIR)$Pi62_modpow2$O \
  $(OBJDIR)$Phkdf$O \
+ $(OBJDIR)$Pshake$O \
  $(OBJDIR)$Phmac$O \
  $(OBJDIR)$Phmac_ct$O \
  $(OBJDIR)$Paesctr_drbg$O \
@@ -726,6 +727,9 @@ $(OBJDIR)$Pi62_modpow2$O: src$Pint$Pi62_modpow2.c $(HEADERSPRIV)
 
 $(OBJDIR)$Phkdf$O: src$Pkdf$Phkdf.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Phkdf$O src$Pkdf$Phkdf.c
+
+$(OBJDIR)$Pshake$O: src$Pkdf$Pshake.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pshake$O src$Pkdf$Pshake.c
 
 $(OBJDIR)$Phmac$O: src$Pmac$Phmac.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Phmac$O src$Pmac$Phmac.c

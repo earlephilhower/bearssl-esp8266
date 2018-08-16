@@ -532,6 +532,83 @@ SPEED_EAX(AES, aes, 256, ct64)
 SPEED_EAX(AES, aes, 256, x86ni)
 SPEED_EAX(AES, aes, 256, pwr8)
 
+static void
+test_speed_shake_inner(int security_level)
+{
+	unsigned char buf[8192];
+	br_shake_context sc;
+	int i;
+	long num;
+
+	memset(buf, 'D', sizeof buf);
+	br_shake_init(&sc, security_level);
+	for (i = 0; i < 10; i ++) {
+		br_shake_inject(&sc, buf, sizeof buf);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_shake_inject(&sc, buf, sizeof buf);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("SHAKE%-3d (inject)              %8.2f MB/s\n",
+				security_level,
+				((double)sizeof buf) * (double)num
+				/ (tt * 1000000.0));
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+
+	br_shake_flip(&sc);
+	for (i = 0; i < 10; i ++) {
+		br_shake_produce(&sc, buf, sizeof buf);
+	}
+
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_shake_produce(&sc, buf, sizeof buf);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("SHAKE%-3d (produce)             %8.2f MB/s\n",
+				security_level,
+				((double)sizeof buf) * (double)num
+				/ (tt * 1000000.0));
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+}
+
+static void
+test_speed_shake128(void)
+{
+	test_speed_shake_inner(128);
+}
+
+static void
+test_speed_shake256(void)
+{
+	test_speed_shake_inner(256);
+}
+
 static const unsigned char RSA_N[] = {
 	0xE9, 0xF2, 0x4A, 0x2F, 0x96, 0xDF, 0x0A, 0x23,
 	0x01, 0x85, 0xF1, 0x2C, 0xB2, 0xA8, 0xEF, 0x23,
@@ -1159,7 +1236,7 @@ test_speed_i31(void)
 	};
 
 	unsigned char tmp[60 + sizeof bp];
-	uint32_t p[10], x[10], y[10], z[10], p0i;
+	uint32_t p[10], x[10], y[10], z[10], uu[30], p0i;
 	int i;
 	long num;
 
@@ -1235,6 +1312,30 @@ test_speed_i31(void)
 		tt = (double)(end - begin) / CLOCKS_PER_SEC;
 		if (tt >= 2.0) {
 			printf("%-30s %8.2f ops/s\n", "i31 montymul",
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+
+	for (i = 0; i < 10; i ++) {
+		br_i31_moddiv(x, y, p, p0i, uu);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_i31_moddiv(x, y, p, p0i, uu);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("%-30s %8.2f ops/s\n", "i31 moddiv",
 				(double)num / tt);
 			fflush(stdout);
 			break;
@@ -1483,6 +1584,9 @@ static const struct {
 	STU(eax_aes128_pwr8),
 	STU(eax_aes192_pwr8),
 	STU(eax_aes256_pwr8),
+
+	STU(shake128),
+	STU(shake256),
 
 	STU(rsa_i15),
 	STU(rsa_i31),

@@ -172,6 +172,7 @@ coresrc=" \
 	src/int/i32_tmont.c \
 	src/int/i62_modpow2.c \
 	src/kdf/hkdf.c \
+	src/kdf/shake.c \
 	src/mac/hmac.c \
 	src/mac/hmac_ct.c \
 	src/rand/aesctr_drbg.c \
