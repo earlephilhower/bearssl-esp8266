@@ -1944,6 +1944,27 @@ uint32_t br_rsa_pkcs1_sig_unpad(const unsigned char *sig, size_t sig_len,
 	unsigned char *hash_out);
 
 /*
+ * Apply proper PSS padding. The 'x' buffer is output only: it
+ * receives the value that is to be exponentiated.
+ */
+uint32_t br_rsa_pss_sig_pad(const br_prng_class **rng,
+	const br_hash_class *hf_data, const br_hash_class *hf_mgf1,
+	const unsigned char *hash, size_t salt_len,
+	uint32_t n_bitlen, unsigned char *x);
+
+/*
+ * Check PSS padding. The provided value is the one _after_
+ * the modular exponentiation; it is modified by this function.
+ * This function infers the signature length from the public key
+ * size, i.e. it assumes that this has already been verified (as
+ * part of the exponentiation).
+ */
+uint32_t br_rsa_pss_sig_unpad(
+	const br_hash_class *hf_data, const br_hash_class *hf_mgf1,
+	const unsigned char *hash, size_t salt_len,
+	const br_rsa_public_key *pk, unsigned char *x);
+
+/*
  * Apply OAEP padding. Returned value is the actual padded string length,
  * or zero on error.
  */

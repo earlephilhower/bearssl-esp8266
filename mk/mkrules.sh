@@ -186,6 +186,8 @@ coresrc=" \
 	src/rsa/rsa_default_pkcs1_vrfy.c \
 	src/rsa/rsa_default_priv.c \
 	src/rsa/rsa_default_privexp.c \
+	src/rsa/rsa_default_pss_sign.c \
+	src/rsa/rsa_default_pss_vrfy.c \
 	src/rsa/rsa_default_pub.c \
 	src/rsa/rsa_default_pubexp.c \
 	src/rsa/rsa_i15_keygen.c \
@@ -196,6 +198,8 @@ coresrc=" \
 	src/rsa/rsa_i15_pkcs1_vrfy.c \
 	src/rsa/rsa_i15_priv.c \
 	src/rsa/rsa_i15_privexp.c \
+	src/rsa/rsa_i15_pss_sign.c \
+	src/rsa/rsa_i15_pss_vrfy.c \
 	src/rsa/rsa_i15_pub.c \
 	src/rsa/rsa_i15_pubexp.c \
 	src/rsa/rsa_i31_keygen.c \
@@ -207,6 +211,8 @@ coresrc=" \
 	src/rsa/rsa_i31_pkcs1_vrfy.c \
 	src/rsa/rsa_i31_priv.c \
 	src/rsa/rsa_i31_privexp.c \
+	src/rsa/rsa_i31_pss_sign.c \
+	src/rsa/rsa_i31_pss_vrfy.c \
 	src/rsa/rsa_i31_pub.c \
 	src/rsa/rsa_i31_pubexp.c \
 	src/rsa/rsa_i32_oaep_decrypt.c \
@@ -214,6 +220,8 @@ coresrc=" \
 	src/rsa/rsa_i32_pkcs1_sign.c \
 	src/rsa/rsa_i32_pkcs1_vrfy.c \
 	src/rsa/rsa_i32_priv.c \
+	src/rsa/rsa_i32_pss_sign.c \
+	src/rsa/rsa_i32_pss_vrfy.c \
 	src/rsa/rsa_i32_pub.c \
 	src/rsa/rsa_i62_keygen.c \
 	src/rsa/rsa_i62_oaep_decrypt.c \
@@ -221,11 +229,15 @@ coresrc=" \
 	src/rsa/rsa_i62_pkcs1_sign.c \
 	src/rsa/rsa_i62_pkcs1_vrfy.c \
 	src/rsa/rsa_i62_priv.c \
+	src/rsa/rsa_i62_pss_sign.c \
+	src/rsa/rsa_i62_pss_vrfy.c \
 	src/rsa/rsa_i62_pub.c \
 	src/rsa/rsa_oaep_pad.c \
 	src/rsa/rsa_oaep_unpad.c \
 	src/rsa/rsa_pkcs1_sig_pad.c \
 	src/rsa/rsa_pkcs1_sig_unpad.c \
+	src/rsa/rsa_pss_sig_pad.c \
+	src/rsa/rsa_pss_sig_unpad.c \
 	src/rsa/rsa_ssl_decrypt.c \
 	src/ssl/prf.c \
 	src/ssl/prf_md5sha1.c \
