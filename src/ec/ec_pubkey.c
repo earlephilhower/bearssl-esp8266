@@ -24,7 +24,7 @@
 
 #include "inner.h"
 
-static const unsigned char POINT_LEN[] = {
+static const unsigned char POINT_LEN[] PROGMEM = {
 	  0,   /* 0: not a valid curve ID */
 	 43,   /* sect163k1 */
 	 43,   /* sect163r1 */
@@ -73,7 +73,11 @@ br_ec_compute_pub(const br_ec_impl *impl, br_ec_public_key *pk,
 		return 0;
 	}
 	if (kbuf == NULL) {
+#ifdef ESP8266
+		return pgm_read_byte(&POINT_LEN[curve]);
+#else
 		return POINT_LEN[curve];
+#endif
 	}
 	len = impl->mulgen(kbuf, sk->x, sk->xlen, curve);
 	if (pk != NULL) {
