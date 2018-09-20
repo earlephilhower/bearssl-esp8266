@@ -28,7 +28,9 @@
 size_t
 br_rsa_i15_compute_modulus(void *n, const br_rsa_private_key *sk)
 {
-	uint16_t tmp[2 * ((BR_MAX_RSA_SIZE + 14) / 15) + 5];
+	STACK_PROXY_ENTER();
+	STACK_PROXY_ALLOC(uint16_t, tmp, 2 * ((BR_MAX_RSA_SIZE + 14) / 15) + 5);
+	//uint16_t tmp[2 * ((BR_MAX_RSA_SIZE + 14) / 15) + 5];
 	uint16_t *t, *p, *q;
 	const unsigned char *pbuf, *qbuf;
 	size_t nlen, plen, qlen, tlen;
@@ -50,12 +52,13 @@ br_rsa_i15_compute_modulus(void *n, const br_rsa_private_key *sk)
 	}
 
 	t = tmp;
-	tlen = (sizeof tmp) / (sizeof tmp[0]);
+	tlen = 2 * ((BR_MAX_RSA_SIZE + 14) / 15) + 5; //(sizeof tmp) / (sizeof tmp[0]);
 
 	/*
 	 * Decode p.
 	 */
 	if ((15 * tlen) < (plen << 3) + 15) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	br_i15_decode(t, pbuf, plen);
@@ -68,6 +71,7 @@ br_rsa_i15_compute_modulus(void *n, const br_rsa_private_key *sk)
 	 * Decode q.
 	 */
 	if ((15 * tlen) < (qlen << 3) + 15) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	br_i15_decode(t, qbuf, qlen);
@@ -81,6 +85,7 @@ br_rsa_i15_compute_modulus(void *n, const br_rsa_private_key *sk)
 	 * modulus.
 	 */
 	if (tlen < (plen + qlen + 1)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -95,5 +100,6 @@ br_rsa_i15_compute_modulus(void *n, const br_rsa_private_key *sk)
 		br_i15_mulacc(t, p, q);
 		br_i15_encode(n, nlen, t);
 	}
+	STACK_PROXY_EXIT();
 	return nlen;
 }

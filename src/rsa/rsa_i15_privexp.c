@@ -29,6 +29,7 @@ size_t
 br_rsa_i15_compute_privexp(void *d,
 	const br_rsa_private_key *sk, uint32_t e)
 {
+	STACK_PROXY_ENTER();
 	/*
 	 * We want to invert e modulo phi = (p-1)(q-1). This first
 	 * requires computing phi, which is easy since we have the factors
@@ -58,7 +59,8 @@ br_rsa_i15_compute_privexp(void *d,
 	 *     the above implies d < r + e*((phi-r)/e) = phi
 	 */
 
-	uint16_t tmp[4 * ((BR_MAX_RSA_FACTOR + 14) / 15) + 12];
+	STACK_PROXY_ALLOC(uint16_t, tmp, 4 * ((BR_MAX_RSA_FACTOR + 14) / 15) + 12);
+	//uint16_t tmp[4 * ((BR_MAX_RSA_FACTOR + 14) / 15) + 12];
 	uint16_t *p, *q, *k, *m, *z, *phi;
 	const unsigned char *pbuf, *qbuf;
 	size_t plen, qlen, u, len, dlen;
@@ -69,6 +71,7 @@ br_rsa_i15_compute_privexp(void *d,
 	 * Check that e is correct.
 	 */
 	if (e < 3 || (e & 1) == 0) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -84,6 +87,7 @@ br_rsa_i15_compute_privexp(void *d,
 	if (plen < 5 || plen > (BR_MAX_RSA_FACTOR / 8)
 		|| (pbuf[plen - 1] & 1) != 1)
 	{
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	qbuf = sk->q;
@@ -95,6 +99,7 @@ br_rsa_i15_compute_privexp(void *d,
 	if (qlen < 5 || qlen > (BR_MAX_RSA_FACTOR / 8)
 		|| (qbuf[qlen - 1] & 1) != 1)
 	{
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -103,6 +108,7 @@ br_rsa_i15_compute_privexp(void *d,
 	 */
 	dlen = (sk->n_bitlen + 7) >> 3;
 	if (d == NULL) {
+		STACK_PROXY_EXIT();
 		return dlen;
 	}
 
@@ -151,6 +157,7 @@ br_rsa_i15_compute_privexp(void *d,
 		phi[u] = br_divrem(hi, lo, e, &r);
 	}
 	if (r == 0) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	k = phi;
@@ -291,6 +298,7 @@ br_rsa_i15_compute_privexp(void *d,
 	 * (and there's no harm in leaking that piece of information).
 	 */
 	if (a != 1) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -316,5 +324,6 @@ br_rsa_i15_compute_privexp(void *d,
 	 * Encode the result.
 	 */
 	br_i15_encode(d, dlen, z);
+	STACK_PROXY_EXIT();
 	return dlen;
 }
