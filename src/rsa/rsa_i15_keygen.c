@@ -51,7 +51,7 @@ mkrand(const br_prng_class **rng, uint16_t *x, uint32_t esize)
  * This is the big-endian unsigned representation of the product of
  * all small primes from 13 to 1481.
  */
-static const unsigned char SMALL_PRIMES[] = {
+static const unsigned char SMALL_PRIMES[] PROGMEM = {
 	0x2E, 0xAB, 0x92, 0xD1, 0x8B, 0x12, 0x47, 0x31, 0x54, 0x0A,
 	0x99, 0x5D, 0x25, 0x5E, 0xE2, 0x14, 0x96, 0x29, 0x1E, 0xB7,
 	0x78, 0x70, 0xCC, 0x1F, 0xA5, 0xAB, 0x8D, 0x72, 0x11, 0x37,
@@ -104,14 +104,22 @@ static const unsigned char SMALL_PRIMES[] = {
 static uint32_t
 trial_divisions(const uint16_t *x, uint16_t *t)
 {
+	STACK_PROXY_ENTER();
 	uint16_t *y;
 	uint16_t x0i;
-
+	STACK_PROXY_ALLOC(unsigned char, small_primes_ram, sizeof SMALL_PRIMES);
+#ifdef ESP8266
+	memcpy_P(small_primes_ram, SMALL_PRIMES, sizeof SMALL_PRIMES);
+#else
+	memcpy(small_primes_ram, SMALL_PRIMES, sizeof SMALL_PRIMES);
+#endif
 	y = t;
 	t += 1 + ((x[0] + 15) >> 4);
 	x0i = br_i15_ninv15(x[1]);
 	br_i15_decode_reduce(y, SMALL_PRIMES, sizeof SMALL_PRIMES, x);
-	return br_i15_moddiv(y, y, x, x0i, t);
+	uint32_t ret = br_i15_moddiv(y, y, x, x0i, t);
+	STACK_PROXY_EXIT();
+	return ret;
 }
 
 /*
