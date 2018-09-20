@@ -30,15 +30,21 @@ br_rsa_i15_pss_vrfy(const unsigned char *x, size_t xlen,
 	const br_hash_class *hf_data, const br_hash_class *hf_mgf1,
 	const void *hash, size_t salt_len, const br_rsa_public_key *pk)
 {
-	unsigned char sig[BR_MAX_RSA_SIZE >> 3];
+	STACK_PROXY_ENTER();
+	STACK_PROXY_ALLOC(unsigned char, sig, BR_MAX_RSA_SIZE >> 3);
+	//unsigned char sig[BR_MAX_RSA_SIZE >> 3];
 
 	if (xlen > (sizeof sig)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
 	memcpy(sig, x, xlen);
 	if (!br_rsa_i15_public(sig, xlen, pk)) {
+		STACK_PROXY_EXIT();
 		return 0;
 	}
-	return br_rsa_pss_sig_unpad(hf_data, hf_mgf1,
+	uint32_t ret = br_rsa_pss_sig_unpad(hf_data, hf_mgf1,
 		hash, salt_len, pk, sig);
+	STACK_PROXY_EXIT();
+	return ret;
 }
