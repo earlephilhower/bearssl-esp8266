@@ -1534,3 +1534,48 @@ dumpstack();
 	cc->ichapol_out->init(&cc->out.chapol.vtable.out,
 		cc->ichacha, cc->ipoly, cipher_key, iv);
 }
+
+/* see inner.h */
+void
+br_ssl_engine_switch_ccm_in(br_ssl_engine_context *cc,
+	int is_client, int prf_id,
+	const br_block_ctrcbc_class *bc_impl,
+	size_t cipher_key_len, size_t tag_len)
+{
+	unsigned char kb[72];
+	unsigned char *cipher_key, *iv;
+
+	compute_key_block(cc, prf_id, cipher_key_len + 4, kb);
+	if (is_client) {
+		cipher_key = &kb[cipher_key_len];
+		iv = &kb[(cipher_key_len << 1) + 4];
+	} else {
+		cipher_key = &kb[0];
+		iv = &kb[cipher_key_len << 1];
+	}
+	cc->iccm_in->init(&cc->in.ccm.vtable.in,
+		bc_impl, cipher_key, cipher_key_len, iv, tag_len);
+	cc->incrypt = 1;
+}
+
+/* see inner.h */
+void
+br_ssl_engine_switch_ccm_out(br_ssl_engine_context *cc,
+	int is_client, int prf_id,
+	const br_block_ctrcbc_class *bc_impl,
+	size_t cipher_key_len, size_t tag_len)
+{
+	unsigned char kb[72];
+	unsigned char *cipher_key, *iv;
+
+	compute_key_block(cc, prf_id, cipher_key_len + 4, kb);
+	if (is_client) {
+		cipher_key = &kb[0];
+		iv = &kb[cipher_key_len << 1];
+	} else {
+		cipher_key = &kb[cipher_key_len];
+		iv = &kb[(cipher_key_len << 1) + 4];
+	}
+	cc->iccm_out->init(&cc->out.ccm.vtable.out,
+		bc_impl, cipher_key, cipher_key_len, iv, tag_len);
+}

@@ -38,9 +38,9 @@ br_i15_mulacc(uint16_t *d, const uint16_t *a, const uint16_t *b)
 	 * Announced bit length of d[] will be the sum of the announced
 	 * bit lengths of a[] and b[]; but the lengths are encoded.
 	 */
-	dl = (a[0] & 15) + (d[0] & 15);
+	dl = (a[0] & 15) + (b[0] & 15);
 	dh = (a[0] >> 4) + (b[0] >> 4);
-	d[0] = (dh << 4) + dl + (~(uint16_t)(dl - 15) >> 15);
+	d[0] = (dh << 4) + dl + (~(uint32_t)(dl - 15) >> 31);
 
 	for (u = 0; u < blen; u ++) {
 		uint32_t f;

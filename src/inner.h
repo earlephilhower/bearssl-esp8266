@@ -51,9 +51,21 @@
  * already set their root keys to RSA-4096, so we should be able to
  * process such keys.
  *
- * This value MUST be a multiple of 64.
+ * This value MUST be a multiple of 64. This value MUST NOT exceed 47666
+ * (some computations in RSA key generation rely on the factor size being
+ * no more than 23833 bits). RSA key sizes beyond 3072 bits don't make a
+ * lot of sense anyway.
  */
 #define BR_MAX_RSA_SIZE   4096
+
+/*
+ * Minimum size for a RSA modulus (in bits); this value is used only to
+ * filter out invalid parameters for key pair generation. Normally,
+ * applications should not use RSA keys smaller than 2048 bits; but some
+ * specific cases might need shorter keys, for legacy or research
+ * purposes.
+ */
+#define BR_MIN_RSA_SIZE   512
 
 /*
  * Maximum size for a RSA factor (in bits). This is for RSA private-key
@@ -1486,6 +1498,23 @@ uint32_t br_i31_modpow_opt(uint32_t *x, const unsigned char *e, size_t elen,
  */
 void br_i31_mulacc(uint32_t *d, const uint32_t *a, const uint32_t *b);
 
+/*
+ * Compute x/y mod m, result in x. Values x and y must be between 0 and
+ * m-1, and have the same announced bit length as m. Modulus m must be
+ * odd. The "m0i" parameter is equal to -1/m mod 2^31. The array 't'
+ * must point to a temporary area that can hold at least three integers
+ * of the size of m.
+ *
+ * m may not overlap x and y. x and y may overlap each other (this can
+ * be useful to test whether a value is invertible modulo m). t must be
+ * disjoint from all other arrays.
+ *
+ * Returned value is 1 on success, 0 otherwise. Success is attained if
+ * y is invertible modulo m.
+ */
+uint32_t br_i31_moddiv(uint32_t *x, const uint32_t *y,
+	const uint32_t *m, uint32_t m0i, uint32_t *t);
+
 /* ==================================================================== */
 
 /*
@@ -1540,8 +1569,35 @@ void br_i15_reduce(uint16_t *x, const uint16_t *a, const uint16_t *m);
 
 void br_i15_mulacc(uint16_t *d, const uint16_t *a, const uint16_t *b);
 
+uint32_t br_i15_moddiv(uint16_t *x, const uint16_t *y,
+	const uint16_t *m, uint16_t m0i, uint16_t *t);
+
+/*
+ * Variant of br_i31_modpow_opt() that internally uses 64x64->128
+ * multiplications. It expects the same parameters as br_i31_modpow_opt(),
+ * except that the temporaries should be 64-bit integers, not 32-bit
+ * integers.
+ */
 uint32_t br_i62_modpow_opt(uint32_t *x31, const unsigned char *e, size_t elen,
 	const uint32_t *m31, uint32_t m0i31, uint64_t *tmp, size_t twlen);
+
+/*
+ * Type for a function with the same API as br_i31_modpow_opt() (some
+ * implementations of this type may have stricter alignment requirements
+ * on the temporaries).
+ */
+typedef uint32_t (*br_i31_modpow_opt_type)(uint32_t *x,
+	const unsigned char *e, size_t elen,
+	const uint32_t *m, uint32_t m0i, uint32_t *tmp, size_t twlen);
+
+/*
+ * Wrapper for br_i62_modpow_opt() that uses the same type as
+ * br_i31_modpow_opt(); however, it requires its 'tmp' argument to the
+ * 64-bit aligned.
+ */
+uint32_t br_i62_modpow_opt_as_i31(uint32_t *x,
+	const unsigned char *e, size_t elen,
+	const uint32_t *m, uint32_t m0i, uint32_t *tmp, size_t twlen);
 
 /* ==================================================================== */
 
@@ -1900,6 +1956,27 @@ uint32_t br_rsa_pkcs1_sig_unpad(const unsigned char *sig, size_t sig_len,
 	unsigned char *hash_out);
 
 /*
+ * Apply proper PSS padding. The 'x' buffer is output only: it
+ * receives the value that is to be exponentiated.
+ */
+uint32_t br_rsa_pss_sig_pad(const br_prng_class **rng,
+	const br_hash_class *hf_data, const br_hash_class *hf_mgf1,
+	const unsigned char *hash, size_t salt_len,
+	uint32_t n_bitlen, unsigned char *x);
+
+/*
+ * Check PSS padding. The provided value is the one _after_
+ * the modular exponentiation; it is modified by this function.
+ * This function infers the signature length from the public key
+ * size, i.e. it assumes that this has already been verified (as
+ * part of the exponentiation).
+ */
+uint32_t br_rsa_pss_sig_unpad(
+	const br_hash_class *hf_data, const br_hash_class *hf_mgf1,
+	const unsigned char *hash, size_t salt_len,
+	const br_rsa_public_key *pk, unsigned char *x);
+
+/*
  * Apply OAEP padding. Returned value is the actual padded string length,
  * or zero on error.
  */
@@ -1923,6 +2000,15 @@ uint32_t br_rsa_oaep_unpad(const br_hash_class *dig,
  */
 void br_mgf1_xor(void *data, size_t len,
 	const br_hash_class *dig, const void *seed, size_t seed_len);
+
+/*
+ * Inner function for RSA key generation; used by the "i31" and "i62"
+ * implementations.
+ */
+uint32_t br_rsa_i31_keygen_inner(const br_prng_class **rng,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
+	unsigned size, uint32_t pubexp, br_i31_modpow_opt_type mp31);
 
 /* ==================================================================== */
 /*
@@ -1973,6 +2059,72 @@ void br_ecdsa_i31_bits2int(uint32_t *x,
  */
 void br_ecdsa_i15_bits2int(uint16_t *x,
 	const void *src, size_t len, uint32_t ebitlen);
+
+/* ==================================================================== */
+/*
+ * ASN.1 support functions.
+ */
+
+/*
+ * A br_asn1_uint structure contains encoding information about an
+ * INTEGER nonnegative value: pointer to the integer contents (unsigned
+ * big-endian representation), length of the integer contents,
+ * and length of the encoded value. The data shall have minimal length:
+ *  - If the integer value is zero, then 'len' must be zero.
+ *  - If the integer value is not zero, then data[0] must be non-zero.
+ *
+ * Under these conditions, 'asn1len' is necessarily equal to either len
+ * or len+1.
+ */
+typedef struct {
+	const unsigned char *data;
+	size_t len;
+	size_t asn1len;
+} br_asn1_uint;
+
+/*
+ * Given an encoded integer (unsigned big-endian, with possible leading
+ * bytes of value 0), returned the "prepared INTEGER" structure.
+ */
+br_asn1_uint br_asn1_uint_prepare(const void *xdata, size_t xlen);
+
+/*
+ * Encode an ASN.1 length. The length of the encoded length is returned.
+ * If 'dest' is NULL, then no encoding is performed, but the length of
+ * the encoded length is still computed and returned.
+ */
+size_t br_asn1_encode_length(void *dest, size_t len);
+
+/*
+ * Convenient macro for computing lengths of lengths.
+ */
+#define len_of_len(len)   br_asn1_encode_length(NULL, len)
+
+/*
+ * Encode a (prepared) ASN.1 INTEGER. The encoded length is returned.
+ * If 'dest' is NULL, then no encoding is performed, but the length of
+ * the encoded integer is still computed and returned.
+ */
+size_t br_asn1_encode_uint(void *dest, br_asn1_uint pp);
+
+/*
+ * Get the OID that identifies an elliptic curve. Returned value is
+ * the DER-encoded OID, with the length (always one byte) but without
+ * the tag. Thus, the first byte of the returned buffer contains the
+ * number of subsequent bytes in the value. If the curve is not
+ * recognised, NULL is returned.
+ */
+const unsigned char *br_get_curve_OID(int curve);
+
+/*
+ * Inner function for EC private key encoding. This is equivalent to
+ * the API function br_encode_ec_raw_der(), except for an extra
+ * parameter: if 'include_curve_oid' is zero, then the curve OID is
+ * _not_ included in the output blob (this is for PKCS#8 support).
+ */
+size_t br_encode_ec_raw_der_inner(void *dest,
+	const br_ec_private_key *sk, const br_ec_public_key *pk,
+	int include_curve_oid);
 
 /* ==================================================================== */
 /*
@@ -2160,6 +2312,34 @@ void br_ssl_engine_switch_chapol_out(br_ssl_engine_context *cc,
 	int is_client, int prf_id);
 
 /*
+ * Switch to CCM decryption for incoming records.
+ *    cc               the engine context
+ *    is_client        non-zero for a client, zero for a server
+ *    prf_id           id of hash function for PRF
+ *    bc_impl          block cipher implementation (CTR+CBC)
+ *    cipher_key_len   block cipher key length (in bytes)
+ *    tag_len          tag length (in bytes)
+ */
+void br_ssl_engine_switch_ccm_in(br_ssl_engine_context *cc,
+	int is_client, int prf_id,
+	const br_block_ctrcbc_class *bc_impl,
+	size_t cipher_key_len, size_t tag_len);
+
+/*
+ * Switch to GCM encryption for outgoing records.
+ *    cc               the engine context
+ *    is_client        non-zero for a client, zero for a server
+ *    prf_id           id of hash function for PRF
+ *    bc_impl          block cipher implementation (CTR+CBC)
+ *    cipher_key_len   block cipher key length (in bytes)
+ *    tag_len          tag length (in bytes)
+ */
+void br_ssl_engine_switch_ccm_out(br_ssl_engine_context *cc,
+	int is_client, int prf_id,
+	const br_block_ctrcbc_class *bc_impl,
+	size_t cipher_key_len, size_t tag_len);
+
+/*
  * Calls to T0-generated code.
  */
 void br_ssl_hs_client_init_main(void *ctx);
@@ -2190,6 +2370,7 @@ int br_ssl_choose_hash(unsigned bf);
 #define stxvw4x(xt, ra, rb)       stxvw4x_(xt, ra, rb)
 
 #define bdnz(foo)                 bdnz_(foo)
+#define bdz(foo)                  bdz_(foo)
 #define beq(foo)                  beq_(foo)
 
 #define li(rx, value)             li_(rx, value)
@@ -2208,6 +2389,7 @@ int br_ssl_choose_hash(unsigned bf);
 #define vsl(vrt, vra, vrb)        vsl_(vrt, vra, vrb)
 #define vsldoi(vt, va, vb, sh)    vsldoi_(vt, va, vb, sh)
 #define vsr(vrt, vra, vrb)        vsr_(vrt, vra, vrb)
+#define vaddcuw(vrt, vra, vrb)    vaddcuw_(vrt, vra, vrb)
 #define vadduwm(vrt, vra, vrb)    vadduwm_(vrt, vra, vrb)
 #define vsububm(vrt, vra, vrb)    vsububm_(vrt, vra, vrb)
 #define vsubuwm(vrt, vra, vrb)    vsubuwm_(vrt, vra, vrb)
@@ -2225,6 +2407,7 @@ int br_ssl_choose_hash(unsigned bf);
 
 #define label(foo)                #foo "%=:\n"
 #define bdnz_(foo)                "\tbdnz\t" #foo "%=\n"
+#define bdz_(foo)                 "\tbdz\t" #foo "%=\n"
 #define beq_(foo)                 "\tbeq\t" #foo "%=\n"
 
 #define li_(rx, value)            "\tli\t" #rx "," #value "\n"
@@ -2243,6 +2426,7 @@ int br_ssl_choose_hash(unsigned bf);
 #define vsl_(vrt, vra, vrb)       "\tvsl\t" #vrt "," #vra "," #vrb "\n"
 #define vsldoi_(vt, va, vb, sh)   "\tvsldoi\t" #vt "," #va "," #vb "," #sh "\n"
 #define vsr_(vrt, vra, vrb)       "\tvsr\t" #vrt "," #vra "," #vrb "\n"
+#define vaddcuw_(vrt, vra, vrb)   "\tvaddcuw\t" #vrt "," #vra "," #vrb "\n"
 #define vadduwm_(vrt, vra, vrb)   "\tvadduwm\t" #vrt "," #vra "," #vrb "\n"
 #define vsububm_(vrt, vra, vrb)   "\tvsububm\t" #vrt "," #vra "," #vrb "\n"
 #define vsubuwm_(vrt, vra, vrb)   "\tvsubuwm\t" #vrt "," #vra "," #vrb "\n"
@@ -2297,8 +2481,8 @@ int br_ssl_choose_hash(unsigned bf);
 #else
 #define BR_TARGETS_X86_UP \
 	_Pragma("GCC target(\"sse2,ssse3,sse4.1,aes,pclmul\")")
-#endif
 #define BR_TARGETS_X86_DOWN
+#endif
 #pragma GCC diagnostic ignored "-Wpsabi"
 #endif
 

@@ -518,16 +518,96 @@ SPEED_EAX(AES, aes, 128, small)
 SPEED_EAX(AES, aes, 128, ct)
 SPEED_EAX(AES, aes, 128, ct64)
 SPEED_EAX(AES, aes, 128, x86ni)
+SPEED_EAX(AES, aes, 128, pwr8)
 SPEED_EAX(AES, aes, 192, big)
 SPEED_EAX(AES, aes, 192, small)
 SPEED_EAX(AES, aes, 192, ct)
 SPEED_EAX(AES, aes, 192, ct64)
 SPEED_EAX(AES, aes, 192, x86ni)
+SPEED_EAX(AES, aes, 192, pwr8)
 SPEED_EAX(AES, aes, 256, big)
 SPEED_EAX(AES, aes, 256, small)
 SPEED_EAX(AES, aes, 256, ct)
 SPEED_EAX(AES, aes, 256, ct64)
 SPEED_EAX(AES, aes, 256, x86ni)
+SPEED_EAX(AES, aes, 256, pwr8)
+
+static void
+test_speed_shake_inner(int security_level)
+{
+	unsigned char buf[8192];
+	br_shake_context sc;
+	int i;
+	long num;
+
+	memset(buf, 'D', sizeof buf);
+	br_shake_init(&sc, security_level);
+	for (i = 0; i < 10; i ++) {
+		br_shake_inject(&sc, buf, sizeof buf);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_shake_inject(&sc, buf, sizeof buf);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("SHAKE%-3d (inject)              %8.2f MB/s\n",
+				security_level,
+				((double)sizeof buf) * (double)num
+				/ (tt * 1000000.0));
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+
+	br_shake_flip(&sc);
+	for (i = 0; i < 10; i ++) {
+		br_shake_produce(&sc, buf, sizeof buf);
+	}
+
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_shake_produce(&sc, buf, sizeof buf);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("SHAKE%-3d (produce)             %8.2f MB/s\n",
+				security_level,
+				((double)sizeof buf) * (double)num
+				/ (tt * 1000000.0));
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+}
+
+static void
+test_speed_shake128(void)
+{
+	test_speed_shake_inner(128);
+}
+
+static void
+test_speed_shake256(void)
+{
+	test_speed_shake_inner(256);
+}
 
 static const unsigned char RSA_N[] = {
 	0xE9, 0xF2, 0x4A, 0x2F, 0x96, 0xDF, 0x0A, 0x23,
@@ -679,11 +759,16 @@ static const br_rsa_private_key RSA_SK = {
 
 static void
 test_speed_rsa_inner(char *name,
-	br_rsa_public fpub, br_rsa_private fpriv)
+	br_rsa_public fpub, br_rsa_private fpriv, br_rsa_keygen kgen)
 {
 	unsigned char tmp[sizeof RSA_N];
 	int i;
 	long num;
+	/*
+	br_hmac_drbg_context rng;
+	*/
+	br_aesctr_drbg_context rng;
+	const br_block_ctr_class *ictr;
 
 	memset(tmp, 'R', sizeof tmp);
 	tmp[0] = 0;
@@ -737,27 +822,96 @@ test_speed_rsa_inner(char *name,
 		}
 		num <<= 1;
 	}
+
+	if (kgen == 0) {
+		printf("%-30s KEYGEN UNAVAILABLE\n", name);
+		fflush(stdout);
+		return;
+	}
+	/*
+	br_hmac_drbg_init(&rng, &br_sha256_vtable, "RSA keygen seed", 15);
+	*/
+	ictr = br_aes_x86ni_ctr_get_vtable();
+	if (ictr == NULL) {
+		ictr = br_aes_pwr8_ctr_get_vtable();
+		if (ictr == NULL) {
+#if BR_64
+			ictr = &br_aes_ct64_ctr_vtable;
+#else
+			ictr = &br_aes_ct_ctr_vtable;
+#endif
+		}
+	}
+	br_aesctr_drbg_init(&rng, ictr, "RSA keygen seed", 15);
+
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_rsa_private_key sk;
+			unsigned char kbuf[BR_RSA_KBUF_PRIV_SIZE(1024)];
+
+			kgen(&rng.vtable, &sk, kbuf, NULL, NULL, 1024, 0);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 10.0) {
+			printf("%-30s %8.2f kgen[1024]/s\n", name,
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_rsa_private_key sk;
+			unsigned char kbuf[BR_RSA_KBUF_PRIV_SIZE(2048)];
+
+			kgen(&rng.vtable, &sk, kbuf, NULL, NULL, 2048, 0);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 10.0) {
+			printf("%-30s %8.2f kgen[2048]/s\n", name,
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
 }
 
 static void
 test_speed_rsa_i15(void)
 {
 	test_speed_rsa_inner("RSA i15",
-		&br_rsa_i15_public, &br_rsa_i15_private);
+		&br_rsa_i15_public, &br_rsa_i15_private, &br_rsa_i15_keygen);
 }
 
 static void
 test_speed_rsa_i31(void)
 {
 	test_speed_rsa_inner("RSA i31",
-		&br_rsa_i31_public, &br_rsa_i31_private);
+		&br_rsa_i31_public, &br_rsa_i31_private, &br_rsa_i31_keygen);
 }
 
 static void
 test_speed_rsa_i32(void)
 {
 	test_speed_rsa_inner("RSA i32",
-		&br_rsa_i32_public, &br_rsa_i32_private);
+		&br_rsa_i32_public, &br_rsa_i32_private, 0);
 }
 
 static void
@@ -765,11 +919,13 @@ test_speed_rsa_i62(void)
 {
 	br_rsa_public pub;
 	br_rsa_private priv;
+	br_rsa_keygen kgen;
 
 	pub = br_rsa_i62_public_get();
 	priv = br_rsa_i62_private_get();
+	kgen = br_rsa_i62_keygen_get();
 	if (pub) {
-		test_speed_rsa_inner("RSA i62", pub, priv);
+		test_speed_rsa_inner("RSA i62", pub, priv, kgen);
 	} else {
 		printf("%-30s UNAVAILABLE\n", "RSA i62");
 	}
@@ -1080,7 +1236,7 @@ test_speed_i31(void)
 	};
 
 	unsigned char tmp[60 + sizeof bp];
-	uint32_t p[10], x[10], y[10], z[10], p0i;
+	uint32_t p[10], x[10], y[10], z[10], uu[30], p0i;
 	int i;
 	long num;
 
@@ -1156,6 +1312,30 @@ test_speed_i31(void)
 		tt = (double)(end - begin) / CLOCKS_PER_SEC;
 		if (tt >= 2.0) {
 			printf("%-30s %8.2f ops/s\n", "i31 montymul",
+				(double)num / tt);
+			fflush(stdout);
+			break;
+		}
+		num <<= 1;
+	}
+
+	for (i = 0; i < 10; i ++) {
+		br_i31_moddiv(x, y, p, p0i, uu);
+	}
+	num = 10;
+	for (;;) {
+		clock_t begin, end;
+		double tt;
+		long k;
+
+		begin = clock();
+		for (k = num; k > 0; k --) {
+			br_i31_moddiv(x, y, p, p0i, uu);
+		}
+		end = clock();
+		tt = (double)(end - begin) / CLOCKS_PER_SEC;
+		if (tt >= 2.0) {
+			printf("%-30s %8.2f ops/s\n", "i31 moddiv",
 				(double)num / tt);
 			fflush(stdout);
 			break;
@@ -1401,6 +1581,12 @@ static const struct {
 	STU(eax_aes128_x86ni),
 	STU(eax_aes192_x86ni),
 	STU(eax_aes256_x86ni),
+	STU(eax_aes128_pwr8),
+	STU(eax_aes192_pwr8),
+	STU(eax_aes256_pwr8),
+
+	STU(shake128),
+	STU(shake256),
 
 	STU(rsa_i15),
 	STU(rsa_i31),

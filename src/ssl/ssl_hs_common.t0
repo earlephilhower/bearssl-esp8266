@@ -771,6 +771,10 @@ cc: mkrand ( addr len -- ) {
 \       3  AES-128/GCM
 \       4  AES-256/GCM
 \       5  ChaCha20/Poly1305
+\       6  AES-128/CCM
+\       7  AES-256/CCM
+\       8  AES-128/CCM8
+\       9  AES-256/CCM8
 \ -- MAC algorithm:
 \       0  none         (for suites with AEAD encryption)
 \       2  HMAC/SHA-1
@@ -824,6 +828,15 @@ hexb| C02F 1304 | \ TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 hexb| C030 1405 | \ TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
 hexb| C031 3304 | \ TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
 hexb| C032 3405 | \ TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+
+hexb| C09C 0604 | \ TLS_RSA_WITH_AES_128_CCM
+hexb| C09D 0704 | \ TLS_RSA_WITH_AES_256_CCM
+hexb| C0A0 0804 | \ TLS_RSA_WITH_AES_128_CCM_8
+hexb| C0A1 0904 | \ TLS_RSA_WITH_AES_256_CCM_8
+hexb| C0AC 2604 | \ TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+hexb| C0AD 2704 | \ TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+hexb| C0AE 2804 | \ TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+hexb| C0AF 2904 | \ TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
 
 hexb| CCA8 1504 | \ TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 hexb| CCA9 2504 | \ TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
@@ -964,7 +977,31 @@ hexb| 0000 | \ List terminator.
 			then
 		endof
 
-		ERR_BAD_PARAM fail
+		\ Now we only have AES/CCM suites (6 to 9). Since the
+		\ input is between 0 and 15, and we checked values 0 to 5,
+		\ we only need to reject values larger than 9.
+		dup 9 > if
+			ERR_BAD_PARAM fail
+		then
+
+		\ Stack: is_client prf_id mac_id cipher_id
+		\ We want to remove the mac_id (it is zero for CCM suites)
+		\ and replace the cipher_id with the key and tag lengths.
+		\ The following table applies:
+		\  id   key length   tag length
+		\   6       16          16
+		\   7       32          16
+		\   8       16           8
+		\   9       32           8
+		swap drop
+		dup 1 and 4 << 16 + swap
+		8 and 16 swap -
+		for-input if
+			switch-aesccm-in
+		else
+			switch-aesccm-out
+		then
+		ret
 	endcase
 	;
 
@@ -1030,6 +1067,30 @@ cc: switch-chapol-in ( is_client prf_id -- ) {
 	prf_id = T0_POP();
 	is_client = T0_POP();
 	br_ssl_engine_switch_chapol_in(ENG, is_client, prf_id);
+}
+
+cc: switch-aesccm-out ( is_client prf_id cipher_key_len tag_len -- ) {
+	int is_client, prf_id;
+	unsigned cipher_key_len, tag_len;
+
+	tag_len = T0_POP();
+	cipher_key_len = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_ccm_out(ENG, is_client, prf_id,
+		ENG->iaes_ctrcbc, cipher_key_len, tag_len);
+}
+
+cc: switch-aesccm-in ( is_client prf_id cipher_key_len tag_len -- ) {
+	int is_client, prf_id;
+	unsigned cipher_key_len, tag_len;
+
+	tag_len = T0_POP();
+	cipher_key_len = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_ccm_in(ENG, is_client, prf_id,
+		ENG->iaes_ctrcbc, cipher_key_len, tag_len);
 }
 
 \ Write Finished message.

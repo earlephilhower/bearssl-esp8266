@@ -252,12 +252,13 @@ extern const cipher_suite cipher_suites[];
 #define REQ_SHA384         0x0008   /* suite needs SHA-384 */
 #define REQ_AESCBC         0x0010   /* suite needs AES/CBC encryption */
 #define REQ_AESGCM         0x0020   /* suite needs AES/GCM encryption */
-#define REQ_CHAPOL         0x0040   /* suite needs ChaCha20+Poly1305 */
-#define REQ_3DESCBC        0x0080   /* suite needs 3DES/CBC encryption */
-#define REQ_RSAKEYX        0x0100   /* suite uses RSA key exchange */
-#define REQ_ECDHE_RSA      0x0200   /* suite uses ECDHE_RSA key exchange */
-#define REQ_ECDHE_ECDSA    0x0400   /* suite uses ECDHE_ECDSA key exchange */
-#define REQ_ECDH           0x0800   /* suite uses static ECDH key exchange */
+#define REQ_AESCCM         0x0040   /* suite needs AES/CCM encryption */
+#define REQ_CHAPOL         0x0080   /* suite needs ChaCha20+Poly1305 */
+#define REQ_3DESCBC        0x0100   /* suite needs 3DES/CBC encryption */
+#define REQ_RSAKEYX        0x0200   /* suite uses RSA key exchange */
+#define REQ_ECDHE_RSA      0x0400   /* suite uses ECDHE_RSA key exchange */
+#define REQ_ECDHE_ECDSA    0x0800   /* suite uses ECDHE_ECDSA key exchange */
+#define REQ_ECDH           0x1000   /* suite uses static ECDH key exchange */
 
 /*
  * Parse a list of cipher suite names. The names are comma-separated. If
@@ -298,9 +299,20 @@ int uses_ecdhe(unsigned suite);
 void list_names(void);
 
 /*
+ * Print out all known elliptic curve names.
+ */
+void list_curves(void);
+
+/*
  * Get the symbolic name for an elliptic curve (by ID).
  */
 const char *ec_curve_name(int curve);
+
+/*
+ * Get a curve by symbolic name. If the name is not recognized, -1 is
+ * returned.
+ */
+int get_curve_by_name(const char *str);
 
 /*
  * Get the symbolic name for a hash function name (by ID).

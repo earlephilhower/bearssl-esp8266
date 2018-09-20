@@ -174,13 +174,21 @@ cc: read8-native ( -- x ) {
 
 \ Convert a Base64 character to its numerical value. Returned value is
 \ 0 to 63 for Base64 characters, -1 for '=', and -2 for all other characters.
-: from-base64 ( char -- x )
-	dup dup `A >= swap `Z <= and if 65 - ret then
-	dup dup `a >= swap `z <= and if 71 - ret then
-	dup dup `0 >= swap `9 <= and if 4 + ret then
-	dup `+ = if drop 62 ret then
-	dup `/ = if drop 63 ret then
-	`= <> 1- ;
+cc: from-base64 ( char -- x ) {
+	uint32_t c = T0_POP();
+	uint32_t p, q, r, z;
+	p = c - 0x41;
+	q = c - 0x61;
+	r = c - 0x30;
+
+	z = ((p + 2) & -LT(p, 26))
+		| ((q + 28) & -LT(q, 26))
+		| ((r + 54) & -LT(r, 10))
+		| (64 & -EQ(c, 0x2B))
+		| (65 & -EQ(c, 0x2F))
+		| EQ(c, 0x3D);
+	T0_PUSHi((int32_t)z - 2);
+}
 
 \ Test whether a character is whitespace (but not a newline).
 : ws? ( x -- bool )

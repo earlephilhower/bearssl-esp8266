@@ -5,15 +5,16 @@ The most up-to-date documentation is supposed to be available on the
 
 # Disclaimer
 
-BearSSL is for now considered alpha-level software. This means that it
-probably still has some bugs, possibly very serious ones (e.g. buffer
-overflows -- one of the perks of using C as programming language). It
-still lacks some functionalities. The API will probably change and may
-break both source and binary compatibility.
+BearSSL is considered beta-level software. Most planned functionalities
+are implemented; new evolution may still break both source and binary
+compatibility.
 
-In other words, you would be quite mad to use it for any production
-purpose. Right now, this is for learning, testing and possibly
-contributing.
+Using BearSSL for production purposes would be a relatively bold but not
+utterly crazy move. BearSSL is free, open-source software, provided
+without any guarantee of fitness or reliability. That being said, it
+appears to behave properly, and only minor issues have been found (and
+fixed) so far. You are encourage to inspect its API and code for
+learning, testing and possibly contributing.
 
 The usage license is explicited in the `LICENSE.txt` file. This is the
 "MIT license". It can be summarised in the following way:
