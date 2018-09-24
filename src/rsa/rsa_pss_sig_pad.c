@@ -31,10 +31,8 @@ br_rsa_pss_sig_pad(const br_prng_class **rng,
 	const unsigned char *hash, size_t salt_len,
 	uint32_t n_bitlen, unsigned char *x)
 {
-	STACK_PROXY_ENTER();
 	size_t xlen, hash_len;
-	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
-	//br_hash_compat_context hc;
+	br_hash_compat_context hc;
 	unsigned char *salt, *seed;
 
 	hash_len = br_digest_size(hf_data);
@@ -58,7 +56,6 @@ br_rsa_pss_sig_pad(const br_prng_class **rng,
 	if (hash_len > xlen || salt_len > xlen
 		|| (hash_len + salt_len + 2) > xlen)
 	{
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -74,12 +71,12 @@ br_rsa_pss_sig_pad(const br_prng_class **rng,
 	 * Compute the seed for MGF1.
 	 */
 	seed = x + xlen - hash_len - 1;
-	hf_data->init(&hc->vtable);
+	hf_data->init(&hc.vtable);
 	memset(seed, 0, 8);
-	hf_data->update(&hc->vtable, seed, 8);
-	hf_data->update(&hc->vtable, hash, hash_len);
-	hf_data->update(&hc->vtable, salt, salt_len);
-	hf_data->out(&hc->vtable, seed);
+	hf_data->update(&hc.vtable, seed, 8);
+	hf_data->update(&hc.vtable, hash, hash_len);
+	hf_data->update(&hc.vtable, salt, salt_len);
+	hf_data->out(&hc.vtable, seed);
 
 	/*
 	 * Prepare string PS (padded salt). The salt is already at the
@@ -105,6 +102,5 @@ br_rsa_pss_sig_pad(const br_prng_class **rng,
 	 */
 	x[xlen - 1] = 0xBC;
 
-	STACK_PROXY_EXIT();
 	return 1;
 }

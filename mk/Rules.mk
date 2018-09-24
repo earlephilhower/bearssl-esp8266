@@ -291,8 +291,7 @@ OBJ = \
  $(OBJDIR)$Px509_decoder$O \
  $(OBJDIR)$Px509_knownkey$O \
  $(OBJDIR)$Px509_minimal$O \
- $(OBJDIR)$Px509_minimal_full$O \
- $(OBJDIR)$Pesp8266_stack_proxy$O
+ $(OBJDIR)$Px509_minimal_full$O
 OBJBRSSL = \
  $(OBJDIR)$Pbrssl$O \
  $(OBJDIR)$Pcerts$O \
@@ -1246,9 +1245,6 @@ $(OBJDIR)$Px509_minimal$O: src$Px509$Px509_minimal.c $(HEADERSPRIV)
 
 $(OBJDIR)$Px509_minimal_full$O: src$Px509$Px509_minimal_full.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Px509_minimal_full$O src$Px509$Px509_minimal_full.c
-
-$(OBJDIR)$Pesp8266_stack_proxy$O: src$Pport$Pesp8266_stack_proxy.c $(HEADERSPRIV)
-	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pesp8266_stack_proxy$O src$Pport$Pesp8266_stack_proxy.c
 
 $(OBJDIR)$Pbrssl$O: tools$Pbrssl.c $(HEADERSTOOLS)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pbrssl$O tools$Pbrssl.c

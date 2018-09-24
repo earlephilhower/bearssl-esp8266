@@ -2568,27 +2568,13 @@ br_cpuid(uint32_t mask_eax, uint32_t mask_ebx,
 
   #define _debugBearSSL (0)
   extern void optimistic_yield(uint32_t);
-  extern void br_stack_proxy_enter();
-  extern void *br_stack_proxy_alloc(size_t bytes);
-  extern void br_stack_proxy_exit();
   extern void _BearSSLCheckStack(const char *fcn, const char *file, int line);
-  extern void _BearSSLSerialPrint(const char *a);
-  #include <stdio.h>
-  #define STACK_PROXY_ENTER() { if (_debugBearSSL) { char b[64]; sprintf(b, "ENTER:%s:%s\n", __FILE__, __FUNCTION__ ); _BearSSLSerialPrint(b); } br_stack_proxy_enter(); }
-  #define STACK_PROXY_EXIT()  { if (_debugBearSSL) { char b[64]; sprintf(b, "EXIT: %s:%s\n", __FILE__, __FUNCTION__ ); _BearSSLSerialPrint(b); } br_stack_proxy_exit();  }
-  #define STACK_PROXY_ALLOC(type, name, count) \
-		type *name = (type *)br_stack_proxy_alloc(sizeof(type) * (count));\
-		if (!name) name = (type *)alloca(sizeof(type) * (count)); 
   #define dumpstack() if (_debugBearSSL) _BearSSLCheckStack(__FUNCTION__, __FILE__, __LINE__); else {}
-
   #ifdef __cplusplus
   }
   #endif
 
 #else
-  #define STACK_PROXY_ENTER()
-  #define STACK_PROXY_EXIT()
-  #define STACK_PROXY_ALLOC(type, name, count) type name[count]
   #define dumpstack()
   #define optimistic_yield(ignored)
 #endif
