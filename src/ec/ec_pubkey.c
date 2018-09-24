@@ -73,11 +73,7 @@ br_ec_compute_pub(const br_ec_impl *impl, br_ec_public_key *pk,
 		return 0;
 	}
 	if (kbuf == NULL) {
-#ifdef ESP8266
 		return pgm_read_byte(&POINT_LEN[curve]);
-#else
-		return POINT_LEN[curve];
-#endif
 	}
 	len = impl->mulgen(kbuf, sk->x, sk->xlen, curve);
 	if (pk != NULL) {

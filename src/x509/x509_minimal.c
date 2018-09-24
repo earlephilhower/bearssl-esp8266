@@ -2,9 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#ifdef ESP8266
-	#include <pgmspace.h>
-#endif
+#include <pgmspace.h>
 
 typedef struct {
 	uint32_t *dp;
@@ -21,11 +19,7 @@ t0_parse7E_unsigned(const unsigned char **p)
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			return x;
@@ -39,20 +33,12 @@ t0_parse7E_signed(const unsigned char **p)
 	int neg;
 	uint32_t x;
 
-#ifdef ESP8266
 	neg = (pgm_read_byte(*p) >> 6) & 1;
-#else
-	neg = ((**p) >> 6) & 1;
-#endif
 	x = (uint32_t)-neg;
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			if (neg) {
@@ -506,11 +492,7 @@ static int check_single_trust_anchor_CA(br_x509_minimal_context *ctx,
 
 
 
-#ifdef ESP8266
 static const unsigned char t0_datablock[] PROGMEM = {
-#else
-static const unsigned char t0_datablock[] = {
-#endif
 
 	0x00, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x09,
 	0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x05, 0x09, 0x2A, 0x86,
@@ -539,11 +521,8 @@ static const unsigned char t0_datablock[] = {
 	0x01, 0x01, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x01, 0x0B
 };
 
-#ifdef ESP8266
 static const unsigned char t0_codeblock[] PROGMEM = {
-#else
-static const unsigned char t0_codeblock[] = {
-#endif
+
 	0x00, 0x01, 0x00, 0x0D, 0x00, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x01,
 	0x00, 0x11, 0x00, 0x00, 0x01, 0x01, 0x09, 0x00, 0x00, 0x01, 0x01, 0x0A,
 	0x00, 0x00, 0x24, 0x24, 0x00, 0x00, 0x01,
@@ -807,11 +786,8 @@ static const unsigned char t0_codeblock[] = {
 	0x83, 0xFF, 0x7F, 0x15, 0x01, 0x83, 0xFF, 0x7E, 0x0D, 0x00
 };
 
-#ifdef ESP8266
 static const uint16_t t0_caddr[] PROGMEM = {
-#else
-static const uint16_t t0_caddr[] = {
-#endif
+
 	0,
 	5,
 	10,
@@ -958,7 +934,6 @@ static const uint16_t t0_caddr[] = {
 
 #define T0_INTERPRETED   61
 
-#ifdef ESP8266
 #define T0_ENTER(ip, rp, slot)   do { \
 		const unsigned char *t0_newip; \
 		uint32_t t0_lnum; \
@@ -968,17 +943,6 @@ static const uint16_t t0_caddr[] = {
 		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
 		(ip) = t0_newip; \
 	} while (0)
-#else
-#define T0_ENTER(ip, rp, slot)   do { \
-		const unsigned char *t0_newip; \
-		uint32_t t0_lnum; \
-		t0_newip = &t0_codeblock[t0_caddr[(slot) - T0_INTERPRETED]]; \
-		t0_lnum = t0_parse7E_unsigned(&t0_newip); \
-		(rp) += t0_lnum; \
-		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
-		(ip) = t0_newip; \
-	} while (0)
-#endif
 
 #define T0_DEFENTRY(name, slot) \
 void \
@@ -991,11 +955,7 @@ name(void *ctx) \
 
 T0_DEFENTRY(br_x509_minimal_init_main, 147)
 
-#ifdef ESP8266
 #define T0_NEXT(t0ipp)   (pgm_read_byte((*t0ipp)++))
-#else
-#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)
-#endif
 
 void
 br_x509_minimal_run(void *t0ctx)
@@ -1413,11 +1373,7 @@ br_x509_minimal_run(void *t0ctx)
 				/* data-get8 */
 
 	size_t addr = T0_POP();
-#ifdef ESP8266
 	T0_PUSH(pgm_read_byte(&t0_datablock[addr]));
-#else
-	T0_PUSH(t0_datablock[addr]);
-#endif
 
 				}
 				break;
@@ -1476,19 +1432,11 @@ br_x509_minimal_run(void *t0ctx)
 	const unsigned char *a1 = &CTX->pad[0];
 	size_t len = a1[0];
 	int x;
-#ifdef ESP8266
 	if (len == pgm_read_byte(&a2[0])) {
 		x = -(memcmp_P(a1 + 1, a2 + 1, len) == 0);
 	} else {
 		x = 0;
 	}
-#else
-	if (len == a2[0]) {
-		x = -(memcmp(a1 + 1, a2 + 1, len) == 0);
-	} else {
-		x = 0;
-	}
-#endif
 	T0_PUSH((uint32_t)x);
 
 				}
@@ -1798,11 +1746,7 @@ verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
 		if (ctx->irsa == 0) {
 			return BR_ERR_X509_UNSUPPORTED;
 		}
-#ifdef ESP8266
 		memcpy_P(tmp2, &t0_datablock[ctx->cert_sig_hash_oid], ctx->cert_sig_hash_len);
-#else
-		memcpy(tmp2, &t0_datablock[ctx->cert_sig_hash_oid], ctx->cert_sig_hash_len);
-#endif
 		if (!ctx->irsa(ctx->cert_sig, ctx->cert_sig_len,
 			tmp2, //&t0_datablock[ctx->cert_sig_hash_oid],
 			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))

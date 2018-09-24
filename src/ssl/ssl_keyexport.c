@@ -71,11 +71,7 @@ br_ssl_key_export(br_ssl_engine_context *cc,
 	}
 	prf_id = BR_SSLPRF_SHA256;
 	for (u = 0; u < (sizeof suites_sha384) / sizeof(uint16_t); u ++) {
-#ifdef ESP8266
 		if (pgm_read_word(&suites_sha384[u]) == cc->session.cipher_suite) {
-#else
-		if (suites_sha384[u] == cc->session.cipher_suite) {
-#endif
 			prf_id = BR_SSLPRF_SHA384;
 		}
 	}

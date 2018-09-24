@@ -473,11 +473,7 @@ run_code(jacobian *P1, const jacobian *P2,
 	for (u = 0;; u ++) {
 		unsigned op, d, a, b;
 
-#ifdef ESP8266
 		op = pgm_read_word(&code[u]);
-#else
-		op = code[u];
-#endif
 		if (op == 0) {
 			break;
 		}

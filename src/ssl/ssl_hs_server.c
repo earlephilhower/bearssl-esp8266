@@ -2,9 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#ifdef ESP8266
-	#include <pgmspace.h>
-#endif
+#include <pgmspace.h>
 
 typedef struct {
 	uint32_t *dp;
@@ -21,11 +19,7 @@ t0_parse7E_unsigned(const unsigned char **p)
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			return x;
@@ -39,20 +33,12 @@ t0_parse7E_signed(const unsigned char **p)
 	int neg;
 	uint32_t x;
 
-#ifdef ESP8266
 	neg = (pgm_read_byte(*p) >> 6) & 1;
-#else
-	neg = ((**p) >> 6) & 1;
-#endif
 	x = (uint32_t)-neg;
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			if (neg) {
@@ -408,20 +394,14 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 	pk = (*xc)->get_pkey(xc, NULL);
 	if (pk->key_type == BR_KEYTYPE_RSA) {
 		unsigned char tmp[64];
-#ifdef ESP8266
 		unsigned char hash_oid_ram[10];
-#endif
 		const unsigned char *hash_oid;
 
 		if (id == 0) {
 			hash_oid = NULL;
 		} else {
-#ifdef ESP8266
 			memcpy_P(hash_oid_ram, HASH_OID[id - 2], sizeof(HASH_OID[0]));
 			hash_oid = hash_oid_ram;
-#else
-			hash_oid = HASH_OID[id - 2];
-#endif
 		}
 		if (ctx->eng.irsavrfy == 0) {
 			return BR_ERR_BAD_SIGNATURE;
@@ -448,11 +428,7 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 
 
 
-#ifdef ESP8266
 static const unsigned char t0_datablock[] PROGMEM = {
-#else
-static const unsigned char t0_datablock[] = {
-#endif
 
 	0x00, 0x00, 0x0A, 0x00, 0x24, 0x00, 0x2F, 0x01, 0x24, 0x00, 0x35, 0x02,
 	0x24, 0x00, 0x3C, 0x01, 0x44, 0x00, 0x3D, 0x02, 0x44, 0x00, 0x9C, 0x03,
@@ -472,11 +448,8 @@ static const unsigned char t0_datablock[] = {
 	0x04, 0x00, 0x00
 };
 
-#ifdef ESP8266
 static const unsigned char t0_codeblock[] PROGMEM = {
-#else
-static const unsigned char t0_codeblock[] = {
-#endif
+
 	0x00, 0x01, 0x00, 0x0B, 0x00, 0x00, 0x01, 0x00, 0x0E, 0x00, 0x00, 0x01,
 	0x00, 0x0F, 0x00, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x01, 0x01, 0x08,
 	0x00, 0x00, 0x01, 0x01, 0x09, 0x00, 0x00, 0x01, 0x02, 0x08, 0x00, 0x00,
@@ -802,11 +775,8 @@ static const unsigned char t0_codeblock[] = {
 	0xCF, 0x29, 0x04, 0x76
 };
 
-#ifdef ESP8266
 static const uint16_t t0_caddr[] PROGMEM = {
-#else
-static const uint16_t t0_caddr[] = {
-#endif
+
 	0,
 	5,
 	10,
@@ -945,7 +915,6 @@ static const uint16_t t0_caddr[] = {
 
 #define T0_INTERPRETED   93
 
-#ifdef ESP8266
 #define T0_ENTER(ip, rp, slot)   do { \
 		const unsigned char *t0_newip; \
 		uint32_t t0_lnum; \
@@ -955,17 +924,6 @@ static const uint16_t t0_caddr[] = {
 		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
 		(ip) = t0_newip; \
 	} while (0)
-#else
-#define T0_ENTER(ip, rp, slot)   do { \
-		const unsigned char *t0_newip; \
-		uint32_t t0_lnum; \
-		t0_newip = &t0_codeblock[t0_caddr[(slot) - T0_INTERPRETED]]; \
-		t0_lnum = t0_parse7E_unsigned(&t0_newip); \
-		(rp) += t0_lnum; \
-		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
-		(ip) = t0_newip; \
-	} while (0)
-#endif
 
 #define T0_DEFENTRY(name, slot) \
 void \
@@ -978,11 +936,7 @@ name(void *ctx) \
 
 T0_DEFENTRY(br_ssl_hs_server_init_main, 166)
 
-#ifdef ESP8266
 #define T0_NEXT(t0ipp)   (pgm_read_byte((*t0ipp)++))
-#else
-#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)
-#endif
 
 void
 br_ssl_hs_server_run(void *t0ctx)
@@ -1332,11 +1286,7 @@ br_ssl_hs_server_run(void *t0ctx)
 	if (clen > sizeof ENG->pad) {
 		clen = sizeof ENG->pad;
 	}
-#ifdef ESP8266
 	memcpy_P(ENG->pad, ENG->cert_cur, clen);
-#else
-	memcpy(ENG->pad, ENG->cert_cur, clen);
-#endif
 	ENG->cert_cur += clen;
 	ENG->cert_len -= clen;
 	T0_PUSH(clen);
@@ -1397,11 +1347,7 @@ br_ssl_hs_server_run(void *t0ctx)
 				/* data-get8 */
 
 	size_t addr = T0_POP();
-#ifdef ESP8266
 	T0_PUSH(pgm_read_byte(&t0_datablock[addr]));
-#else
-	T0_PUSH(t0_datablock[addr]);
-#endif
 
 				}
 				break;
@@ -1618,11 +1564,7 @@ br_ssl_hs_server_run(void *t0ctx)
 		if ((size_t)len < clen) {
 			clen = (size_t)len;
 		}
-#ifdef ESP8266
 		memcpy_P((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
-#else
-		memcpy((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
-#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, ENG->hbuf_in, clen);
 		}
@@ -1640,11 +1582,7 @@ br_ssl_hs_server_run(void *t0ctx)
 	if (ENG->hlen_in > 0) {
 		unsigned char x;
 
-#ifdef ESP8266
 		x = pgm_read_byte(ENG->hbuf_in ++);
-#else
-		x = *ENG->hbuf_in ++;
-#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, &x, 1);
 		}

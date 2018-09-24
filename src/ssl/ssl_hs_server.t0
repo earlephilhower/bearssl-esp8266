@@ -338,20 +338,14 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 	pk = (*xc)->get_pkey(xc, NULL);
 	if (pk->key_type == BR_KEYTYPE_RSA) {
 		unsigned char tmp[64];
-#ifdef ESP8266
 		unsigned char hash_oid_ram[10];
-#endif
 		const unsigned char *hash_oid;
 
 		if (id == 0) {
 			hash_oid = NULL;
 		} else {
-#ifdef ESP8266
 			memcpy_P(hash_oid_ram, HASH_OID[id - 2], sizeof(HASH_OID[0]));
 			hash_oid = hash_oid_ram;
-#else
-			hash_oid = HASH_OID[id - 2];
-#endif
 		}
 		if (ctx->eng.irsavrfy == 0) {
 			return BR_ERR_BAD_SIGNATURE;

@@ -465,11 +465,7 @@ verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
 		if (ctx->irsa == 0) {
 			return BR_ERR_X509_UNSUPPORTED;
 		}
-#ifdef ESP8266
 		memcpy_P(tmp2, &t0_datablock[ctx->cert_sig_hash_oid], ctx->cert_sig_hash_len);
-#else
-		memcpy(tmp2, &t0_datablock[ctx->cert_sig_hash_oid], ctx->cert_sig_hash_len);
-#endif
 		if (!ctx->irsa(ctx->cert_sig, ctx->cert_sig_len,
 			tmp2, //&t0_datablock[ctx->cert_sig_hash_oid],
 			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))
