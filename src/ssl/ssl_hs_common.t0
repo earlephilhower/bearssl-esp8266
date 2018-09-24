@@ -1119,9 +1119,7 @@ cc: switch-aesccm-in ( is_client prf_id cipher_key_len tag_len -- ) {
 cc: compute-Finished-inner ( from_client prf_id -- ) {
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-//	unsigned char tmp[48];
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(unsigned char, tmp, 48);
+	unsigned char tmp[48];
 	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
@@ -1137,7 +1135,6 @@ cc: compute-Finished-inner ( from_client prf_id -- ) {
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
 		1, &seed);
-	STACK_PROXY_EXIT();
 }
 
 \ Receive ChangeCipherSpec and Finished from the peer.

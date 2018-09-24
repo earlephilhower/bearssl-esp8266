@@ -1272,9 +1272,7 @@ br_ssl_hs_client_run(void *t0ctx)
 
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-//	unsigned char tmp[48];
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(unsigned char, tmp, 48);
+	unsigned char tmp[48];
 	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
@@ -1290,7 +1288,6 @@ br_ssl_hs_client_run(void *t0ctx)
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
 		1, &seed);
-	STACK_PROXY_EXIT();
 
 				}
 				break;
