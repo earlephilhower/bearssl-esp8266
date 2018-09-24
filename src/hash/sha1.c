@@ -45,9 +45,7 @@ const uint32_t br_sha1_IV[5] PROGMEM = {
 void
 br_sha1_round(const unsigned char *buf, uint32_t *val)
 {
-	STACK_PROXY_ENTER();
-//	uint32_t m[80];
-	STACK_PROXY_ALLOC(uint32_t, m, 80);
+	uint32_t m[80];
 	uint32_t a, b, c, d, e;
 	int i;
 
@@ -96,7 +94,6 @@ br_sha1_round(const unsigned char *buf, uint32_t *val)
 	val[2] += c;
 	val[3] += d;
 	val[4] += e;
-	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */
@@ -140,9 +137,7 @@ br_sha1_update(br_sha1_context *cc, const void *data, size_t len)
 void
 br_sha1_out(const br_sha1_context *cc, void *dst)
 {
-	STACK_PROXY_ENTER();
-//	unsigned char buf[64];
-	STACK_PROXY_ALLOC(unsigned char, buf, 64);
+	unsigned char buf[64];
 	uint32_t val[5];
 	size_t ptr;
 
@@ -160,7 +155,6 @@ br_sha1_out(const br_sha1_context *cc, void *dst)
 	br_enc64be(buf + 56, cc->count << 3);
 	br_sha1_round(buf, val);
 	br_range_enc32be(dst, val, 5);
-	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */
