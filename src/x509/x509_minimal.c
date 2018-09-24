@@ -287,7 +287,6 @@ xm_start_cert(const br_x509_class **ctx, uint32_t length)
 static void
 xm_append(const br_x509_class **ctx, const unsigned char *buf, size_t len)
 {
-	dumpstack();
 	br_x509_minimal_context *cc;
 
 	cc = (br_x509_minimal_context *)(void *)ctx;
@@ -1241,9 +1240,7 @@ br_x509_minimal_run(void *t0ctx)
 
 	size_t u;
 	const br_x509_trust_anchor *ta;
-//	unsigned char hashed_DN[64];
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(unsigned char, hashed_DN, 64);
+	unsigned char hashed_DN[64];
 
 	for (u = 0; u < CTX->trust_anchors_num; u ++) {
 		ta = &CTX->trust_anchors[u];
@@ -1253,7 +1250,6 @@ br_x509_minimal_run(void *t0ctx)
 			 * Direct trust match!
 			 */
 			CTX->err = BR_ERR_X509_OK;
-			STACK_PROXY_EXIT();
 			T0_CO();
 		}
 	}
@@ -1270,12 +1266,10 @@ br_x509_minimal_run(void *t0ctx)
 				 * Direct trust match!
 				 */
 				CTX->err = BR_ERR_X509_OK;
-				STACK_PROXY_EXIT();
 				T0_CO();
 			}
 		}
 	}
-	STACK_PROXY_EXIT();
 
 				}
 				break;
@@ -1284,16 +1278,13 @@ br_x509_minimal_run(void *t0ctx)
 
 	size_t u;
 	const br_x509_trust_anchor *ta;
-//	unsigned char hashed_DN[64];
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(unsigned char, hashed_DN, 64);
+	unsigned char hashed_DN[64];
 
 	for (u = 0; u < CTX->trust_anchors_num; u ++) {
 		ta = &CTX->trust_anchors[u];
 		hash_dn(CTX, ta->dn.data, ta->dn.len, hashed_DN);
 		if (check_single_trust_anchor_CA(CTX, hashed_DN, ta)) {
 			CTX->err = BR_ERR_X509_OK;
-			STACK_PROXY_EXIT();
 			T0_CO();
 		}
 	}
@@ -1308,13 +1299,11 @@ br_x509_minimal_run(void *t0ctx)
 			}
 			if (ret) {
 				CTX->err = BR_ERR_X509_OK;
-				STACK_PROXY_EXIT();
 				T0_CO();
 			}
 		}
 
 	}
-	STACK_PROXY_EXIT();
 
 				}
 				break;
@@ -1795,24 +1784,18 @@ t0_exit:
 static int
 verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
-//	unsigned char tmp[64];
-	STACK_PROXY_ALLOC(unsigned char, tmp, 64);
-	// TODO - verify the exact maximum len of the cert_sig_hash_oid
-	STACK_PROXY_ALLOC(unsigned char, tmp2, 64);
+	unsigned char tmp[64];
+	unsigned char tmp2[64];
 	int kt;
 
 	kt = ctx->cert_signer_key_type;
 	if ((pk->key_type & 0x0F) != kt) {
-		STACK_PROXY_EXIT();
 		return BR_ERR_X509_WRONG_KEY_TYPE;
 	}
 	switch (kt) {
 
 	case BR_KEYTYPE_RSA:
 		if (ctx->irsa == 0) {
-			STACK_PROXY_EXIT();
 			return BR_ERR_X509_UNSUPPORTED;
 		}
 #ifdef ESP8266
@@ -1824,33 +1807,26 @@ verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
 			tmp2, //&t0_datablock[ctx->cert_sig_hash_oid],
 			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_X509_BAD_SIGNATURE;
 		}
 		if (memcmp(ctx->tbs_hash, tmp, ctx->cert_sig_hash_len) != 0) {
-			STACK_PROXY_EXIT();
 			return BR_ERR_X509_BAD_SIGNATURE;
 		}
-		STACK_PROXY_EXIT();
 		return 0;
 
 	case BR_KEYTYPE_EC:
 		if (ctx->iecdsa == 0) {
-			STACK_PROXY_EXIT();
 			return BR_ERR_X509_UNSUPPORTED;
 		}
 		if (!ctx->iecdsa(ctx->iec, ctx->tbs_hash,
 			ctx->cert_sig_hash_len, &pk->key.ec,
 			ctx->cert_sig, ctx->cert_sig_len))
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_X509_BAD_SIGNATURE;
 		}
-		STACK_PROXY_EXIT();
 		return 0;
 
 	default:
-		STACK_PROXY_EXIT();
 		return BR_ERR_X509_UNSUPPORTED;
 	}
 }

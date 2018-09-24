@@ -113,10 +113,8 @@ static void
 do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *epms, size_t len)
 {
-	STACK_PROXY_ENTER();
 	uint32_t x;
-//	unsigned char rpms[48];
-	STACK_PROXY_ALLOC(unsigned char, rpms, 48);
+	unsigned char rpms[48];
 
 	/*
 	 * Decrypt the PMS.
@@ -137,7 +135,7 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	 * decryption failed. Note that we use a constant-time conditional
 	 * copy.
 	 */
-	br_hmac_drbg_generate(&ctx->eng.rng, rpms, 48 * sizeof *rpms);
+	br_hmac_drbg_generate(&ctx->eng.rng, rpms, sizeof rpms);
 	br_ccopy(x ^ 1, epms, rpms, sizeof rpms);
 
 	/*
@@ -150,7 +148,6 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	 * in the context, hence potentially long-lived.
 	 */
 	memset(epms, 0, len);
-	STACK_PROXY_EXIT();
 }
 
 /*
@@ -160,12 +157,10 @@ static void
 ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *xcoor, size_t xcoor_len, uint32_t ctl)
 {
-	STACK_PROXY_ENTER();
-//	unsigned char rpms[80];
-	STACK_PROXY_ALLOC(unsigned char, rpms, 80);
+	unsigned char rpms[80];
 
-	if (xcoor_len > 80 * sizeof *rpms) {
-		xcoor_len = 80 * sizeof *rpms;
+	if (xcoor_len > sizeof rpms) {
+		xcoor_len = sizeof rpms;
 		ctl = 0;
 	}
 
@@ -187,7 +182,6 @@ ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	 * in the context, hence potentially long-lived.
 	 */
 	memset(xcoor, 0, xcoor_len);
-	STACK_PROXY_EXIT();
 }
 
 /*
@@ -216,10 +210,7 @@ do_ecdh(br_ssl_server_context *ctx, int prf_id,
 static void
 do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
-//	unsigned char cpoint[133];
-	STACK_PROXY_ALLOC(unsigned char, cpoint, 133);
+	unsigned char cpoint[133];
 	size_t cpoint_len;
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
@@ -227,7 +218,7 @@ do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	cpoint_len = pk->key.ec.qlen;
-	if (cpoint_len > 133 * sizeof *cpoint) {
+	if (cpoint_len > sizeof cpoint) {
 		/*
 		 * If the point is larger than our buffer then we need to
 		 * restrict it. Length 2 is not a valid point length, so
@@ -237,54 +228,44 @@ do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 	}
 	memcpy(cpoint, pk->key.ec.q, cpoint_len);
 	do_ecdh(ctx, prf_id, cpoint, cpoint_len);
-	STACK_PROXY_EXIT();
 }
 
 static size_t
 hash_data(br_ssl_server_context *ctx,
 	void *dst, int hash_id, const void *src, size_t len)
 {
-	STACK_PROXY_ENTER();
 	const br_hash_class *hf;
-//	br_hash_compat_context hc;
-	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
+	br_hash_compat_context hc;
 
 	if (hash_id == 0) {
-//		unsigned char tmp[36];
-		STACK_PROXY_ALLOC(unsigned char, tmp, 36);
+		unsigned char tmp[36];
 
 		hf = br_multihash_getimpl(&ctx->eng.mhash, br_md5_ID);
 		if (hf == NULL) {
-			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc->vtable);
-		hf->update(&hc->vtable, src, len);
-		hf->out(&hc->vtable, tmp);
+		hf->init(&hc.vtable);
+		hf->update(&hc.vtable, src, len);
+		hf->out(&hc.vtable, tmp);
 		hf = br_multihash_getimpl(&ctx->eng.mhash, br_sha1_ID);
 		if (hf == NULL) {
-			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc->vtable);
-		hf->update(&hc->vtable, src, len);
-		hf->out(&hc->vtable, tmp + 16);
+		hf->init(&hc.vtable);
+		hf->update(&hc.vtable, src, len);
+		hf->out(&hc.vtable, tmp + 16);
 		memcpy(dst, tmp, 36);
-		STACK_PROXY_EXIT();
 		return 36;
 	} else {
 		hf = br_multihash_getimpl(&ctx->eng.mhash, hash_id);
 		if (hf == NULL) {
-			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc->vtable);
-		hf->update(&hc->vtable, src, len);
-		hf->out(&hc->vtable, dst);
-		STACK_PROXY_EXIT();
+		hf->init(&hc.vtable);
+		hf->update(&hc.vtable, src, len);
+		hf->out(&hc.vtable, dst);
 		return (hf->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK;
 	}
-	STACK_PROXY_EXIT();
 }
 
 /*
@@ -437,7 +418,7 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 		} else {
 #ifdef ESP8266
 			memcpy_P(hash_oid_ram, HASH_OID[id - 2], sizeof(HASH_OID[0]));
-			hash_oid = hash_oid_ram; //HASH_OID[id - 2];
+			hash_oid = hash_oid_ram;
 #else
 			hash_oid = HASH_OID[id - 2];
 #endif
