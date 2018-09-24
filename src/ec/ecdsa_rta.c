@@ -48,7 +48,6 @@ asn1_int_length(const unsigned char *x, size_t xlen)
 size_t
 br_ecdsa_raw_to_asn1(void *sig, size_t sig_len)
 {
-dumpstack();
 	/*
 	 * Internal buffer is large enough to accommodate a signature
 	 * such that r and s fit on 125 bytes each (signed encoding),

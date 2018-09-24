@@ -2568,14 +2568,11 @@ br_cpuid(uint32_t mask_eax, uint32_t mask_ebx,
 
   #define _debugBearSSL (0)
   extern void optimistic_yield(uint32_t);
-  extern void _BearSSLCheckStack(const char *fcn, const char *file, int line);
-  #define dumpstack() if (_debugBearSSL) _BearSSLCheckStack(__FUNCTION__, __FILE__, __LINE__); else {}
   #ifdef __cplusplus
   }
   #endif
 
 #else
-  #define dumpstack()
   #define optimistic_yield(ignored)
 #endif
 
