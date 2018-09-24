@@ -104,22 +104,20 @@ static const unsigned char SMALL_PRIMES[] PROGMEM = {
 static uint32_t
 trial_divisions(const uint16_t *x, uint16_t *t)
 {
-	STACK_PROXY_ENTER();
 	uint16_t *y;
 	uint16_t x0i;
-	STACK_PROXY_ALLOC(unsigned char, small_primes_ram, sizeof SMALL_PRIMES);
+	unsigned char small_primes_ram[sizeof SMALL_PRIMES];
 #ifdef ESP8266
 	memcpy_P(small_primes_ram, SMALL_PRIMES, sizeof SMALL_PRIMES);
 #else
 	memcpy(small_primes_ram, SMALL_PRIMES, sizeof SMALL_PRIMES);
 #endif
+
 	y = t;
 	t += 1 + ((x[0] + 15) >> 4);
 	x0i = br_i15_ninv15(x[1]);
 	br_i15_decode_reduce(y, SMALL_PRIMES, sizeof SMALL_PRIMES, x);
-	uint32_t ret = br_i15_moddiv(y, y, x, x0i, t);
-	STACK_PROXY_EXIT();
-	return ret;
+	return br_i15_moddiv(y, y, x, x0i, t);
 }
 
 /*
