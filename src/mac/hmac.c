@@ -38,10 +38,7 @@ static void
 process_key(const br_hash_class **hc, void *ks,
 	const void *key, size_t key_len, unsigned bb)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
-//	unsigned char tmp[256];
-	STACK_PROXY_ALLOC(unsigned char, tmp, 256);
+	unsigned char tmp[256];
 	size_t blen, u;
 
 	blen = block_size(*hc);
@@ -53,7 +50,6 @@ process_key(const br_hash_class **hc, void *ks,
 	(*hc)->init(hc);
 	(*hc)->update(hc, tmp, blen);
 	(*hc)->state(hc, ks);
-	STACK_PROXY_EXIT();
 }
 
 /* see bearssl.h */
@@ -61,25 +57,20 @@ void
 br_hmac_key_init(br_hmac_key_context *kc,
 	const br_hash_class *dig, const void *key, size_t key_len)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
-//	br_hash_compat_context hc;
-	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
-//	unsigned char kbuf[64];
-	STACK_PROXY_ALLOC(unsigned char, kbuf, 64);
+	br_hash_compat_context hc;
+	unsigned char kbuf[64];
 
 	kc->dig_vtable = dig;
-	hc->vtable = dig;
+	hc.vtable = dig;
 	if (key_len > block_size(dig)) {
-		dig->init(&hc->vtable);
-		dig->update(&hc->vtable, key, key_len);
-		dig->out(&hc->vtable, kbuf);
+		dig->init(&hc.vtable);
+		dig->update(&hc.vtable, key, key_len);
+		dig->out(&hc.vtable, kbuf);
 		key = kbuf;
 		key_len = br_digest_size(dig);
 	}
-	process_key(&hc->vtable, kc->ksi, key, key_len, 0x36);
-	process_key(&hc->vtable, kc->kso, key, key_len, 0x5C);
-	STACK_PROXY_EXIT();
+	process_key(&hc.vtable, kc->ksi, key, key_len, 0x36);
+	process_key(&hc.vtable, kc->kso, key, key_len, 0x5C);
 }
 
 /* see bearssl.h */
@@ -87,7 +78,6 @@ void
 br_hmac_init(br_hmac_context *ctx,
 	const br_hmac_key_context *kc, size_t out_len)
 {
-	dumpstack();
 	const br_hash_class *dig;
 	size_t blen, hlen;
 
@@ -107,7 +97,6 @@ br_hmac_init(br_hmac_context *ctx,
 void
 br_hmac_update(br_hmac_context *ctx, const void *data, size_t len)
 {
-	dumpstack();
 	ctx->dig.vtable->update(&ctx->dig.vtable, data, len);
 }
 
@@ -115,24 +104,19 @@ br_hmac_update(br_hmac_context *ctx, const void *data, size_t len)
 size_t
 br_hmac_out(const br_hmac_context *ctx, void *out)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	const br_hash_class *dig;
-//	br_hash_compat_context hc;
-	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
-//	unsigned char tmp[64];
-	STACK_PROXY_ALLOC(unsigned char, tmp, 64);
+	br_hash_compat_context hc;
+	unsigned char tmp[64];
 	size_t blen, hlen;
 
 	dig = ctx->dig.vtable;
 	dig->out(&ctx->dig.vtable, tmp);
 	blen = block_size(dig);
-	dig->init(&hc->vtable);
-	dig->set_state(&hc->vtable, ctx->kso, (uint64_t)blen);
+	dig->init(&hc.vtable);
+	dig->set_state(&hc.vtable, ctx->kso, (uint64_t)blen);
 	hlen = br_digest_size(dig);
-	dig->update(&hc->vtable, tmp, hlen);
-	dig->out(&hc->vtable, tmp);
+	dig->update(&hc.vtable, tmp, hlen);
+	dig->out(&hc.vtable, tmp);
 	memcpy(out, tmp, ctx->out_len);
-	STACK_PROXY_EXIT();
 	return ctx->out_len;
 }
