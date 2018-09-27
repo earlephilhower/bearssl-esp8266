@@ -403,7 +403,7 @@ square20(uint32_t *d, const uint32_t *a)
 
 #else
 
-static void
+/*static*/ void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
 	STACK_PROXY_ENTER();
@@ -816,7 +816,7 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	STACK_PROXY_EXIT();
 }
 
-static void
+/*static*/ void
 square20(uint32_t *d, const uint32_t *a)
 {
 	STACK_PROXY_ENTER();

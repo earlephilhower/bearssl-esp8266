@@ -359,7 +359,10 @@ square20(uint32_t *d, const uint32_t *a)
 }
 
 #else
+extern void mul20(uint32_t *d, const uint32_t *a, const uint32_t *b);
+extern void square20(uint32_t *d, const uint32_t *a);
 
+#if 0
 static void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
@@ -993,6 +996,7 @@ square20(uint32_t *d, const uint32_t *a)
 	d[39] = norm13(d, t, 39);
 	STACK_PROXY_EXIT();
 }
+#endif
 
 #endif
 
