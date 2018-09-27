@@ -403,7 +403,7 @@ square20(uint32_t *d, const uint32_t *a)
 
 #else
 
-static void
+/*static*/ void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
 	uint32_t t[39];
@@ -812,7 +812,7 @@ mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	d[39] = norm13(d, t, 39);
 }
 
-static void
+/*static*/ void
 square20(uint32_t *d, const uint32_t *a)
 {
 	uint32_t t[39];

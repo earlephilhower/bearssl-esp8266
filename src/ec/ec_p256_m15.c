@@ -357,7 +357,10 @@ square20(uint32_t *d, const uint32_t *a)
 }
 
 #else
+extern void mul20(uint32_t *d, const uint32_t *a, const uint32_t *b);
+extern void square20(uint32_t *d, const uint32_t *a);
 
+#if 0
 static void
 mul20(uint32_t *d, const uint32_t *a, const uint32_t *b)
 {
@@ -983,6 +986,7 @@ square20(uint32_t *d, const uint32_t *a)
 	t[38] = MUL15(a[19], a[19]);
 	d[39] = norm13(d, t, 39);
 }
+#endif
 
 #endif
 
