@@ -1258,9 +1258,13 @@ br_ssl_hs_server_run(void *t0ctx)
 		br_multihash_out(&ENG->mhash, br_sha1_ID, tmp + 16);
 		seed.len = 36;
 	}
+	static const char clientfinished[16] PROGMEM = "client finished";
+	static const char serverfinished[16] PROGMEM = "server finished";
+	char finished[16];
+	memcpy(finished, from_client ? clientfinished : serverfinished, 16);
 	prf(ENG->pad, 12, ENG->session.master_secret,
 		sizeof ENG->session.master_secret,
-		from_client ? "client finished" : "server finished",
+		finished, //from_client ? "client finished" : "server finished",
 		1, &seed);
 
 				}
