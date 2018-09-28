@@ -171,7 +171,7 @@ make_pms_rsa(br_ssl_client_context *ctx, int prf_id)
 /*
  * OID for hash functions in RSA signatures.
  */
-static const unsigned char *HASH_OID[] = {
+static const unsigned char *HASH_OID[] PROGMEM = {
 	BR_HASH_OID_SHA1,
 	BR_HASH_OID_SHA224,
 	BR_HASH_OID_SHA256,
