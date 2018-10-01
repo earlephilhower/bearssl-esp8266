@@ -106,7 +106,7 @@ ccm_decrypt(br_sslrec_ccm_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_in_ccm_class br_sslrec_in_ccm_vtable = {
+const br_sslrec_in_ccm_class br_sslrec_in_ccm_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_ccm_context),
 		(int (*)(const br_sslrec_in_class *const *, size_t))
@@ -196,7 +196,7 @@ ccm_encrypt(br_sslrec_ccm_context *cc,
 }
 
 /* see bearssl_ssl.h */
-const br_sslrec_out_ccm_class br_sslrec_out_ccm_vtable = {
+const br_sslrec_out_ccm_class br_sslrec_out_ccm_vtable PROGMEM = {
 	{
 		sizeof(br_sslrec_ccm_context),
 		(void (*)(const br_sslrec_out_class *const *,
