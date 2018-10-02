@@ -124,7 +124,7 @@
  * Set BR_LOMUL on platforms where it makes sense.
  */
 #ifndef BR_LOMUL
-#if BR_ARMEL_CORTEXM_GCC || defined(ESP8266)
+#if BR_ARMEL_CORTEXM_GCC || (defined(ESP8266) && !defined(ESP8266M32))
 #define BR_LOMUL   1
 #endif
 #endif
