@@ -2,9 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#ifdef ESP8266
-	#include <pgmspace.h>
-#endif
+#include <pgmspace.h>
 
 typedef struct {
 	uint32_t *dp;
@@ -21,11 +19,7 @@ t0_parse7E_unsigned(const unsigned char **p)
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			return x;
@@ -39,20 +33,12 @@ t0_parse7E_signed(const unsigned char **p)
 	int neg;
 	uint32_t x;
 
-#ifdef ESP8266
 	neg = (pgm_read_byte(*p) >> 6) & 1;
-#else
-	neg = ((**p) >> 6) & 1;
-#endif
 	x = (uint32_t)-neg;
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			if (neg) {
@@ -185,7 +171,7 @@ make_pms_rsa(br_ssl_client_context *ctx, int prf_id)
 /*
  * OID for hash functions in RSA signatures.
  */
-static const unsigned char *HASH_OID[] = {
+static const unsigned char *HASH_OID[] PROGMEM = {
 	BR_HASH_OID_SHA1,
 	BR_HASH_OID_SHA224,
 	BR_HASH_OID_SHA256,
@@ -206,51 +192,43 @@ static int
 verify_SKE_sig(br_ssl_client_context *ctx,
 	int hash, int use_rsa, size_t sig_len)
 {
-	STACK_PROXY_ENTER();
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
-//	br_multihash_context mhc;
-	STACK_PROXY_ALLOC(br_multihash_context, mhc, 1);
-//	unsigned char hv[64];
-	STACK_PROXY_ALLOC(unsigned char, hv, 64);
-	unsigned char head[4];
+	br_multihash_context mhc;
+	unsigned char hv[64], head[4];
 	size_t hv_len;
 
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
-	br_multihash_zero(mhc);
-	br_multihash_copyimpl(mhc, &ctx->eng.mhash);
-	br_multihash_init(mhc);
-	br_multihash_update(mhc,
+	br_multihash_zero(&mhc);
+	br_multihash_copyimpl(&mhc, &ctx->eng.mhash);
+	br_multihash_init(&mhc);
+	br_multihash_update(&mhc,
 		ctx->eng.client_random, sizeof ctx->eng.client_random);
-	br_multihash_update(mhc,
+	br_multihash_update(&mhc,
 		ctx->eng.server_random, sizeof ctx->eng.server_random);
 	head[0] = 3;
 	head[1] = 0;
 	head[2] = ctx->eng.ecdhe_curve;
 	head[3] = ctx->eng.ecdhe_point_len;
-	br_multihash_update(mhc, head, sizeof head);
-	br_multihash_update(mhc,
+	br_multihash_update(&mhc, head, sizeof head);
+	br_multihash_update(&mhc,
 		ctx->eng.ecdhe_point, ctx->eng.ecdhe_point_len);
 	if (hash) {
-		hv_len = br_multihash_out(mhc, hash, hv);
+		hv_len = br_multihash_out(&mhc, hash, hv);
 		if (hv_len == 0) {
-			STACK_PROXY_EXIT();
 			return BR_ERR_INVALID_ALGORITHM;
 		}
 	} else {
-		if (!br_multihash_out(mhc, br_md5_ID, hv)
-			|| !br_multihash_out(mhc, br_sha1_ID, hv + 16))
+		if (!br_multihash_out(&mhc, br_md5_ID, hv)
+			|| !br_multihash_out(&mhc, br_sha1_ID, hv + 16))
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_INVALID_ALGORITHM;
 		}
 		hv_len = 36;
 	}
-
 	if (use_rsa) {
-//		unsigned char tmp[64];
-		STACK_PROXY_ALLOC(unsigned char, tmp, 64);
+		unsigned char tmp[64];
 		const unsigned char *hash_oid;
 
 		if (hash) {
@@ -262,18 +240,15 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 			hash_oid, hv_len, &pk->key.rsa, tmp)
 			|| memcmp(tmp, hv, hv_len) != 0)
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	} else {
 		if (!ctx->eng.iecdsa(ctx->eng.iec, hv, hv_len, &pk->key.ec,
 			ctx->eng.pad, sig_len))
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	}
-	STACK_PROXY_EXIT();
 	return 0;
 }
 
@@ -289,12 +264,8 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 static int
 make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	int curve;
-//	unsigned char key[66], point[133];
-	STACK_PROXY_ALLOC(unsigned char, key, 66);
-	STACK_PROXY_ALLOC(unsigned char, point, 133);
+	unsigned char key[66], point[133];
 	const unsigned char *order, *point_src;
 	size_t glen, olen, point_len, xoff, xlen;
 	unsigned char mask;
@@ -314,7 +285,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 		point_len = pk->key.ec.qlen;
 	}
 	if ((ctx->eng.iec->supported_curves & ((uint32_t)1 << curve)) == 0) {
-		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
@@ -339,13 +309,11 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	 */
 	ctx->eng.iec->generator(curve, &glen);
 	if (glen != point_len) {
-		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
 	memcpy(point, point_src, glen);
 	if (!ctx->eng.iec->mul(point, glen, key, olen, curve)) {
-		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
@@ -357,8 +325,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 
 	ctx->eng.iec->mulgen(point, key, olen, curve);
 	memcpy(ctx->eng.pad, point, glen);
-
-	STACK_PROXY_EXIT();
 	return (int)glen;
 }
 
@@ -375,9 +341,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 static int
 make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 {
-	STACK_PROXY_ENTER();
-//	unsigned char point[133];
-	STACK_PROXY_ALLOC(unsigned char, point, 133);
+	unsigned char point[133];
 	size_t point_len;
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
@@ -385,20 +349,17 @@ make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	point_len = pk->key.ec.qlen;
-	if (point_len > 133 * sizeof *point) {
-		STACK_PROXY_EXIT();
+	if (point_len > sizeof point) {
 		return -1;
 	}
 	memcpy(point, pk->key.ec.q, point_len);
 	if (!(*ctx->client_auth_vtable)->do_keyx(
 		ctx->client_auth_vtable, point, &point_len))
 	{
-		STACK_PROXY_EXIT();
 		return -1;
 	}
 	br_ssl_engine_compute_master(&ctx->eng,
 		prf_id, point, point_len);
-	STACK_PROXY_EXIT();
 	return 0;
 }
 
@@ -436,11 +397,7 @@ make_client_sign(br_ssl_client_context *ctx)
 
 
 
-#ifdef ESP8266
 static const unsigned char t0_datablock[] PROGMEM = {
-#else
-static const unsigned char t0_datablock[] = {
-#endif
 
 	0x00, 0x00, 0x0A, 0x00, 0x24, 0x00, 0x2F, 0x01, 0x24, 0x00, 0x35, 0x02,
 	0x24, 0x00, 0x3C, 0x01, 0x44, 0x00, 0x3D, 0x02, 0x44, 0x00, 0x9C, 0x03,
@@ -460,11 +417,8 @@ static const unsigned char t0_datablock[] = {
 	0x04, 0x00, 0x00
 };
 
-#ifdef ESP8266
 static const unsigned char t0_codeblock[] PROGMEM = {
-#else
-static const unsigned char t0_codeblock[] = {
-#endif
+
 	0x00, 0x01, 0x00, 0x0A, 0x00, 0x00, 0x01, 0x00, 0x0D, 0x00, 0x00, 0x01,
 	0x00, 0x0E, 0x00, 0x00, 0x01, 0x00, 0x0F, 0x00, 0x00, 0x01, 0x01, 0x08,
 	0x00, 0x00, 0x01, 0x01, 0x09, 0x00, 0x00, 0x01, 0x02, 0x08, 0x00, 0x00,
@@ -787,11 +741,8 @@ static const unsigned char t0_codeblock[] = {
 	0x76
 };
 
-#ifdef ESP8266
 static const uint16_t t0_caddr[] PROGMEM = {
-#else
-static const uint16_t t0_caddr[] = {
-#endif
+
 	0,
 	5,
 	10,
@@ -931,7 +882,6 @@ static const uint16_t t0_caddr[] = {
 
 #define T0_INTERPRETED   88
 
-#ifdef ESP8266
 #define T0_ENTER(ip, rp, slot)   do { \
 		const unsigned char *t0_newip; \
 		uint32_t t0_lnum; \
@@ -941,17 +891,6 @@ static const uint16_t t0_caddr[] = {
 		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
 		(ip) = t0_newip; \
 	} while (0)
-#else
-#define T0_ENTER(ip, rp, slot)   do { \
-		const unsigned char *t0_newip; \
-		uint32_t t0_lnum; \
-		t0_newip = &t0_codeblock[t0_caddr[(slot) - T0_INTERPRETED]]; \
-		t0_lnum = t0_parse7E_unsigned(&t0_newip); \
-		(rp) += t0_lnum; \
-		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
-		(ip) = t0_newip; \
-	} while (0)
-#endif
 
 #define T0_DEFENTRY(name, slot) \
 void \
@@ -964,11 +903,7 @@ name(void *ctx) \
 
 T0_DEFENTRY(br_ssl_hs_client_init_main, 169)
 
-#ifdef ESP8266
 #define T0_NEXT(t0ipp)   (pgm_read_byte((*t0ipp)++))
-#else
-#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)
-#endif
 
 void
 br_ssl_hs_client_run(void *t0ctx)
@@ -1272,9 +1207,7 @@ br_ssl_hs_client_run(void *t0ctx)
 
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-//	unsigned char tmp[48];
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(unsigned char, tmp, 48);
+	unsigned char tmp[48];
 	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
@@ -1290,7 +1223,6 @@ br_ssl_hs_client_run(void *t0ctx)
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
 		1, &seed);
-	STACK_PROXY_EXIT();
 
 				}
 				break;
@@ -1303,11 +1235,7 @@ br_ssl_hs_client_run(void *t0ctx)
 	if (clen > sizeof ENG->pad) {
 		clen = sizeof ENG->pad;
 	}
-#ifdef ESP8266
 	memcpy_P(ENG->pad, ENG->cert_cur, clen);
-#else
-	memcpy(ENG->pad, ENG->cert_cur, clen);
-#endif
 	ENG->cert_cur += clen;
 	ENG->cert_len -= clen;
 	T0_PUSH(clen);
@@ -1328,11 +1256,7 @@ br_ssl_hs_client_run(void *t0ctx)
 				/* data-get8 */
 
 	size_t addr = T0_POP();
-#ifdef ESP8266
 	T0_PUSH(pgm_read_byte(&t0_datablock[addr]));
-#else
-	T0_PUSH(t0_datablock[addr]);
-#endif
 
 				}
 				break;
@@ -1599,11 +1523,7 @@ br_ssl_hs_client_run(void *t0ctx)
 		if ((size_t)len < clen) {
 			clen = (size_t)len;
 		}
-#ifdef ESP8266
 		memcpy_P((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
-#else
-		memcpy((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
-#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, ENG->hbuf_in, clen);
 		}
@@ -1621,11 +1541,7 @@ br_ssl_hs_client_run(void *t0ctx)
 	if (ENG->hlen_in > 0) {
 		unsigned char x;
 
-#ifdef ESP8266
 		x = pgm_read_byte(ENG->hbuf_in ++);
-#else
-		x = *ENG->hbuf_in ++;
-#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, &x, 1);
 		}

@@ -84,8 +84,6 @@ br_multihash_zero(br_multihash_context *ctx)
 void
 br_multihash_init(br_multihash_context *ctx)
 {
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(gen_hash_context, g, 1);
 	int i;
 
 	ctx->count = 0;
@@ -94,22 +92,19 @@ br_multihash_init(br_multihash_context *ctx)
 
 		hc = ctx->impl[i - 1];
 		if (hc != NULL) {
-//			gen_hash_context g;
+			gen_hash_context g;
 
-			hc->init(&g->vtable);
-			hc->state(&g->vtable,
+			hc->init(&g.vtable);
+			hc->state(&g.vtable,
 				(unsigned char *)ctx + get_state_offset(i));
 		}
 	}
-	STACK_PROXY_EXIT();
 }
 
 /* see bearssl_hash.h */
 void
 br_multihash_update(br_multihash_context *ctx, const void *data, size_t len)
 {
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(gen_hash_context, g, 1);
 	const unsigned char *buf;
 	size_t ptr;
 
@@ -135,31 +130,28 @@ br_multihash_update(br_multihash_context *ctx, const void *data, size_t len)
 
 				hc = ctx->impl[i - 1];
 				if (hc != NULL) {
-//					gen_hash_context g;
+					gen_hash_context g;
 					unsigned char *state;
 
 					state = (unsigned char *)ctx
 						+ get_state_offset(i);
-					hc->set_state(&g->vtable,
+					hc->set_state(&g.vtable,
 						state, ctx->count - 128);
-					hc->update(&g->vtable, ctx->buf, 128);
-					hc->state(&g->vtable, state);
+					hc->update(&g.vtable, ctx->buf, 128);
+					hc->state(&g.vtable, state);
 				}
 			}
 			ptr = 0;
 		}
 	}
-	STACK_PROXY_EXIT();
 }
 
 /* see bearssl_hash.h */
 size_t
 br_multihash_out(const br_multihash_context *ctx, int id, void *dst)
 {
-	STACK_PROXY_ENTER();
 	const br_hash_class *hc;
-	//gen_hash_context g;
-	STACK_PROXY_ALLOC(gen_hash_context, g, 1);
+	gen_hash_context g;
 	const unsigned char *state;
 
 	hc = ctx->impl[id - 1];
@@ -167,9 +159,8 @@ br_multihash_out(const br_multihash_context *ctx, int id, void *dst)
 		return 0;
 	}
 	state = (const unsigned char *)ctx + get_state_offset(id);
-	hc->set_state(&g->vtable, state, ctx->count & ~(uint64_t)127);
-	hc->update(&g->vtable, ctx->buf, ctx->count & (uint64_t)127);
-	hc->out(&g->vtable, dst);
-	STACK_PROXY_EXIT();
+	hc->set_state(&g.vtable, state, ctx->count & ~(uint64_t)127);
+	hc->update(&g.vtable, ctx->buf, ctx->count & (uint64_t)127);
+	hc->out(&g.vtable, dst);
 	return (hc->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK;
 }

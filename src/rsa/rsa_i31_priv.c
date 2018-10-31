@@ -135,6 +135,8 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	mp = mq + 2 * fwlen;
 	memmove(mp, t1, fwlen * sizeof *t1);
 
+	optimistic_yield(10000);
+	
 	/*
 	 * Compute s2 = x^dq mod q.
 	 */
@@ -143,6 +145,8 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	br_i31_decode_reduce(s2, x, xlen, mq);
 	r &= br_i31_modpow_opt(s2, sk->dq, sk->dqlen, mq, q0i,
 		mq + 3 * fwlen, TLEN - 3 * fwlen);
+
+	optimistic_yield(10000);
 
 	/*
 	 * Compute s1 = x^dp mod p.
@@ -173,6 +177,8 @@ br_rsa_i31_private(unsigned char *x, const br_rsa_private_key *sk)
 	br_i31_to_monty(s1, mp);
 	br_i31_decode_reduce(t1, sk->iq, sk->iqlen, mp);
 	br_i31_montymul(t2, s1, t1, mp, p0i);
+
+	optimistic_yield(10000);
 
 	/*
 	 * h is now in t2. We compute the final result:

@@ -32,7 +32,6 @@ static uint32_t
 get_pubexp(const unsigned char *pbuf, size_t plen,
 	const unsigned char *dpbuf, size_t dplen)
 {
-	STACK_PROXY_ENTER();
 	/*
 	 * dp is the inverse of e modulo p-1. If p = 3 mod 4, then
 	 * p-1 = 2*((p-1)/2). Taken modulo 2, e is odd and has inverse 1;
@@ -44,8 +43,7 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 	 * reduction function); then, we use moddiv.
 	 */
 
-	STACK_PROXY_ALLOC(uint16_t, tmp, 6 * ((BR_MAX_RSA_FACTOR + 29) / 15));
-	//uint16_t tmp[6 * ((BR_MAX_RSA_FACTOR + 29) / 15)];
+	uint16_t tmp[6 * ((BR_MAX_RSA_FACTOR + 29) / 15)];
 	uint16_t *p, *dp, *x;
 	size_t len;
 	uint32_t e;
@@ -59,7 +57,6 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 		plen --;
 	}
 	if (plen == 0 || plen < 5 || plen > (BR_MAX_RSA_FACTOR / 8)) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -74,7 +71,6 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 	if (dplen > plen || dplen == 0
 		|| (dplen == plen && dpbuf[0] > pbuf[0]))
 	{
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -82,7 +78,6 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 	 * Verify that p = 3 mod 4 and that dp is odd.
 	 */
 	if ((pbuf[plen - 1] & 3) != 3 || (dpbuf[dplen - 1] & 1) != 1) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -115,7 +110,6 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 	 * invalid keys.
 	 */
 	if (br_i15_sub(dp, p, 0) == 0) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -127,7 +121,6 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 	br_i15_zero(x, p[0]);
 	x[1] = 1;
 	if (br_i15_moddiv(x, dp, p, br_i15_ninv15(p[1]), x + len) == 0) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -140,7 +133,6 @@ get_pubexp(const unsigned char *pbuf, size_t plen,
 	e = (uint32_t)x[1] | ((uint32_t)x[2] << 15) | ((uint32_t)x[3] << 30);
 	e &= -LT(br_i15_bit_length(x + 1, len - 1), 35);
 	e &= -(e & 1);
-	STACK_PROXY_EXIT();
 	return e;
 }
 

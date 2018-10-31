@@ -115,7 +115,7 @@ make_pms_rsa(br_ssl_client_context *ctx, int prf_id)
 /*
  * OID for hash functions in RSA signatures.
  */
-static const unsigned char *HASH_OID[] = {
+static const unsigned char *HASH_OID[] PROGMEM = {
 	BR_HASH_OID_SHA1,
 	BR_HASH_OID_SHA224,
 	BR_HASH_OID_SHA256,
@@ -136,51 +136,43 @@ static int
 verify_SKE_sig(br_ssl_client_context *ctx,
 	int hash, int use_rsa, size_t sig_len)
 {
-	STACK_PROXY_ENTER();
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
-//	br_multihash_context mhc;
-	STACK_PROXY_ALLOC(br_multihash_context, mhc, 1);
-//	unsigned char hv[64];
-	STACK_PROXY_ALLOC(unsigned char, hv, 64);
-	unsigned char head[4];
+	br_multihash_context mhc;
+	unsigned char hv[64], head[4];
 	size_t hv_len;
 
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
-	br_multihash_zero(mhc);
-	br_multihash_copyimpl(mhc, &ctx->eng.mhash);
-	br_multihash_init(mhc);
-	br_multihash_update(mhc,
+	br_multihash_zero(&mhc);
+	br_multihash_copyimpl(&mhc, &ctx->eng.mhash);
+	br_multihash_init(&mhc);
+	br_multihash_update(&mhc,
 		ctx->eng.client_random, sizeof ctx->eng.client_random);
-	br_multihash_update(mhc,
+	br_multihash_update(&mhc,
 		ctx->eng.server_random, sizeof ctx->eng.server_random);
 	head[0] = 3;
 	head[1] = 0;
 	head[2] = ctx->eng.ecdhe_curve;
 	head[3] = ctx->eng.ecdhe_point_len;
-	br_multihash_update(mhc, head, sizeof head);
-	br_multihash_update(mhc,
+	br_multihash_update(&mhc, head, sizeof head);
+	br_multihash_update(&mhc,
 		ctx->eng.ecdhe_point, ctx->eng.ecdhe_point_len);
 	if (hash) {
-		hv_len = br_multihash_out(mhc, hash, hv);
+		hv_len = br_multihash_out(&mhc, hash, hv);
 		if (hv_len == 0) {
-			STACK_PROXY_EXIT();
 			return BR_ERR_INVALID_ALGORITHM;
 		}
 	} else {
-		if (!br_multihash_out(mhc, br_md5_ID, hv)
-			|| !br_multihash_out(mhc, br_sha1_ID, hv + 16))
+		if (!br_multihash_out(&mhc, br_md5_ID, hv)
+			|| !br_multihash_out(&mhc, br_sha1_ID, hv + 16))
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_INVALID_ALGORITHM;
 		}
 		hv_len = 36;
 	}
-
 	if (use_rsa) {
-//		unsigned char tmp[64];
-		STACK_PROXY_ALLOC(unsigned char, tmp, 64);
+		unsigned char tmp[64];
 		const unsigned char *hash_oid;
 
 		if (hash) {
@@ -192,18 +184,15 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 			hash_oid, hv_len, &pk->key.rsa, tmp)
 			|| memcmp(tmp, hv, hv_len) != 0)
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	} else {
 		if (!ctx->eng.iecdsa(ctx->eng.iec, hv, hv_len, &pk->key.ec,
 			ctx->eng.pad, sig_len))
 		{
-			STACK_PROXY_EXIT();
 			return BR_ERR_BAD_SIGNATURE;
 		}
 	}
-	STACK_PROXY_EXIT();
 	return 0;
 }
 
@@ -219,12 +208,8 @@ verify_SKE_sig(br_ssl_client_context *ctx,
 static int
 make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	int curve;
-//	unsigned char key[66], point[133];
-	STACK_PROXY_ALLOC(unsigned char, key, 66);
-	STACK_PROXY_ALLOC(unsigned char, point, 133);
+	unsigned char key[66], point[133];
 	const unsigned char *order, *point_src;
 	size_t glen, olen, point_len, xoff, xlen;
 	unsigned char mask;
@@ -244,7 +229,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 		point_len = pk->key.ec.qlen;
 	}
 	if ((ctx->eng.iec->supported_curves & ((uint32_t)1 << curve)) == 0) {
-		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
@@ -269,13 +253,11 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 	 */
 	ctx->eng.iec->generator(curve, &glen);
 	if (glen != point_len) {
-		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
 	memcpy(point, point_src, glen);
 	if (!ctx->eng.iec->mul(point, glen, key, olen, curve)) {
-		STACK_PROXY_EXIT();
 		return -BR_ERR_INVALID_ALGORITHM;
 	}
 
@@ -287,8 +269,6 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 
 	ctx->eng.iec->mulgen(point, key, olen, curve);
 	memcpy(ctx->eng.pad, point, glen);
-
-	STACK_PROXY_EXIT();
 	return (int)glen;
 }
 
@@ -305,9 +285,7 @@ make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
 static int
 make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 {
-	STACK_PROXY_ENTER();
-//	unsigned char point[133];
-	STACK_PROXY_ALLOC(unsigned char, point, 133);
+	unsigned char point[133];
 	size_t point_len;
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
@@ -315,20 +293,17 @@ make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	point_len = pk->key.ec.qlen;
-	if (point_len > 133 * sizeof *point) {
-		STACK_PROXY_EXIT();
+	if (point_len > sizeof point) {
 		return -1;
 	}
 	memcpy(point, pk->key.ec.q, point_len);
 	if (!(*ctx->client_auth_vtable)->do_keyx(
 		ctx->client_auth_vtable, point, &point_len))
 	{
-		STACK_PROXY_EXIT();
 		return -1;
 	}
 	br_ssl_engine_compute_master(&ctx->eng,
 		prf_id, point, point_len);
-	STACK_PROXY_EXIT();
 	return 0;
 }
 

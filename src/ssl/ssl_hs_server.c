@@ -2,9 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#ifdef ESP8266
-	#include <pgmspace.h>
-#endif
+#include <pgmspace.h>
 
 typedef struct {
 	uint32_t *dp;
@@ -21,11 +19,7 @@ t0_parse7E_unsigned(const unsigned char **p)
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			return x;
@@ -39,20 +33,12 @@ t0_parse7E_signed(const unsigned char **p)
 	int neg;
 	uint32_t x;
 
-#ifdef ESP8266
 	neg = (pgm_read_byte(*p) >> 6) & 1;
-#else
-	neg = ((**p) >> 6) & 1;
-#endif
 	x = (uint32_t)-neg;
 	for (;;) {
 		unsigned y;
 
-#ifdef ESP8266
 		y = pgm_read_byte((*p)++);
-#else
-		y = *(*p) ++;
-#endif
 		x = (x << 7) | (uint32_t)(y & 0x7F);
 		if (y < 0x80) {
 			if (neg) {
@@ -113,10 +99,8 @@ static void
 do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *epms, size_t len)
 {
-	STACK_PROXY_ENTER();
 	uint32_t x;
-//	unsigned char rpms[48];
-	STACK_PROXY_ALLOC(unsigned char, rpms, 48);
+	unsigned char rpms[48];
 
 	/*
 	 * Decrypt the PMS.
@@ -137,7 +121,7 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	 * decryption failed. Note that we use a constant-time conditional
 	 * copy.
 	 */
-	br_hmac_drbg_generate(&ctx->eng.rng, rpms, 48 * sizeof *rpms);
+	br_hmac_drbg_generate(&ctx->eng.rng, rpms, sizeof rpms);
 	br_ccopy(x ^ 1, epms, rpms, sizeof rpms);
 
 	/*
@@ -150,7 +134,6 @@ do_rsa_decrypt(br_ssl_server_context *ctx, int prf_id,
 	 * in the context, hence potentially long-lived.
 	 */
 	memset(epms, 0, len);
-	STACK_PROXY_EXIT();
 }
 
 /*
@@ -160,12 +143,10 @@ static void
 ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	unsigned char *xcoor, size_t xcoor_len, uint32_t ctl)
 {
-	STACK_PROXY_ENTER();
-//	unsigned char rpms[80];
-	STACK_PROXY_ALLOC(unsigned char, rpms, 80);
+	unsigned char rpms[80];
 
-	if (xcoor_len > 80 * sizeof *rpms) {
-		xcoor_len = 80 * sizeof *rpms;
+	if (xcoor_len > sizeof rpms) {
+		xcoor_len = sizeof rpms;
 		ctl = 0;
 	}
 
@@ -187,7 +168,6 @@ ecdh_common(br_ssl_server_context *ctx, int prf_id,
 	 * in the context, hence potentially long-lived.
 	 */
 	memset(xcoor, 0, xcoor_len);
-	STACK_PROXY_EXIT();
 }
 
 /*
@@ -216,10 +196,7 @@ do_ecdh(br_ssl_server_context *ctx, int prf_id,
 static void
 do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
-//	unsigned char cpoint[133];
-	STACK_PROXY_ALLOC(unsigned char, cpoint, 133);
+	unsigned char cpoint[133];
 	size_t cpoint_len;
 	const br_x509_class **xc;
 	const br_x509_pkey *pk;
@@ -227,7 +204,7 @@ do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 	xc = ctx->eng.x509ctx;
 	pk = (*xc)->get_pkey(xc, NULL);
 	cpoint_len = pk->key.ec.qlen;
-	if (cpoint_len > 133 * sizeof *cpoint) {
+	if (cpoint_len > sizeof cpoint) {
 		/*
 		 * If the point is larger than our buffer then we need to
 		 * restrict it. Length 2 is not a valid point length, so
@@ -237,54 +214,44 @@ do_static_ecdh(br_ssl_server_context *ctx, int prf_id)
 	}
 	memcpy(cpoint, pk->key.ec.q, cpoint_len);
 	do_ecdh(ctx, prf_id, cpoint, cpoint_len);
-	STACK_PROXY_EXIT();
 }
 
 static size_t
 hash_data(br_ssl_server_context *ctx,
 	void *dst, int hash_id, const void *src, size_t len)
 {
-	STACK_PROXY_ENTER();
 	const br_hash_class *hf;
-//	br_hash_compat_context hc;
-	STACK_PROXY_ALLOC(br_hash_compat_context, hc, 1);
+	br_hash_compat_context hc;
 
 	if (hash_id == 0) {
-//		unsigned char tmp[36];
-		STACK_PROXY_ALLOC(unsigned char, tmp, 36);
+		unsigned char tmp[36];
 
 		hf = br_multihash_getimpl(&ctx->eng.mhash, br_md5_ID);
 		if (hf == NULL) {
-			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc->vtable);
-		hf->update(&hc->vtable, src, len);
-		hf->out(&hc->vtable, tmp);
+		hf->init(&hc.vtable);
+		hf->update(&hc.vtable, src, len);
+		hf->out(&hc.vtable, tmp);
 		hf = br_multihash_getimpl(&ctx->eng.mhash, br_sha1_ID);
 		if (hf == NULL) {
-			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc->vtable);
-		hf->update(&hc->vtable, src, len);
-		hf->out(&hc->vtable, tmp + 16);
+		hf->init(&hc.vtable);
+		hf->update(&hc.vtable, src, len);
+		hf->out(&hc.vtable, tmp + 16);
 		memcpy(dst, tmp, 36);
-		STACK_PROXY_EXIT();
 		return 36;
 	} else {
 		hf = br_multihash_getimpl(&ctx->eng.mhash, hash_id);
 		if (hf == NULL) {
-			STACK_PROXY_EXIT();
 			return 0;
 		}
-		hf->init(&hc->vtable);
-		hf->update(&hc->vtable, src, len);
-		hf->out(&hc->vtable, dst);
-		STACK_PROXY_EXIT();
+		hf->init(&hc.vtable);
+		hf->update(&hc.vtable, src, len);
+		hf->out(&hc.vtable, dst);
 		return (hf->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK;
 	}
-	STACK_PROXY_EXIT();
 }
 
 /*
@@ -427,20 +394,14 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 	pk = (*xc)->get_pkey(xc, NULL);
 	if (pk->key_type == BR_KEYTYPE_RSA) {
 		unsigned char tmp[64];
-#ifdef ESP8266
 		unsigned char hash_oid_ram[10];
-#endif
 		const unsigned char *hash_oid;
 
 		if (id == 0) {
 			hash_oid = NULL;
 		} else {
-#ifdef ESP8266
 			memcpy_P(hash_oid_ram, HASH_OID[id - 2], sizeof(HASH_OID[0]));
-			hash_oid = hash_oid_ram; //HASH_OID[id - 2];
-#else
-			hash_oid = HASH_OID[id - 2];
-#endif
+			hash_oid = hash_oid_ram;
 		}
 		if (ctx->eng.irsavrfy == 0) {
 			return BR_ERR_BAD_SIGNATURE;
@@ -467,11 +428,7 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 
 
 
-#ifdef ESP8266
 static const unsigned char t0_datablock[] PROGMEM = {
-#else
-static const unsigned char t0_datablock[] = {
-#endif
 
 	0x00, 0x00, 0x0A, 0x00, 0x24, 0x00, 0x2F, 0x01, 0x24, 0x00, 0x35, 0x02,
 	0x24, 0x00, 0x3C, 0x01, 0x44, 0x00, 0x3D, 0x02, 0x44, 0x00, 0x9C, 0x03,
@@ -491,11 +448,8 @@ static const unsigned char t0_datablock[] = {
 	0x04, 0x00, 0x00
 };
 
-#ifdef ESP8266
 static const unsigned char t0_codeblock[] PROGMEM = {
-#else
-static const unsigned char t0_codeblock[] = {
-#endif
+
 	0x00, 0x01, 0x00, 0x0B, 0x00, 0x00, 0x01, 0x00, 0x0E, 0x00, 0x00, 0x01,
 	0x00, 0x0F, 0x00, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x01, 0x01, 0x08,
 	0x00, 0x00, 0x01, 0x01, 0x09, 0x00, 0x00, 0x01, 0x02, 0x08, 0x00, 0x00,
@@ -821,11 +775,8 @@ static const unsigned char t0_codeblock[] = {
 	0xCF, 0x29, 0x04, 0x76
 };
 
-#ifdef ESP8266
 static const uint16_t t0_caddr[] PROGMEM = {
-#else
-static const uint16_t t0_caddr[] = {
-#endif
+
 	0,
 	5,
 	10,
@@ -964,7 +915,6 @@ static const uint16_t t0_caddr[] = {
 
 #define T0_INTERPRETED   93
 
-#ifdef ESP8266
 #define T0_ENTER(ip, rp, slot)   do { \
 		const unsigned char *t0_newip; \
 		uint32_t t0_lnum; \
@@ -974,17 +924,6 @@ static const uint16_t t0_caddr[] = {
 		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
 		(ip) = t0_newip; \
 	} while (0)
-#else
-#define T0_ENTER(ip, rp, slot)   do { \
-		const unsigned char *t0_newip; \
-		uint32_t t0_lnum; \
-		t0_newip = &t0_codeblock[t0_caddr[(slot) - T0_INTERPRETED]]; \
-		t0_lnum = t0_parse7E_unsigned(&t0_newip); \
-		(rp) += t0_lnum; \
-		*((rp) ++) = (uint32_t)((ip) - &t0_codeblock[0]) + (t0_lnum << 16); \
-		(ip) = t0_newip; \
-	} while (0)
-#endif
 
 #define T0_DEFENTRY(name, slot) \
 void \
@@ -997,11 +936,7 @@ name(void *ctx) \
 
 T0_DEFENTRY(br_ssl_hs_server_init_main, 166)
 
-#ifdef ESP8266
 #define T0_NEXT(t0ipp)   (pgm_read_byte((*t0ipp)++))
-#else
-#define T0_NEXT(t0ipp)   (*(*(t0ipp)) ++)
-#endif
 
 void
 br_ssl_hs_server_run(void *t0ctx)
@@ -1311,9 +1246,7 @@ br_ssl_hs_server_run(void *t0ctx)
 
 	int prf_id = T0_POP();
 	int from_client = T0_POPi();
-//	unsigned char tmp[48];
-	STACK_PROXY_ENTER();
-	STACK_PROXY_ALLOC(unsigned char, tmp, 48);
+	unsigned char tmp[48];
 	br_tls_prf_seed_chunk seed;
 
 	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
@@ -1329,7 +1262,6 @@ br_ssl_hs_server_run(void *t0ctx)
 		sizeof ENG->session.master_secret,
 		from_client ? "client finished" : "server finished",
 		1, &seed);
-	STACK_PROXY_EXIT();
 
 				}
 				break;
@@ -1354,11 +1286,7 @@ br_ssl_hs_server_run(void *t0ctx)
 	if (clen > sizeof ENG->pad) {
 		clen = sizeof ENG->pad;
 	}
-#ifdef ESP8266
 	memcpy_P(ENG->pad, ENG->cert_cur, clen);
-#else
-	memcpy(ENG->pad, ENG->cert_cur, clen);
-#endif
 	ENG->cert_cur += clen;
 	ENG->cert_len -= clen;
 	T0_PUSH(clen);
@@ -1419,11 +1347,7 @@ br_ssl_hs_server_run(void *t0ctx)
 				/* data-get8 */
 
 	size_t addr = T0_POP();
-#ifdef ESP8266
 	T0_PUSH(pgm_read_byte(&t0_datablock[addr]));
-#else
-	T0_PUSH(t0_datablock[addr]);
-#endif
 
 				}
 				break;
@@ -1640,11 +1564,7 @@ br_ssl_hs_server_run(void *t0ctx)
 		if ((size_t)len < clen) {
 			clen = (size_t)len;
 		}
-#ifdef ESP8266
 		memcpy_P((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
-#else
-		memcpy((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
-#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, ENG->hbuf_in, clen);
 		}
@@ -1662,11 +1582,7 @@ br_ssl_hs_server_run(void *t0ctx)
 	if (ENG->hlen_in > 0) {
 		unsigned char x;
 
-#ifdef ESP8266
 		x = pgm_read_byte(ENG->hbuf_in ++);
-#else
-		x = *ENG->hbuf_in ++;
-#endif
 		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
 			br_multihash_update(&ENG->mhash, &x, 1);
 		}

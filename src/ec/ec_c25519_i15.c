@@ -132,42 +132,33 @@ cswap(uint16_t *a, uint16_t *b, uint32_t ctl)
 static void
 c255_add(uint16_t *d, const uint16_t *a, const uint16_t *b)
 {
-	STACK_PROXY_ENTER();
 	uint32_t ctl;
-//	uint16_t t[18];
-	STACK_PROXY_ALLOC(uint16_t, t, 18);
+	uint16_t t[18];
 
-	memcpy(t, a, 18 * sizeof *t);
+	memcpy(t, a, sizeof t);
 	ctl = br_i15_add(t, b, 1);
 	ctl |= NOT(br_i15_sub(t, C255_P, 0));
 	br_i15_sub(t, C255_P, ctl);
-	memcpy(d, t, 18 * sizeof *t);
-	STACK_PROXY_EXIT();
+	memcpy(d, t, sizeof t);
 }
 
 static void
 c255_sub(uint16_t *d, const uint16_t *a, const uint16_t *b)
 {
-	STACK_PROXY_ENTER();
-//	uint16_t t[18];
-	STACK_PROXY_ALLOC(uint16_t, t, 18);
+	uint16_t t[18];
 
-	memcpy(t, a, 18 * sizeof *t);
+	memcpy(t, a, sizeof t);
 	br_i15_add(t, C255_P, br_i15_sub(t, b, 1));
-	memcpy(d, t, 18 * sizeof *t);
-	STACK_PROXY_EXIT();
+	memcpy(d, t, sizeof t);
 }
 
 static void
 c255_mul(uint16_t *d, const uint16_t *a, const uint16_t *b)
 {
-	STACK_PROXY_ENTER();
-//	uint16_t t[18];
-	STACK_PROXY_ALLOC(uint16_t, t, 18);
+	uint16_t t[18];
 
 	br_i15_montymul(t, a, b, C255_P, P0I);
-	memcpy(d, t, 18 * sizeof *t);
-	STACK_PROXY_EXIT();
+	memcpy(d, t, sizeof t);
 }
 
 static void
@@ -188,33 +179,16 @@ static uint32_t
 api_mul(unsigned char *G, size_t Glen,
 	const unsigned char *kb, size_t kblen, int curve)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 #define ILEN   (18 * sizeof(uint16_t))
 
 	/*
 	 * The a[] and b[] arrays have an extra word to allow for
 	 * decoding without using br_i15_decode_reduce().
 	 */
-//	uint16_t x1[18], x2[18], x3[18], z2[18], z3[18];
-//	uint16_t a[19], aa[18], b[19], bb[18];
-//	uint16_t c[18], d[18], e[18], da[18], cb[18];
-	STACK_PROXY_ALLOC(uint16_t, x1, 18);
-	STACK_PROXY_ALLOC(uint16_t, x2, 18);
-	STACK_PROXY_ALLOC(uint16_t, x3, 18);
-	STACK_PROXY_ALLOC(uint16_t, z2, 18);
-	STACK_PROXY_ALLOC(uint16_t, z3, 18);
-	STACK_PROXY_ALLOC(uint16_t, a, 19);
-	STACK_PROXY_ALLOC(uint16_t, aa, 18);
-	STACK_PROXY_ALLOC(uint16_t, b, 19);
-	STACK_PROXY_ALLOC(uint16_t, bb, 18);
-	STACK_PROXY_ALLOC(uint16_t, c, 18);
-	STACK_PROXY_ALLOC(uint16_t, d, 18);
-	STACK_PROXY_ALLOC(uint16_t, e, 18);
-	STACK_PROXY_ALLOC(uint16_t, da, 18);
-	STACK_PROXY_ALLOC(uint16_t, cb, 18);
-//	unsigned char k[32];
-	STACK_PROXY_ALLOC(unsigned char, k, 32);
+	uint16_t x1[18], x2[18], x3[18], z2[18], z3[18];
+	uint16_t a[19], aa[18], b[19], bb[18];
+	uint16_t c[18], d[18], e[18], da[18], cb[18];
+	unsigned char k[32];
 	uint32_t swap;
 	int i;
 
@@ -227,7 +201,6 @@ api_mul(unsigned char *G, size_t Glen,
 	 * be ignored/cleared.
 	 */
 	if (Glen != 32 || kblen > 32) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 	G[31] &= 0x7F;
@@ -267,7 +240,7 @@ api_mul(unsigned char *G, size_t Glen,
 	memcpy(z3, x2, ILEN);
 
 	memcpy(k, kb, kblen);
-	memset(k + kblen, 0, (32 * sizeof *k) - kblen);
+	memset(k + kblen, 0, (sizeof k) - kblen);
 	k[0] &= 0xF8;
 	k[31] &= 0x7F;
 	k[31] |= 0x40;
@@ -374,7 +347,6 @@ api_mul(unsigned char *G, size_t Glen,
 
 	br_i15_encode(G, 32, x2);
 	byteswap(G);
-	STACK_PROXY_EXIT();
 	return 1;
 
 #undef ILEN

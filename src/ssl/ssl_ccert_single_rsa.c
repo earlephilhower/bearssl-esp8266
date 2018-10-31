@@ -89,7 +89,7 @@ static const unsigned char HASH_OID_SHA512[] = {
 	0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03
 };
 
-static const unsigned char *HASH_OID[] = {
+static const unsigned char *HASH_OID[] PROGMEM = {
 	HASH_OID_SHA1,
 	HASH_OID_SHA224,
 	HASH_OID_SHA256,

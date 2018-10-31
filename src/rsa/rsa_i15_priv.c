@@ -31,15 +31,12 @@
 uint32_t
 br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	const unsigned char *p, *q;
 	size_t plen, qlen;
 	size_t fwlen;
 	uint16_t p0i, q0i;
 	size_t xlen, u;
-//	uint16_t tmp[1 + TLEN];
-	STACK_PROXY_ALLOC(uint16_t, tmp, 1 + TLEN);
+	uint16_t tmp[1 + TLEN];
 	long z;
 	uint16_t *mp, *mq, *s1, *s2, *t1, *t2, *t3;
 	uint32_t r;
@@ -80,7 +77,6 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * We need to fit at least 6 values in the stack buffer.
 	 */
 	if (6 * fwlen > TLEN) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 
@@ -145,7 +141,7 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	mp = mq + 2 * fwlen;
 	memmove(mp, t1, fwlen * sizeof *t1);
 
-        optimistic_yield(1000);
+	optimistic_yield(10000);
 
 	/*
 	 * Compute s2 = x^dq mod q.
@@ -156,7 +152,7 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	r &= br_i15_modpow_opt(s2, sk->dq, sk->dqlen, mq, q0i,
 		mq + 3 * fwlen, TLEN - 3 * fwlen);
 
-        optimistic_yield(1000);
+	optimistic_yield(10000);
 
 	/*
 	 * Compute s1 = x^dq mod q.
@@ -188,7 +184,7 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	br_i15_decode_reduce(t1, sk->iq, sk->iqlen, mp);
 	br_i15_montymul(t2, s1, t1, mp, p0i);
 
-        optimistic_yield(1000);
+	optimistic_yield(10000);
 
 	/*
 	 * h is now in t2. We compute the final result:
@@ -215,6 +211,5 @@ br_rsa_i15_private(unsigned char *x, const br_rsa_private_key *sk)
 	 * The only error conditions remaining at that point are invalid
 	 * values for p and q (even integers).
 	 */
-	STACK_PROXY_EXIT();
 	return p0i & q0i & r;
 }

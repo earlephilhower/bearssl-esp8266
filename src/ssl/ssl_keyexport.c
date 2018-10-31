@@ -28,7 +28,7 @@
  * Supported cipher suites that use SHA-384 for the PRF when selected
  * for TLS 1.2. All other cipher suites are deemed to use SHA-256.
  */
-static const uint16_t suites_sha384[] = {
+static const uint16_t suites_sha384[] PROGMEM = {
 	BR_TLS_RSA_WITH_AES_256_GCM_SHA384,
 	BR_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
 	BR_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384,
@@ -46,7 +46,6 @@ br_ssl_key_export(br_ssl_engine_context *cc,
 	void *dst, size_t len, const char *label,
 	const void *context, size_t context_len)
 {
-dumpstack();
 	br_tls_prf_seed_chunk chunks[4];
 	br_tls_prf_impl iprf;
 	size_t num_chunks, u;
@@ -72,7 +71,7 @@ dumpstack();
 	}
 	prf_id = BR_SSLPRF_SHA256;
 	for (u = 0; u < (sizeof suites_sha384) / sizeof(uint16_t); u ++) {
-		if (suites_sha384[u] == cc->session.cipher_suite) {
+		if (pgm_read_word(&suites_sha384[u]) == cc->session.cipher_suite) {
 			prf_id = BR_SSLPRF_SHA384;
 		}
 	}

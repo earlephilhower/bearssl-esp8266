@@ -453,17 +453,8 @@ static uint32_t
 run_code(jacobian *P1, const jacobian *P2,
 	const curve_params *cc, const uint16_t *code)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	uint32_t r;
-//	uint16_t t[13][I15_LEN];
-	STACK_PROXY_ALLOC(uint16_t, t_buff, 13 * I15_LEN);
-//	uint16_t *t[13];
-	STACK_PROXY_ALLOC(uint16_t *, t, 13);
-	size_t it;
-	for (it=0; it<13; it++) {
-		t[it] = &t_buff[it * I15_LEN];
-	}
+	uint16_t t[13][I15_LEN];
 	size_t u;
 
 	r = 1;
@@ -482,11 +473,7 @@ run_code(jacobian *P1, const jacobian *P2,
 	for (u = 0;; u ++) {
 		unsigned op, d, a, b;
 
-#ifdef ESP8266
 		op = pgm_read_word(&code[u]);
-#else
-		op = code[u];
-#endif
 		if (op == 0) {
 			break;
 		}
@@ -530,7 +517,6 @@ run_code(jacobian *P1, const jacobian *P2,
 	 * Copy back result.
 	 */
 	memcpy(P1->c, t[P1x], 3 * I15_LEN * sizeof(uint16_t));
-	STACK_PROXY_EXIT();
 	return r;
 }
 
@@ -568,8 +554,6 @@ static void
 point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 	const curve_params *cc)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	/*
 	 * We do a simple double-and-add ladder with a 2-bit window
 	 * to make only one add every two doublings. We thus first
@@ -585,19 +569,14 @@ point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 	 * this situation.
 	 */
 	uint32_t qz;
-//	jacobian P2, P3, Q, T, U;
-	STACK_PROXY_ALLOC(jacobian, P2, 1);
-	STACK_PROXY_ALLOC(jacobian, P3, 1);
-	STACK_PROXY_ALLOC(jacobian, Q, 1);
-	STACK_PROXY_ALLOC(jacobian, T, 1);
-	STACK_PROXY_ALLOC(jacobian, U, 1);
+	jacobian P2, P3, Q, T, U;
 
-	memcpy(P2, P, sizeof *P2);
-	point_double(P2, cc);
-	memcpy(P3, P, sizeof *P3);
-	point_add(P3, P2, cc);
+	memcpy(&P2, P, sizeof P2);
+	point_double(&P2, cc);
+	memcpy(&P3, P, sizeof P3);
+	point_add(&P3, &P2, cc);
 
-	point_zero(Q, cc);
+	point_zero(&Q, cc);
 	qz = 1;
 	while (xlen -- > 0) {
 		int k;
@@ -606,23 +585,22 @@ point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 			uint32_t bits;
 			uint32_t bnz;
 
-			point_double(Q, cc);
-			point_double(Q, cc);
-			memcpy(T, P, sizeof *T);
-			memcpy(U, Q, sizeof *U);
+			point_double(&Q, cc);
+			point_double(&Q, cc);
+			memcpy(&T, P, sizeof T);
+			memcpy(&U, &Q, sizeof U);
 			bits = (*x >> k) & (uint32_t)3;
 			bnz = NEQ(bits, 0);
-			CCOPY(EQ(bits, 2), T, P2, sizeof *T);
-			CCOPY(EQ(bits, 3), T, P3, sizeof *T);
-			point_add(U, T, cc);
-			CCOPY(bnz & qz, Q, T, sizeof *Q);
-			CCOPY(bnz & ~qz, Q, U, sizeof *Q);
+			CCOPY(EQ(bits, 2), &T, &P2, sizeof T);
+			CCOPY(EQ(bits, 3), &T, &P3, sizeof T);
+			point_add(&U, &T, cc);
+			CCOPY(bnz & qz, &Q, &T, sizeof Q);
+			CCOPY(bnz & ~qz, &Q, &U, sizeof Q);
 			qz &= ~bnz;
 		}
 		x ++;
 	}
-	memcpy(P, Q, sizeof *Q);
-	STACK_PROXY_EXIT();
+	memcpy(P, &Q, sizeof Q);
 }
 
 /*
@@ -633,8 +611,6 @@ point_mul(jacobian *P, const unsigned char *x, size_t xlen,
 static uint32_t
 point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	/*
 	 * Points must use uncompressed format:
 	 * -- first byte is 0x04;
@@ -655,14 +631,12 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 	const unsigned char *buf;
 	size_t plen, zlen;
 	uint32_t r;
-//	jacobian Q;
-	STACK_PROXY_ALLOC(jacobian, Q, 1);
+	jacobian Q;
 
 	buf = src;
 	point_zero(P, cc);
 	plen = (cc->p[0] - (cc->p[0] >> 4) + 7) >> 3;
 	if (len != 1 + (plen << 1)) {
-		STACK_PROXY_EXIT();
 		return 0;
 	}
 	r = br_i15_decode_mod(P->c[0], buf + 1, plen, cc->p);
@@ -681,11 +655,10 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 	 * Convert coordinates and check that the point is valid.
 	 */
 	zlen = ((cc->p[0] + 31) >> 4) * sizeof(uint16_t);
-	memcpy(Q->c[0], cc->R2, zlen);
-	memcpy(Q->c[1], cc->b, zlen);
-	set_one(Q->c[2], cc->p);
-	r &= ~run_code(P, Q, cc, code_check);
-	STACK_PROXY_EXIT();
+	memcpy(Q.c[0], cc->R2, zlen);
+	memcpy(Q.c[1], cc->b, zlen);
+	set_one(Q.c[2], cc->p);
+	r &= ~run_code(P, &Q, cc, code_check);
 	return r;
 }
 
@@ -697,23 +670,18 @@ point_decode(jacobian *P, const void *src, size_t len, const curve_params *cc)
 static void
 point_encode(void *dst, const jacobian *P, const curve_params *cc)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	unsigned char *buf;
 	size_t plen;
-//	jacobian Q, T;
-	STACK_PROXY_ALLOC(jacobian, Q, 1);
-	STACK_PROXY_ALLOC(jacobian, T, 1);
+	jacobian Q, T;
 
 	buf = dst;
 	plen = (cc->p[0] - (cc->p[0] >> 4) + 7) >> 3;
 	buf[0] = 0x04;
-	memcpy(Q, P, sizeof *P);
-	set_one(T->c[2], cc->p);
-	run_code(Q, T, cc, code_affine);
-	br_i15_encode(buf + 1, plen, Q->c[0]);
-	br_i15_encode(buf + 1 + plen, plen, Q->c[1]);
-	STACK_PROXY_EXIT();
+	memcpy(&Q, P, sizeof *P);
+	set_one(T.c[2], cc->p);
+	run_code(&Q, &T, cc, code_affine);
+	br_i15_encode(buf + 1, plen, Q.c[0]);
+	br_i15_encode(buf + 1 + plen, plen, Q.c[1]);
 }
 
 static const br_ec_curve_def *
@@ -762,20 +730,16 @@ static uint32_t
 api_mul(unsigned char *G, size_t Glen,
 	const unsigned char *x, size_t xlen, int curve)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	uint32_t r;
 	const curve_params *cc;
-//	jacobian P;
-	STACK_PROXY_ALLOC(jacobian, P, 1);
+	jacobian P;
 
 	cc = id_to_curve(curve);
-	r = point_decode(P, G, Glen, cc);
-	point_mul(P, x, xlen, cc);
+	r = point_decode(&P, G, Glen, cc);
+	point_mul(&P, x, xlen, cc);
 	if (Glen == cc->point_len) {
-		point_encode(G, P, cc);
+		point_encode(G, &P, cc);
 	}
-	STACK_PROXY_EXIT();
 	return r;
 }
 
@@ -797,13 +761,9 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	const unsigned char *x, size_t xlen,
 	const unsigned char *y, size_t ylen, int curve)
 {
-	STACK_PROXY_ENTER();
-	dumpstack();
 	uint32_t r, t, z;
 	const curve_params *cc;
-//	jacobian P, Q;
-	STACK_PROXY_ALLOC(jacobian, P, 1);
-	STACK_PROXY_ALLOC(jacobian, Q, 1);
+	jacobian P, Q;
 
 	/*
 	 * TODO: see about merging the two ladders. Right now, we do
@@ -812,15 +772,15 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	 */
 
 	cc = id_to_curve(curve);
-	r = point_decode(P, A, len, cc);
+	r = point_decode(&P, A, len, cc);
 	if (B == NULL) {
 		size_t Glen;
 
 		B = api_generator(curve, &Glen);
 	}
-	r &= point_decode(Q, B, len, cc);
-	point_mul(P, x, xlen, cc);
-	point_mul(Q, y, ylen, cc);
+	r &= point_decode(&Q, B, len, cc);
+	point_mul(&P, x, xlen, cc);
+	point_mul(&Q, y, ylen, cc);
 
 	/*
 	 * We want to compute P+Q. Since the base points A and B are distinct
@@ -830,9 +790,9 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	 * -- If P = Q then we must use point_double().
 	 * -- If P+Q = 0 then we must report an error.
 	 */
-	t = point_add(P, Q, cc);
-	point_double(Q, cc);
-	z = br_i15_iszero(P->c[2]);
+	t = point_add(&P, &Q, cc);
+	point_double(&Q, cc);
+	z = br_i15_iszero(P.c[2]);
 
 	/*
 	 * If z is 1 then either P+Q = 0 (t = 1) or P = Q (t = 0). So we
@@ -843,10 +803,10 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	 *   z = 1, t = 0   return Q (a 'double' case)
 	 *   z = 1, t = 1   report an error (P+Q = 0)
 	 */
-	CCOPY(z & ~t, P, Q, sizeof *Q);
-	point_encode(A, P, cc);
+	CCOPY(z & ~t, &P, &Q, sizeof Q);
+	point_encode(A, &P, cc);
 	r &= ~(z & t);
-	STACK_PROXY_EXIT();
+
 	return r;
 }
 
