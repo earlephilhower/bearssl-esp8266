@@ -214,7 +214,7 @@ api_mul(unsigned char *G, size_t Glen,
 	 *    br_i31_decode_reduce(a, G, 32, C255_P);
 	 */
 	br_i31_zero(b, 0x108);
-	b[9] = 0x0100;
+	b[9] = 0x0080;
 	br_i31_decode_mod(a, G, 32, b);
 	a[0] = 0x107;
 	br_i31_sub(a, C255_P, NOT(br_i31_sub(a, C255_P, 0)));
