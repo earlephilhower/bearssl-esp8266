@@ -1089,6 +1089,19 @@ test_speed_ec_c25519_m31(void)
 }
 
 static void
+test_speed_ec_c25519_m62(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_c25519_m62_get();
+	if (ec != NULL) {
+		test_speed_ec_inner("EC c25519_m62", ec, &br_curve25519);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "EC c25519_m62");
+	}
+}
+
+static void
 test_speed_ecdsa_inner(const char *name,
 	const br_ec_impl *impl, const br_ec_curve_def *cd,
 	br_ecdsa_sign sign, br_ecdsa_vrfy vrfy)
@@ -1606,6 +1619,7 @@ static const struct {
 	STU(ec_c25519_i31),
 	STU(ec_c25519_m15),
 	STU(ec_c25519_m31),
+	STU(ec_c25519_m62),
 	STU(ecdsa_p256_m15),
 	STU(ecdsa_p256_m31),
 	STU(ecdsa_i15),

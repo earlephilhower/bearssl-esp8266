@@ -26,6 +26,7 @@ OBJ = \
  $(OBJDIR)$Pec_c25519_i31$O \
  $(OBJDIR)$Pec_c25519_m15$O \
  $(OBJDIR)$Pec_c25519_m31$O \
+ $(OBJDIR)$Pec_c25519_m62$O \
  $(OBJDIR)$Pec_curve25519$O \
  $(OBJDIR)$Pec_default$O \
  $(OBJDIR)$Pec_keygen$O \
@@ -445,6 +446,9 @@ $(OBJDIR)$Pec_c25519_m15$O: src$Pec$Pec_c25519_m15.c $(HEADERSPRIV)
 
 $(OBJDIR)$Pec_c25519_m31$O: src$Pec$Pec_c25519_m31.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pec_c25519_m31$O src$Pec$Pec_c25519_m31.c
+
+$(OBJDIR)$Pec_c25519_m62$O: src$Pec$Pec_c25519_m62.c $(HEADERSPRIV)
+	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pec_c25519_m62$O src$Pec$Pec_c25519_m62.c
 
 $(OBJDIR)$Pec_curve25519$O: src$Pec$Pec_curve25519.c $(HEADERSPRIV)
 	$(CC) $(CFLAGS) $(INCFLAGS) $(CCOUT)$(OBJDIR)$Pec_curve25519$O src$Pec$Pec_curve25519.c

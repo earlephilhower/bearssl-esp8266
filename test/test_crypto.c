@@ -8570,7 +8570,7 @@ test_EC_p256_m31(void)
 }
 
 const struct {
-	const char *scalar;
+	const char *scalar_le;
 	const char *u_in;
 	const char *u_out;
 } C25519_KAT[] = {
@@ -8584,6 +8584,20 @@ const struct {
 };
 
 static void
+revbytes(unsigned char *buf, size_t len)
+{
+	size_t u;
+
+	for (u = 0; u < (len >> 1); u ++) {
+		unsigned t;
+
+		t = buf[u];
+		buf[u] = buf[len - 1 - u];
+		buf[len - 1 - u] = t;
+	}
+}
+
+static void
 test_EC_c25519(const char *name, const br_ec_impl *iec)
 {
 	unsigned char bu[32], bk[32], br[32];
@@ -8592,8 +8606,9 @@ test_EC_c25519(const char *name, const br_ec_impl *iec)
 
 	printf("Test %s: ", name);
 	fflush(stdout);
-	for (v = 0; C25519_KAT[v].scalar; v ++) {
-		hextobin(bk, C25519_KAT[v].scalar);
+	for (v = 0; C25519_KAT[v].scalar_le; v ++) {
+		hextobin(bk, C25519_KAT[v].scalar_le);
+		revbytes(bk, sizeof bk);
 		hextobin(bu, C25519_KAT[v].u_in);
 		hextobin(br, C25519_KAT[v].u_out);
 		if (!iec->mul(bu, sizeof bu, bk, sizeof bk, BR_EC_curve25519)) {
@@ -8614,11 +8629,13 @@ test_EC_c25519(const char *name, const br_ec_impl *iec)
 	bu[0] = 0x09;
 	memcpy(bk, bu, sizeof bu);
 	for (i = 1; i <= 1000; i ++) {
+		revbytes(bk, sizeof bk);
 		if (!iec->mul(bu, sizeof bu, bk, sizeof bk, BR_EC_curve25519)) {
 			fprintf(stderr, "Curve25519 multiplication failed"
 				" (iter=%d)\n", i);
 			exit(EXIT_FAILURE);
 		}
+		revbytes(bk, sizeof bk);
 		for (v = 0; v < sizeof bu; v ++) {
 			unsigned t;
 
@@ -8679,6 +8696,22 @@ test_EC_c25519_m31(void)
 	test_EC_c25519("EC_c25519_m31", &br_ec_c25519_m31);
 	test_EC_keygen("EC_c25519_m31", &br_ec_c25519_m31,
 		(uint32_t)1 << BR_EC_curve25519);
+}
+
+static void
+test_EC_c25519_m62(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_c25519_m62_get();
+	if (ec != NULL) {
+		test_EC_c25519("EC_c25519_m62", ec);
+		test_EC_keygen("EC_c25519_m62", ec,
+			(uint32_t)1 << BR_EC_curve25519);
+	} else {
+		printf("Test EC_c25519_m62: UNAVAILABLE\n");
+		printf("Test EC_c25519_m62 keygen: UNAVAILABLE\n");
+	}
 }
 
 static const unsigned char EC_P256_PUB_POINT[] = {
@@ -9352,6 +9385,7 @@ static const struct {
 	STU(EC_c25519_i31),
 	STU(EC_c25519_m15),
 	STU(EC_c25519_m31),
+	STU(EC_c25519_m62),
 	STU(ECDSA_i15),
 	STU(ECDSA_i31),
 	STU(modpow_i31),
