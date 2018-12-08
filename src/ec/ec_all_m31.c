@@ -31,7 +31,11 @@ api_generator(int curve, size_t *len)
 	case BR_EC_secp256r1:
 		return br_ec_p256_m31.generator(curve, len);
 	case BR_EC_curve25519:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_c25519_m62.generator(curve, len);
+#else
 		return br_ec_c25519_m31.generator(curve, len);
+#endif
 	default:
 		return br_ec_prime_i31.generator(curve, len);
 	}
@@ -44,7 +48,11 @@ api_order(int curve, size_t *len)
 	case BR_EC_secp256r1:
 		return br_ec_p256_m31.order(curve, len);
 	case BR_EC_curve25519:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_c25519_m62.order(curve, len);
+#else
 		return br_ec_c25519_m31.order(curve, len);
+#endif
 	default:
 		return br_ec_prime_i31.order(curve, len);
 	}
@@ -57,7 +65,11 @@ api_xoff(int curve, size_t *len)
 	case BR_EC_secp256r1:
 		return br_ec_p256_m31.xoff(curve, len);
 	case BR_EC_curve25519:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_c25519_m62.xoff(curve, len);
+#else
 		return br_ec_c25519_m31.xoff(curve, len);
+#endif
 	default:
 		return br_ec_prime_i31.xoff(curve, len);
 	}
@@ -71,7 +83,11 @@ api_mul(unsigned char *G, size_t Glen,
 	case BR_EC_secp256r1:
 		return br_ec_p256_m31.mul(G, Glen, kb, kblen, curve);
 	case BR_EC_curve25519:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_c25519_m62.mul(G, Glen, kb, kblen, curve);
+#else
 		return br_ec_c25519_m31.mul(G, Glen, kb, kblen, curve);
+#endif
 	default:
 		return br_ec_prime_i31.mul(G, Glen, kb, kblen, curve);
 	}
@@ -85,7 +101,11 @@ api_mulgen(unsigned char *R,
 	case BR_EC_secp256r1:
 		return br_ec_p256_m31.mulgen(R, x, xlen, curve);
 	case BR_EC_curve25519:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_c25519_m62.mulgen(R, x, xlen, curve);
+#else
 		return br_ec_c25519_m31.mulgen(R, x, xlen, curve);
+#endif
 	default:
 		return br_ec_prime_i31.mulgen(R, x, xlen, curve);
 	}
@@ -101,8 +121,13 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 		return br_ec_p256_m31.muladd(A, B, len,
 			x, xlen, y, ylen, curve);
 	case BR_EC_curve25519:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_c25519_m62.muladd(A, B, len,
+			x, xlen, y, ylen, curve);
+#else
 		return br_ec_c25519_m31.muladd(A, B, len,
 			x, xlen, y, ylen, curve);
+#endif
 	default:
 		return br_ec_prime_i31.muladd(A, B, len,
 			x, xlen, y, ylen, curve);
