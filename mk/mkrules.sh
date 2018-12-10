@@ -74,6 +74,7 @@ coresrc=" \
 	src/ec/ec_c25519_i31.c \
 	src/ec/ec_c25519_m15.c \
 	src/ec/ec_c25519_m31.c \
+	src/ec/ec_c25519_m62.c \
 	src/ec/ec_curve25519.c \
 	src/ec/ec_default.c \
 	src/ec/ec_keygen.c \

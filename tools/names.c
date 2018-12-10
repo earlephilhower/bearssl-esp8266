@@ -517,6 +517,8 @@ static const struct {
 		(const void *(*)(void))&br_rsa_i62_pkcs1_sign_get },
 	{ "rsa_i62_pkcs1_vrfy",   "i62",
 		(const void *(*)(void))&br_rsa_i62_pkcs1_vrfy_get },
+	{ "ec_c25519_m62",        "m62",
+		(const void *(*)(void))&br_ec_c25519_m62_get },
 	{ 0, 0, 0, }
 };
 
