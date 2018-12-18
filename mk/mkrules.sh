@@ -75,11 +75,14 @@ coresrc=" \
 	src/ec/ec_c25519_m15.c \
 	src/ec/ec_c25519_m31.c \
 	src/ec/ec_c25519_m62.c \
+	src/ec/ec_c25519_m64.c \
 	src/ec/ec_curve25519.c \
 	src/ec/ec_default.c \
 	src/ec/ec_keygen.c \
 	src/ec/ec_p256_m15.c \
 	src/ec/ec_p256_m31.c \
+	src/ec/ec_p256_m62.c \
+	src/ec/ec_p256_m64.c \
 	src/ec/ec_prime_i15.c \
 	src/ec/ec_prime_i31.c \
 	src/ec/ec_pubkey.c \
