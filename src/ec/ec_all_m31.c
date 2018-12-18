@@ -29,10 +29,14 @@ api_generator(int curve, size_t *len)
 {
 	switch (curve) {
 	case BR_EC_secp256r1:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_p256_m64.generator(curve, len);
+#else
 		return br_ec_p256_m31.generator(curve, len);
+#endif
 	case BR_EC_curve25519:
 #if BR_INT128 || BR_UMUL128
-		return br_ec_c25519_m62.generator(curve, len);
+		return br_ec_c25519_m64.generator(curve, len);
 #else
 		return br_ec_c25519_m31.generator(curve, len);
 #endif
@@ -46,10 +50,14 @@ api_order(int curve, size_t *len)
 {
 	switch (curve) {
 	case BR_EC_secp256r1:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_p256_m64.order(curve, len);
+#else
 		return br_ec_p256_m31.order(curve, len);
+#endif
 	case BR_EC_curve25519:
 #if BR_INT128 || BR_UMUL128
-		return br_ec_c25519_m62.order(curve, len);
+		return br_ec_c25519_m64.order(curve, len);
 #else
 		return br_ec_c25519_m31.order(curve, len);
 #endif
@@ -63,10 +71,14 @@ api_xoff(int curve, size_t *len)
 {
 	switch (curve) {
 	case BR_EC_secp256r1:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_p256_m64.xoff(curve, len);
+#else
 		return br_ec_p256_m31.xoff(curve, len);
+#endif
 	case BR_EC_curve25519:
 #if BR_INT128 || BR_UMUL128
-		return br_ec_c25519_m62.xoff(curve, len);
+		return br_ec_c25519_m64.xoff(curve, len);
 #else
 		return br_ec_c25519_m31.xoff(curve, len);
 #endif
@@ -81,10 +93,14 @@ api_mul(unsigned char *G, size_t Glen,
 {
 	switch (curve) {
 	case BR_EC_secp256r1:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_p256_m64.mul(G, Glen, kb, kblen, curve);
+#else
 		return br_ec_p256_m31.mul(G, Glen, kb, kblen, curve);
+#endif
 	case BR_EC_curve25519:
 #if BR_INT128 || BR_UMUL128
-		return br_ec_c25519_m62.mul(G, Glen, kb, kblen, curve);
+		return br_ec_c25519_m64.mul(G, Glen, kb, kblen, curve);
 #else
 		return br_ec_c25519_m31.mul(G, Glen, kb, kblen, curve);
 #endif
@@ -99,10 +115,14 @@ api_mulgen(unsigned char *R,
 {
 	switch (curve) {
 	case BR_EC_secp256r1:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_p256_m64.mulgen(R, x, xlen, curve);
+#else
 		return br_ec_p256_m31.mulgen(R, x, xlen, curve);
+#endif
 	case BR_EC_curve25519:
 #if BR_INT128 || BR_UMUL128
-		return br_ec_c25519_m62.mulgen(R, x, xlen, curve);
+		return br_ec_c25519_m64.mulgen(R, x, xlen, curve);
 #else
 		return br_ec_c25519_m31.mulgen(R, x, xlen, curve);
 #endif
@@ -118,11 +138,16 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 {
 	switch (curve) {
 	case BR_EC_secp256r1:
+#if BR_INT128 || BR_UMUL128
+		return br_ec_p256_m64.muladd(A, B, len,
+			x, xlen, y, ylen, curve);
+#else
 		return br_ec_p256_m31.muladd(A, B, len,
 			x, xlen, y, ylen, curve);
+#endif
 	case BR_EC_curve25519:
 #if BR_INT128 || BR_UMUL128
-		return br_ec_c25519_m62.muladd(A, B, len,
+		return br_ec_c25519_m64.muladd(A, B, len,
 			x, xlen, y, ylen, curve);
 #else
 		return br_ec_c25519_m31.muladd(A, B, len,
