@@ -161,9 +161,10 @@ br_prng_seeder_system(const char **name)
 		*name = "win32";
 	}
 	return &seeder_win32;
-#endif
+#else
 	if (name != NULL) {
 		*name = "none";
 	}
 	return 0;
+#endif
 }
