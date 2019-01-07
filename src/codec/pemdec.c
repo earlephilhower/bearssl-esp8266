@@ -480,12 +480,18 @@ br_pem_decoder_run(void *t0ctx)
 			case 25: {
 				/* read8-native */
 
-	if (CTX->hlen > 0) {
-		T0_PUSH(pgm_read_byte(CTX->hbuf ++));
-		CTX->hlen --;
-	} else {
-		T0_PUSHi(-1);
-	}
+	do {
+		if (CTX->hlen > 0) {
+			uint8_t ch = pgm_read_byte(CTX->hbuf ++);
+			CTX->hlen --;
+			if (ch == '\r') continue; // skip \rs
+			T0_PUSH(ch);
+			break;
+		} else {
+			T0_PUSHi(-1);
+			break;
+		}
+	} while (1);
 
 				}
 				break;

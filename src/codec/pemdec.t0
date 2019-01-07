@@ -97,12 +97,18 @@ cc: get8 ( addr -- value ) {
 \ Low-level function to read a single byte. Returned value is the byte
 \ (0 to 255), or -1 if there is no available data.
 cc: read8-native ( -- x ) {
-	if (CTX->hlen > 0) {
-		T0_PUSH(pgm_read_byte(CTX->hbuf ++));
-		CTX->hlen --;
-	} else {
-		T0_PUSHi(-1);
-	}
+	do {
+		if (CTX->hlen > 0) {
+			uint8_t ch = pgm_read_byte(CTX->hbuf ++);
+			CTX->hlen --;
+			if (ch == '\r') continue; // skip \rs
+			T0_PUSH(ch);
+			break;
+		} else {
+			T0_PUSHi(-1);
+			break;
+		}
+	} while (1);
 }
 
 \ Read next byte. Block until the next byte is available.
