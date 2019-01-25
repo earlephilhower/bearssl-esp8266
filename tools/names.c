@@ -519,6 +519,12 @@ static const struct {
 		(const void *(*)(void))&br_rsa_i62_pkcs1_vrfy_get },
 	{ "ec_c25519_m62",        "m62",
 		(const void *(*)(void))&br_ec_c25519_m62_get },
+	{ "ec_c25519_m64",        "m64",
+		(const void *(*)(void))&br_ec_c25519_m64_get },
+	{ "ec_p256_m62",          "m62",
+		(const void *(*)(void))&br_ec_p256_m62_get },
+	{ "ec_p256_m64",          "m64",
+		(const void *(*)(void))&br_ec_p256_m64_get },
 	{ 0, 0, 0, }
 };
 

@@ -186,9 +186,10 @@ br_prng_seeder_system(const char **name)
                 *name = "esp8266";
         }
         return &seeder_esp8266;
-#endif
+#else
 	if (name != NULL) {
 		*name = "none";
 	}
 	return 0;
+#endif
 }

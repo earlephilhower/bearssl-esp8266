@@ -1039,6 +1039,32 @@ test_speed_ec_p256_m31(void)
 }
 
 static void
+test_speed_ec_p256_m62(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_p256_m62_get();
+	if (ec != NULL) {
+		test_speed_ec_inner("EC p256_m62", ec, &br_secp256r1);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "EC p256_m62");
+	}
+}
+
+static void
+test_speed_ec_p256_m64(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_p256_m64_get();
+	if (ec != NULL) {
+		test_speed_ec_inner("EC p256_m64", ec, &br_secp256r1);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "EC p256_m64");
+	}
+}
+
+static void
 test_speed_ec_prime_i15(void)
 {
 	test_speed_ec_inner("EC prime_i15 P-256",
@@ -1098,6 +1124,19 @@ test_speed_ec_c25519_m62(void)
 		test_speed_ec_inner("EC c25519_m62", ec, &br_curve25519);
 	} else {
 		printf("%-30s UNAVAILABLE\n", "EC c25519_m62");
+	}
+}
+
+static void
+test_speed_ec_c25519_m64(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_c25519_m64_get();
+	if (ec != NULL) {
+		test_speed_ec_inner("EC c25519_m64", ec, &br_curve25519);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "EC c25519_m64");
 	}
 }
 
@@ -1202,6 +1241,38 @@ test_speed_ecdsa_p256_m31(void)
 		&br_ec_p256_m31, &br_secp256r1,
 		&br_ecdsa_i31_sign_asn1,
 		&br_ecdsa_i31_vrfy_asn1);
+}
+
+static void
+test_speed_ecdsa_p256_m62(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_p256_m62_get();
+	if (ec != NULL) {
+		test_speed_ecdsa_inner("ECDSA m62 P-256",
+			ec, &br_secp256r1,
+			&br_ecdsa_i31_sign_asn1,
+			&br_ecdsa_i31_vrfy_asn1);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "ECDSA m62 P-256");
+	}
+}
+
+static void
+test_speed_ecdsa_p256_m64(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_p256_m64_get();
+	if (ec != NULL) {
+		test_speed_ecdsa_inner("ECDSA m64 P-256",
+			ec, &br_secp256r1,
+			&br_ecdsa_i31_sign_asn1,
+			&br_ecdsa_i31_vrfy_asn1);
+	} else {
+		printf("%-30s UNAVAILABLE\n", "ECDSA m64 P-256");
+	}
 }
 
 static void
@@ -1615,13 +1686,18 @@ static const struct {
 	STU(ec_prime_i31),
 	STU(ec_p256_m15),
 	STU(ec_p256_m31),
+	STU(ec_p256_m62),
+	STU(ec_p256_m64),
 	STU(ec_c25519_i15),
 	STU(ec_c25519_i31),
 	STU(ec_c25519_m15),
 	STU(ec_c25519_m31),
 	STU(ec_c25519_m62),
+	STU(ec_c25519_m64),
 	STU(ecdsa_p256_m15),
 	STU(ecdsa_p256_m31),
+	STU(ecdsa_p256_m62),
+	STU(ecdsa_p256_m64),
 	STU(ecdsa_i15),
 	STU(ecdsa_i31),
 

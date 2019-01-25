@@ -117,6 +117,10 @@
 #define BR_64   1
 #elif defined(__x86_64__) || defined(_M_X64)
 #define BR_64   1
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define BR_64   1
+#elif defined(__mips64)
+#define BR_64   1
 #endif
 #endif
 

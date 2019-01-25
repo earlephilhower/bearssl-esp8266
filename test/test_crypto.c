@@ -6783,7 +6783,7 @@ test_RSA_keygen(const char *name, br_rsa_keygen kg, br_rsa_compute_modulus cm,
 		uint32_t mod[256];
 		uint32_t cc;
 		size_t u, v;
-		unsigned char sig[257], hv[32], hv2[sizeof hv];
+		unsigned char sig[257], hv[32], hv2[32];
 		unsigned mask1, mask2;
 		int j;
 
@@ -8316,7 +8316,7 @@ test_EC_inner(const char *sk, const char *sU,
 static void
 test_EC_P256_carry_inner(const br_ec_impl *impl, const char *sP, const char *sQ)
 {
-	unsigned char P[65], Q[sizeof P], k[1];
+	unsigned char P[65], Q[65], k[1];
 	size_t plen, qlen;
 
 	plen = hextobin(P, sP);
@@ -8569,6 +8569,40 @@ test_EC_p256_m31(void)
 		(uint32_t)1 << BR_EC_secp256r1);
 }
 
+static void
+test_EC_p256_m62(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_p256_m62_get();
+	if (ec != NULL) {
+		test_EC_KAT("EC_p256_m62", ec,
+			(uint32_t)1 << BR_EC_secp256r1);
+		test_EC_keygen("EC_p256_m62", ec,
+			(uint32_t)1 << BR_EC_secp256r1);
+	} else {
+		printf("Test EC_p256_m62: UNAVAILABLE\n");
+		printf("Test EC_p256_m62 keygen: UNAVAILABLE\n");
+	}
+}
+
+static void
+test_EC_p256_m64(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_p256_m64_get();
+	if (ec != NULL) {
+		test_EC_KAT("EC_p256_m64", ec,
+			(uint32_t)1 << BR_EC_secp256r1);
+		test_EC_keygen("EC_p256_m64", ec,
+			(uint32_t)1 << BR_EC_secp256r1);
+	} else {
+		printf("Test EC_p256_m64: UNAVAILABLE\n");
+		printf("Test EC_p256_m64 keygen: UNAVAILABLE\n");
+	}
+}
+
 const struct {
 	const char *scalar_le;
 	const char *u_in;
@@ -8711,6 +8745,22 @@ test_EC_c25519_m62(void)
 	} else {
 		printf("Test EC_c25519_m62: UNAVAILABLE\n");
 		printf("Test EC_c25519_m62 keygen: UNAVAILABLE\n");
+	}
+}
+
+static void
+test_EC_c25519_m64(void)
+{
+	const br_ec_impl *ec;
+
+	ec = br_ec_c25519_m64_get();
+	if (ec != NULL) {
+		test_EC_c25519("EC_c25519_m64", ec);
+		test_EC_keygen("EC_c25519_m64", ec,
+			(uint32_t)1 << BR_EC_curve25519);
+	} else {
+		printf("Test EC_c25519_m64: UNAVAILABLE\n");
+		printf("Test EC_c25519_m64 keygen: UNAVAILABLE\n");
 	}
 }
 
@@ -9381,11 +9431,14 @@ static const struct {
 	STU(EC_prime_i31),
 	STU(EC_p256_m15),
 	STU(EC_p256_m31),
+	STU(EC_p256_m62),
+	STU(EC_p256_m64),
 	STU(EC_c25519_i15),
 	STU(EC_c25519_i31),
 	STU(EC_c25519_m15),
 	STU(EC_c25519_m31),
 	STU(EC_c25519_m62),
+	STU(EC_c25519_m64),
 	STU(ECDSA_i15),
 	STU(ECDSA_i31),
 	STU(modpow_i31),
