@@ -36,7 +36,11 @@ br_i32_mulacc(uint32_t *d, const uint32_t *a, const uint32_t *b)
 	for (u = 0; u < blen; u ++) {
 		uint32_t f;
 		size_t v;
+#if BR_64
 		uint64_t cc;
+#else
+		uint32_t cc;
+#endif
 
 		f = b[1 + u];
 		cc = 0;

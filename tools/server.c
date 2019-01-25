@@ -1220,6 +1220,13 @@ server_exit:
 		close(fd);
 #endif
 	}
+	if (server_fd != INVALID_SOCKET) {
+#ifdef _WIN32
+		closesocket(server_fd);
+#else
+		close(server_fd);
+#endif
+	}
 	return retcode;
 
 server_exit_error:
