@@ -32,15 +32,15 @@ br_i15_montymul(uint16_t *d, const uint16_t *x, const uint16_t *y,
 	size_t len, len4, u, v;
 	uint32_t dh;
 
-	len = (m[0] + 15) >> 4;
+	len = (pgm_read_word(&m[0]) + 15) >> 4;
 	len4 = len & ~(size_t)3;
-	br_i15_zero(d, m[0]);
+	br_i15_zero(d, pgm_read_word(&m[0]));
 	dh = 0;
 	for (u = 0; u < len; u ++) {
 		uint32_t f, xu, r, zh;
 
-		xu = x[u + 1];
-		f = MUL15((d[1] + MUL15(x[u + 1], y[1])) & 0x7FFF, m0i)
+		xu = pgm_read_word(&x[u + 1]);
+		f = MUL15((d[1] + MUL15(pgm_read_word(&x[u + 1]), pgm_read_word(&y[1]))) & 0x7FFF, m0i)
 			& 0x7FFF;
 #if BR_ARMEL_CORTEXM_GCC
 		if (len4 != 0) {
@@ -139,20 +139,20 @@ loop%=:                                                            \n\
 		for (v = 0; v < len4; v += 4) {
 			uint32_t z;
 
-			z = d[v + 1] + MUL15(xu, y[v + 1])
-				+ MUL15(f, m[v + 1]) + r;
+			z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
+				+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
 			r = z >> 15;
 			d[v + 0] = z & 0x7FFF;
-			z = d[v + 2] + MUL15(xu, y[v + 2])
-				+ MUL15(f, m[v + 2]) + r;
+			z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
+				+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
 			r = z >> 15;
 			d[v + 1] = z & 0x7FFF;
-			z = d[v + 3] + MUL15(xu, y[v + 3])
-				+ MUL15(f, m[v + 3]) + r;
+			z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
+				+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
 			r = z >> 15;
 			d[v + 2] = z & 0x7FFF;
-			z = d[v + 4] + MUL15(xu, y[v + 4])
-				+ MUL15(f, m[v + 4]) + r;
+			z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
+				+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
 			r = z >> 15;
 			d[v + 3] = z & 0x7FFF;
 		}
@@ -160,8 +160,8 @@ loop%=:                                                            \n\
 		for (; v < len; v ++) {
 			uint32_t z;
 
-			z = d[v + 1] + MUL15(xu, y[v + 1])
-				+ MUL15(f, m[v + 1]) + r;
+			z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
+				+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
 			r = z >> 15;
 			d[v + 0] = z & 0x7FFF;
 		}
@@ -174,7 +174,7 @@ loop%=:                                                            \n\
 	/*
 	 * Restore the bit length (it was overwritten in the loop above).
 	 */
-	d[0] = m[0];
+	d[0] = pgm_read_word(&m[0]);
 
 	/*
 	 * d[] may be greater than m[], but it is still lower than twice
