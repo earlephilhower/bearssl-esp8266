@@ -56,7 +56,7 @@
  * no more than 23833 bits). RSA key sizes beyond 3072 bits don't make a
  * lot of sense anyway.
  */
-#define BR_MAX_RSA_SIZE   4096
+#define BR_MAX_RSA_SIZE   2048
 
 /*
  * Minimum size for a RSA modulus (in bits); this value is used only to
@@ -82,7 +82,7 @@
  * of 8 (so that decoding an integer with that many bytes does not
  * overflow).
  */
-#define BR_MAX_EC_SIZE   528
+#define BR_MAX_EC_SIZE   256
 
 /*
  * Some macros to recognize the current architecture. Right now, we are
