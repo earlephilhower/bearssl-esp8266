@@ -315,25 +315,25 @@ loop%=:                                                            \n\
 			}
 		}
 #endif // ESP8266
-		// for (v = 0; v < len4; v += 4) {
-		// 	uint32_t z;
-		// 	z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
-		// 		+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
-		// 	r = z >> 15;
-		// 	d[v + 0] = z & 0x7FFF;
-		// 	z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
-		// 		+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
-		// 	r = z >> 15;
-		// 	d[v + 1] = z & 0x7FFF;
-		// 	z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
-		// 		+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
-		// 	r = z >> 15;
-		// 	d[v + 2] = z & 0x7FFF;
-		// 	z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
-		// 		+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
-		// 	r = z >> 15;
-		// 	d[v + 3] = z & 0x7FFF;
-		// }
+		for (v = 0; v < len4; v += 4) {
+			uint32_t z;
+			z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
+				+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
+			r = z >> 15;
+			d[v + 0] = z & 0x7FFF;
+			z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
+				+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
+			r = z >> 15;
+			d[v + 1] = z & 0x7FFF;
+			z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
+				+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
+			r = z >> 15;
+			d[v + 2] = z & 0x7FFF;
+			z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
+				+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
+			r = z >> 15;
+			d[v + 3] = z & 0x7FFF;
+		}
 #endif
 		for (; v < len; v ++) {
 			uint32_t z;
