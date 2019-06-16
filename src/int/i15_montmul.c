@@ -256,7 +256,7 @@ loop%=:                                                            \n\
 				r = z >> 15;
 				d[v + 3] = z & 0x7FFF;
 			}
-		} else if (py_unaligned && pm_unaligned) {
+		} else { // if (py_unaligned && pm_unaligned) {
 			// py unaligned, pm unaligned
 			py--;
 			pm--;
@@ -293,28 +293,8 @@ loop%=:                                                            \n\
 				r = z >> 15;
 				d[v + 3] = z & 0x7FFF;
 			}
-		} else {
-			for (v = 0; v < len4; v += 4) {
-				uint32_t z;
-				z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
-					+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
-				r = z >> 15;
-				d[v + 0] = z & 0x7FFF;
-				z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
-					+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
-				r = z >> 15;
-				d[v + 1] = z & 0x7FFF;
-				z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
-					+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
-				r = z >> 15;
-				d[v + 2] = z & 0x7FFF;
-				z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
-					+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
-				r = z >> 15;
-				d[v + 3] = z & 0x7FFF;
-			}
 		}
-#endif // ESP8266
+#else // ESP8266
 		for (v = 0; v < len4; v += 4) {
 			uint32_t z;
 			z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
@@ -334,7 +314,8 @@ loop%=:                                                            \n\
 			r = z >> 15;
 			d[v + 3] = z & 0x7FFF;
 		}
-#endif
+#endif	// ESP8266
+#endif  // BR_ARMEL_CORTEXM_GCC
 		for (; v < len; v ++) {
 			uint32_t z;
 
