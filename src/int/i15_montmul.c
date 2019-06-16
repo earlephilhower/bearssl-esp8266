@@ -25,7 +25,7 @@
 #include "inner.h"
 
 /* see inner.h */
-__attribute__((optimize("-O3"))) void
+void
 br_i15_montymul(uint16_t *d, const uint16_t *x, const uint16_t *y,
 	const uint16_t *m, uint16_t m0i)
 {
@@ -136,7 +136,6 @@ loop%=:                                                            \n\
 		v = len4;
 #else
 		r = 0;
-#ifdef ESP8266
 		const uint16_t *py;
 		const uint16_t *pm;
 
@@ -294,27 +293,6 @@ loop%=:                                                            \n\
 				d[v + 3] = z & 0x7FFF;
 			}
 		}
-#else // ESP8266
-		for (v = 0; v < len4; v += 4) {
-			uint32_t z;
-			z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
-				+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
-			r = z >> 15;
-			d[v + 0] = z & 0x7FFF;
-			z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
-				+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
-			r = z >> 15;
-			d[v + 1] = z & 0x7FFF;
-			z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
-				+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
-			r = z >> 15;
-			d[v + 2] = z & 0x7FFF;
-			z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
-				+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
-			r = z >> 15;
-			d[v + 3] = z & 0x7FFF;
-		}
-#endif	// ESP8266
 #endif  // BR_ARMEL_CORTEXM_GCC
 		for (; v < len; v ++) {
 			uint32_t z;
