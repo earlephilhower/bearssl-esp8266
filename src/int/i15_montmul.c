@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2017 Thomas Pornin <pornin@bolet.org>
  *
- * Permission is hereby granted, free of charge, to any person obtaining 
+ * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
  * without limitation the rights to use, copy, modify, merge, publish,
@@ -9,12 +9,12 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be 
+ * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
@@ -136,27 +136,164 @@ loop%=:                                                            \n\
 		v = len4;
 #else
 		r = 0;
-		for (v = 0; v < len4; v += 4) {
-			uint32_t z;
+		const uint16_t *py;
+		const uint16_t *pm;
 
-			z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
-				+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
-			r = z >> 15;
-			d[v + 0] = z & 0x7FFF;
-			z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
-				+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
-			r = z >> 15;
-			d[v + 1] = z & 0x7FFF;
-			z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
-				+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
-			r = z >> 15;
-			d[v + 2] = z & 0x7FFF;
-			z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
-				+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
-			r = z >> 15;
-			d[v + 3] = z & 0x7FFF;
+		py = &y[0];				// addresses of both arrays that will be scanned as uint16_t
+		pm = &m[0];
+		int py_unaligned = (((int)py) & 2) != 0;
+		int pm_unaligned = (((int)pm) & 2) != 0;
+		uint32_t ty, tm;	// 32 bits buffers
+		if (!py_unaligned && !pm_unaligned) {
+			// both are aligned to 32 bits, we always skip the first 16 bits
+			ty = *(uint32_t*)py;		// pre-load with 32 bits value, next value will be loaded at end of loop iteration
+			tm = *(uint32_t*)pm;
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;		// we define 4 variables for easy reading
+				uint16_t m1, m2, m3, m4;		// but optimizer will collapse them into 1
+
+				uint32_t z;
+
+				y1 = ty >> 16;		// v+1, get upper 16 bits current 32 bits
+				m1 = tm >> 16;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y2 = ty;											// get lower 16 bits
+				tm = *(uint32_t*)(pm = pm + 2);
+				m2 = tm;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				y3 = ty >> 16;
+				m3 = tm >> 16;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y4 = ty;											// get lower 16 bits
+				tm = *(uint32_t*)(pm = pm + 2);
+				m4 = tm;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
+		} else if (!py_unaligned && pm_unaligned) {
+			pm--;		// we decrement by 1 because will increment by 2 at beginning of loop
+			ty = *(uint32_t*)py;		// pre-load with 32 bits value
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;
+				uint16_t m1, m2, m3, m4;
+				uint32_t z;
+
+				y1 = ty >> 16;		// +1
+				tm = *(uint32_t*)(pm = pm + 2);
+				m1 = tm;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y2 = ty;
+				m2 = tm >> 16;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				y3 = ty >> 16;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m3 = tm;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y4 = ty;
+				m4 = tm >> 16;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
+		} else if (py_unaligned && !pm_unaligned) {		// buggy
+			// py unaligned, pm aligned
+			py--;
+			tm = *(uint32_t*)pm;
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;
+				uint16_t m1, m2, m3, m4;
+				uint32_t z;
+
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y1 = ty;
+				m1 = tm >> 16;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				y2 = ty >> 16;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m2 = tm;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y3 = ty;
+				m3 = tm >> 16;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				y4 = ty >> 16;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m4 = tm;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
+		} else { // if (py_unaligned && pm_unaligned) {
+			// py unaligned, pm unaligned
+			py--;
+			pm--;
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;
+				uint16_t m1, m2, m3, m4;
+				uint32_t z;
+
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y1 = ty;		// +1
+				tm = *(uint32_t*)(pm = pm + 2);
+				m1 = tm;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				y2 = ty >> 16;
+				m2 = tm >> 16;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y3 = ty;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m3 = tm;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				y4 = ty >> 16;
+				m4 = tm >> 16;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
 		}
-#endif
+#endif  // BR_ARMEL_CORTEXM_GCC
 		for (; v < len; v ++) {
 			uint32_t z;
 
