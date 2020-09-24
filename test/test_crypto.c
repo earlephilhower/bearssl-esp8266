@@ -9228,7 +9228,7 @@ test_ECDSA_i15(void)
 		&br_ecdsa_i15_sign_raw, &br_ecdsa_i15_vrfy_raw, 0);
 	printf(" [asn1]");
 	fflush(stdout);
-	test_ECDSA_KAT(&br_ec_prime_i31,
+	test_ECDSA_KAT(&br_ec_prime_i15,
 		&br_ecdsa_i15_sign_asn1, &br_ecdsa_i15_vrfy_asn1, 1);
 	printf(" done.\n");
 	fflush(stdout);
