@@ -370,6 +370,9 @@ verify_CV_sig(br_ssl_server_context *ctx, size_t sig_len)
 	return 0;
 }
 
+/* State machine should be squeezed for size, not performance critical */
+#pragma GCC optimize ("Os")
+
 }
 
 \ =======================================================================

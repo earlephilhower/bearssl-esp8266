@@ -395,6 +395,9 @@ make_client_sign(br_ssl_client_context *ctx)
 		ctx->eng.pad, sizeof ctx->eng.pad);
 }
 
+/* State machine should be squeezed for size, not performance critical */
+#pragma GCC optimize ("Os")
+
 
 
 static const unsigned char t0_datablock[] PROGMEM = {

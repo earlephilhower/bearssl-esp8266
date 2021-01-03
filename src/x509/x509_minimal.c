@@ -158,7 +158,7 @@ void br_x509_minimal_run(void *t0ctx);
  *     -- Extensions: extension values are processed in due order.
  *
  *        -- Basic Constraints: for all certificates except EE, must be
- *        present, indicate a CA, and have a path legnth compatible with
+ *        present, indicate a CA, and have a path length compatible with
  *        the chain length so far.
  *
  *        -- Key Usage: for the EE, if present, must allow signatures
@@ -489,6 +489,8 @@ static int check_single_trust_anchor_CA(br_x509_minimal_context *ctx,
         return 0;
 }
 
+/* State machine should be squeezed for size, not performance critical */
+#pragma GCC optimize ("Os")
 
 
 

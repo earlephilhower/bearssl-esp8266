@@ -100,6 +100,9 @@ br_pkey_decoder_push(br_pkey_decoder_context *ctx,
 	br_pkey_decoder_run(&ctx->cpu);
 }
 
+/* State machine should be squeezed for size, not performance critical */
+#pragma GCC optimize ("Os")
+
 
 
 static const unsigned char t0_datablock[] PROGMEM = {

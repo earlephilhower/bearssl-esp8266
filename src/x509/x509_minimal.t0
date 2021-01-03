@@ -437,6 +437,8 @@ static int check_single_trust_anchor_CA(br_x509_minimal_context *ctx,
         return 0;
 }
 
+/* State machine should be squeezed for size, not performance critical */
+#pragma GCC optimize ("Os")
 
 }
 
