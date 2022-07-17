@@ -207,6 +207,24 @@ seeder_esp8266(const br_prng_class **ctx)
 }
 #endif
 
+#ifdef BR_USE_PICO_RAND
+extern uint32_t __picoRand();
+static int
+seeder_pico(const br_prng_class **ctx)
+{
+        uint32_t tmp[32 / sizeof(uint32_t)];
+        size_t i;
+
+        for (i=0; i<sizeof(tmp)/sizeof(tmp[0]); i++) {
+                tmp[i] = __picoRand();
+        }
+
+        (*ctx)->update(ctx, tmp, sizeof tmp);
+        return 1;
+}
+
+#endif
+
 /*
  * An aggregate seeder that uses RDRAND, and falls back to an OS-provided
  * source if RDRAND fails.
@@ -216,7 +234,9 @@ static int
 seeder_rdrand_with_fallback(const br_prng_class **ctx)
 {
 	if (!seeder_rdrand(ctx)) {
-#if BR_USE_GETENTROPY
+#if BR_USE_PICO
+                return seeder_pico(ctx);
+#elif BR_USE_GETENTROPY
 		return seeder_getentropy(ctx);
 #elif BR_USE_URANDOM
 		return seeder_urandom(ctx);
@@ -249,7 +269,12 @@ br_prng_seeder_system(const char **name)
 #endif
 	}
 #endif
-#if BR_USE_GETENTROPY
+#if BR_USE_PICO_RAND
+        if (name != NULL) {
+                *name = "pico";
+        }
+        return &seeder_pico;
+#elif BR_USE_GETENTROPY
 	if (name != NULL) {
 		*name = "getentropy";
 	}
